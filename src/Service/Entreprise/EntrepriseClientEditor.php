@@ -62,6 +62,14 @@ final class EntrepriseClientEditor
             currentStatus: $membership?->getStatus() ?? UtilisateurEntite::STATUS_INVITED,
             futureRoles: $roles, futureStatus: $status, excludeUtilisateurEntiteId: $membership?->getId(),
         );
+        // A legacy employer link also grants portal access once the company role is added.
+        // Preserve that employer as a trainee association instead of granting it a new mandate.
+        $employer = $account->getEntreprise();
+        if (!$membership?->hasRole(UtilisateurEntite::TENANT_ENTREPRISE)
+            && $employer?->getEntite()?->getId() === $tenant->getId()) {
+            $account->addEntreprisesAssociee($employer);
+            $account->setEntreprise(null);
+        }
         $membership ??= (new UtilisateurEntite())->setUtilisateur($account)->setEntite($tenant)->setCreateur($actor);
         $membership->setRoles($roles)->setStatus($status);
         $company->setRepresentant($account);

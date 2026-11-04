@@ -316,7 +316,7 @@
     }
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
-  <link rel="stylesheet" href="{{ asset('dist/css/entreprise-editor.css') }}?v=1">
+  <link rel="stylesheet" href="{{ asset('dist/css/entreprise-editor.css') }}?v=2">
 {% endblock %}
 
 {% block body %}
@@ -327,27 +327,23 @@
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
-          <div class="se-eyebrow">RÉPERTOIRE ENTREPRISES</div>
+          <div class="se-eyebrow">RELATION CLIENT</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-buildings me-2" style="color:var(--theme-color-secondaire)"></i>
-            {{ is_edit ? 'Modifier une entreprise' : 'Créer une entreprise' }}
+            {{ is_edit ? 'Votre fiche entreprise' : 'Nouvelle entreprise cliente' }}
           </h2>
 
           <div class="opacity-75 mt-1">
             {{ is_edit
-              ? 'Mettre à jour l’identité, la facturation, les coordonnées et le logo.'
-              : 'Créer une entreprise et définir ses informations de facturation, de contact et son logo.'
+              ? 'Retrouvez les coordonnées, le représentant et les utilisateurs de votre client.'
+              : 'Commencez par le nom de votre client. Ajoutez son représentant maintenant ou quand vous le connaîtrez.'
             }}
           </div>
 
           <div class="d-flex flex-wrap gap-2 mt-3">
-            <span class="chip"><i class="bi bi-buildings"></i> Entreprise</span>
-            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
-            <span class="chip"><i class="bi bi-pencil-square"></i> {{ is_edit ? 'Mode édition' : 'Mode création' }}</span>
-            <span class="chip">
-              <i class="bi bi-clock-history"></i>
-              <span id="hero-last-refresh">—</span>
-            </span>
+            <span class="chip"><i class="bi bi-receipt"></i> Facturation</span>
+            <span class="chip"><i class="bi bi-pen"></i> Conventions</span>
+            <span class="chip"><i class="bi bi-folder2-open"></i> Documents des stagiaires</span>
           </div>
         </div>
 
@@ -365,9 +361,11 @@
   </div>
 
   <nav class="se-nav" aria-label="Rubriques de l’entreprise">
-    <a href="#entreprise-logo"><span>01</span> Logo</a>
-    <a href="#entreprise-adresse"><span>02</span> Adresse</a>
-    <a href="#entreprise-identite"><span>03</span> Identité & facturation</a>
+    <a href="#entreprise-identite"><span>01</span> Entreprise</a>
+    <a href="#entreprise-adresse"><span>02</span> Coordonnées</a>
+    <a href="#entreprise-contact"><span>03</span> Représentant</a>
+    <a href="#entreprise-utilisateurs"><span>04</span> Utilisateurs</a>
+    <a href="#entreprise-logo"><i class="bi bi-image"></i> Logo</a>
   </nav>
 
   {% include 'flagMessage.html.twig' %}
@@ -383,87 +381,14 @@
   <div class="row g-4">
     <div class="col-lg-8">
 
-      {# ===== Logo ===== #}
-      <div class="cardx mb-4" id="entreprise-logo">
-        <div class="cardx-h">
-          <h5 class="cardx-title"><i class="bi bi-image text-warning"></i> Logo</h5>
-          <span class="chip">Étape 1</span>
-        </div>
-
-        <div class="p-3 p-md-4">
-          <div
-            class="logo-dropzone"
-            id="logo-dropzone"
-            role="button"
-            tabindex="0"
-          >
-            <div id="logo-empty-state" class="logo-dropzone-main {{ hasCurrentLogo ? 'd-none-important' : '' }}">
-              <div class="logo-dropzone-icon">
-                <i class="bi bi-cloud-arrow-up"></i>
-              </div>
-              <div class="fw-bold">Glissez-déposez votre logo ici</div>
-              <div class="text-muted small">
-                ou cliquez pour sélectionner une image<br>
-                JPG, PNG, WEBP, SVG — max 4 Mo
-              </div>
-              <div class="mt-2">
-                <span class="btn btn-ghost btn-sm">
-                  <i class="bi bi-folder2-open me-1"></i> Choisir un fichier
-                </span>
-              </div>
-            </div>
-
-            <div id="logo-preview-wrap" class="logo-preview-wrap {{ hasCurrentLogo ? 'is-visible' : '' }}">
-              <div class="logo-preview-box">
-                <img
-                  id="logo-preview-img"
-                  src="{{ currentLogoUrl }}"
-                  alt="Aperçu du logo"
-                >
-              </div>
-
-              <div class="logo-meta">
-                <div class="small text-muted">Logo sélectionné</div>
-                <div class="filename" id="logo-filename">
-                  {{ entreprise.logo ?: 'Logo actuel' }}
-                </div>
-
-                <div class="logo-actions">
-                  <button type="button" class="btn btn-ghost btn-sm" id="logo-change-btn">
-                    <i class="bi bi-arrow-repeat me-1"></i> Remplacer
-                  </button>
-
-                  <button type="button" class="btn btn-outline-danger btn-sm" id="logo-remove-btn">
-                    <i class="bi bi-trash me-1"></i> Supprimer
-                  </button>
-                </div>
-
-                <div class="form-text mt-2">
-                  Tu peux remplacer le logo actuel ou le supprimer.
-                </div>
-              </div>
-            </div>
-
-            {{ form_widget(form.logoFile) }}
-          </div>
-
-          <div class="mt-2">
-            {{ form_errors(form.logoFile) }}
-          </div>
-
-          <div class="d-none">
-            {{ form_row(form.deleteLogo) }}
-          </div>
-        </div>
-      </div>
-
       {# ===== Identité ===== #}
       <div class="cardx mb-4" id="entreprise-identite">
         <div class="cardx-h">
-          <h5 class="cardx-title"><i class="bi bi-building text-warning"></i> Identité</h5>
-          <span class="chip">Étape 2</span>
+          <h5 class="cardx-title"><i class="bi bi-building text-warning"></i> L’entreprise cliente</h5>
+          <span class="chip">Essentiel</span>
         </div>
         <div class="p-3 p-md-4">
+          <p class="company-section-intro">Seule la raison sociale est nécessaire pour créer la fiche. Vous pourrez compléter les autres informations plus tard.</p>
           {{ form_row(form.raisonSociale) }}
 
           <div class="row g-3">
@@ -478,7 +403,7 @@
           <hr class="my-4">
 
           <h6 class="fw-bold mb-3">
-            <i class="bi bi-envelope-at me-2 text-warning"></i> Emails
+            <i class="bi bi-envelope-at me-2 text-warning"></i> Facturation & contact
           </h6>
 
           <div class="row g-3">
@@ -487,18 +412,6 @@
             </div>
             <div class="col-md-6">
               {{ form_row(form.email) }}
-            </div>
-          </div>
-
-          <hr class="my-4">
-
-          <h6 class="fw-bold mb-3">
-            <i class="bi bi-person-badge me-2 text-warning"></i> Représentant
-          </h6>
-
-          <div class="row g-3">
-            <div class="col-12">
-              {{ form_row(form.representant) }}
             </div>
           </div>
 
@@ -512,11 +425,11 @@
       </div>
 
       {# ===== Adresse ===== #}
-      <div class="cardx mb-4" id="entreprise-adresse">
-        <div class="cardx-h">
+      <details class="cardx mb-4 company-logo-details" id="entreprise-adresse" {% if is_edit or form.adresse.vars.value or form.codePostal.vars.value or form.ville.vars.value or not form.vars.valid %}open{% endif %}>
+        <summary class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-geo-alt text-warning"></i> Adresse</h5>
-          <span class="chip">Étape 3</span>
-        </div>
+          <span class="chip">Facultatif</span>
+        </summary>
 
         <div class="p-3 p-md-4">
           <div class="soft-box mb-3">
@@ -583,9 +496,144 @@
             </div>
           </div>
         </div>
-      </div>
+      </details>
 
       
+
+      <section class="cardx mb-4" id="entreprise-contact" data-company-contact data-lookup-url="{{ path('app_administrateur_entreprise_lookup_contact', {entite: entite.id}) }}">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-person-badge text-warning"></i> Le représentant de votre client</h5>
+          <span class="chip">Facultatif</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <p class="company-section-intro">La personne qui accède à l’espace entreprise pour suivre les factures, signer les conventions et retrouver les documents des stagiaires.</p>
+          <fieldset class="company-contact-choices">
+            <legend class="visually-hidden">Comment souhaitez-vous ajouter le représentant ?</legend>
+            {% set contact_choices = {
+              later: {icon: 'clock', title: 'Plus tard', detail: 'Je ne connais pas encore mon interlocuteur.'},
+              existing: {icon: 'person-check', title: 'Choisir un utilisateur', detail: 'Il possède déjà un compte dans mon organisme.'},
+              new: {icon: 'person-plus', title: 'Créer un contact', detail: 'Je renseigne ses coordonnées ici.'}
+            } %}
+            {% for choice in form.contactMode %}
+              {% set item = contact_choices[choice.vars.value] %}
+              <label class="company-contact-choice" for="{{ choice.vars.id }}">
+                {{ form_widget(choice) }}
+                <i class="bi bi-{{ item.icon }}" aria-hidden="true"></i>
+                <strong>{{ item.title }}</strong><span>{{ item.detail }}</span>
+              </label>
+            {% endfor %}
+          </fieldset>
+          {{ form_errors(form.contactMode) }}
+          <div class="company-contact-panel company-later-note" data-contact-panel="later">
+            <i class="bi bi-check-circle" aria-hidden="true"></i>
+            <div><strong>Votre fiche client peut être créée sans représentant.</strong><p>Vous pouvez déjà y rattacher des utilisateurs. Ajoutez un représentant plus tard pour lui donner accès à l’espace entreprise.</p></div>
+          </div>
+          <fieldset class="company-contact-panel" data-contact-panel="existing">
+            <legend class="visually-hidden">Utilisateur existant</legend>
+            {{ form_row(form.representant) }}
+            <p class="form-text mb-0">Ses informations et ses rôles actuels sont conservés. Le rôle Entreprise sera ajouté dans votre organisme.</p>
+          </fieldset>
+          <fieldset class="company-contact-panel" data-contact-panel="new">
+            <legend class="visually-hidden">Coordonnées du nouveau contact</legend>
+            {{ form_row(form.newContact.email) }}
+            <div class="company-lookup-status" data-contact-status role="status" aria-live="polite">Saisissez son e-mail : nous vérifions d’abord si son compte existe déjà.</div>
+            <div data-contact-reuse>{{ form_row(form.newContact.reuse) }}</div>
+            <div class="row g-3" data-contact-fields>
+              <div class="col-md-4">{{ form_row(form.newContact.civilite) }}</div>
+              <div class="col-md-4">{{ form_row(form.newContact.prenom) }}</div>
+              <div class="col-md-4">{{ form_row(form.newContact.nom) }}</div>
+              <div class="col-md-6">{{ form_row(form.newContact.telephone) }}</div>
+            </div>
+            <p class="form-text mt-3 mb-0"><i class="bi bi-info-circle me-1"></i>Le compte sera créé avec la fiche client. Aucun e-mail n’est envoyé automatiquement. Vous pourrez ensuite envoyer un lien de définition du mot de passe depuis la fiche utilisateur.</p>
+          </fieldset>
+        </div>
+      </section>
+
+      <section class="cardx mb-4" id="entreprise-utilisateurs">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-people text-warning"></i> Les utilisateurs rattachés</h5>
+          <span class="chip">Facultatif</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <p class="company-section-intro">Retrouvez ici les salariés et stagiaires liés à cette entreprise, même si vous ne connaissez pas encore son représentant.</p>
+          {{ form_row(form.associatedUsers) }}
+          <div class="company-association-note"><i class="bi bi-person-lock" aria-hidden="true"></i><span>Ce rattachement ne donne pas accès aux factures ni aux documents des autres stagiaires. Les inscriptions et les autres entreprises de chaque utilisateur sont conservées.</span></div>
+        </div>
+      </section>
+
+      {# ===== Logo ===== #}
+      <details class="cardx mb-4 company-logo-details" id="entreprise-logo" {% if hasCurrentLogo or form.logoFile.vars.errors|length %}open{% endif %}>
+        <summary class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-image text-warning"></i> Logo</h5>
+          <span class="chip">Facultatif</span>
+        </summary>
+
+        <div class="p-3 p-md-4">
+          <div
+            class="logo-dropzone"
+            id="logo-dropzone"
+            role="button"
+            tabindex="0"
+          >
+            <div id="logo-empty-state" class="logo-dropzone-main {{ hasCurrentLogo ? 'd-none-important' : '' }}">
+              <div class="logo-dropzone-icon">
+                <i class="bi bi-cloud-arrow-up"></i>
+              </div>
+              <div class="fw-bold">Glissez-déposez votre logo ici</div>
+              <div class="text-muted small">
+                ou cliquez pour sélectionner une image<br>
+                JPG, PNG, WEBP, SVG — max 4 Mo
+              </div>
+              <div class="mt-2">
+                <span class="btn btn-ghost btn-sm">
+                  <i class="bi bi-folder2-open me-1"></i> Choisir un fichier
+                </span>
+              </div>
+            </div>
+
+            <div id="logo-preview-wrap" class="logo-preview-wrap {{ hasCurrentLogo ? 'is-visible' : '' }}">
+              <div class="logo-preview-box">
+                <img
+                  id="logo-preview-img"
+                  src="{{ currentLogoUrl }}"
+                  alt="Aperçu du logo"
+                >
+              </div>
+
+              <div class="logo-meta">
+                <div class="small text-muted">Logo sélectionné</div>
+                <div class="filename" id="logo-filename">
+                  {{ entreprise.logo ?: 'Logo actuel' }}
+                </div>
+
+                <div class="logo-actions">
+                  <button type="button" class="btn btn-ghost btn-sm" id="logo-change-btn">
+                    <i class="bi bi-arrow-repeat me-1"></i> Remplacer
+                  </button>
+
+                  <button type="button" class="btn btn-outline-danger btn-sm" id="logo-remove-btn">
+                    <i class="bi bi-trash me-1"></i> Supprimer
+                  </button>
+                </div>
+
+                <div class="form-text mt-2">
+                  Vous pouvez remplacer le logo actuel ou le supprimer.
+                </div>
+              </div>
+            </div>
+
+            {{ form_widget(form.logoFile) }}
+          </div>
+
+          <div class="mt-2">
+            {{ form_errors(form.logoFile) }}
+          </div>
+
+          <div class="d-none">
+            {{ form_row(form.deleteLogo) }}
+          </div>
+        </div>
+      </details>
 
       <div class="d-flex justify-content-end gap-2 mt-3 mb-3">
         <a href="{{ path('app_administrateur_entreprise_index', { entite: entite.id }) }}" class="btn btn-secondary">
@@ -601,7 +649,7 @@
       <div class="sticky-actions se-summary" data-form-summary>
         <div class="d-flex align-items-center justify-content-between gap-2">
           <div>
-            <div class="fw-bold">Résumé</div>
+            <div class="fw-bold">Votre fiche client</div>
             <div class="small text-muted">Vérifiez les informations avant d’enregistrer.</div>
           </div>
           <span id="resume-valid-pill"
@@ -644,6 +692,9 @@
 
           <hr class="my-2" style="border-color: var(--stroke);">
 
+          <div class="d-flex justify-content-between gap-3 py-1"><span class="text-muted">Représentant</span><span class="fw-semibold text-end" id="resume-contact">À compléter plus tard</span></div>
+          <div class="d-flex justify-content-between gap-3 py-1"><span class="text-muted">Utilisateurs rattachés</span><span class="fw-semibold text-end" id="resume-users">0</span></div>
+          <p class="company-summary-note mt-3">Une fiche peut être enregistrée sans représentant, sans utilisateur rattaché et sans logo.</p>
           <div class="d-grid gap-2 mt-2">
             <button type="submit" class="btn btn-gradient">
               <i class="bi bi-check"></i> {{ is_edit ? 'Enregistrer' : 'Créer' }}
@@ -662,14 +713,15 @@
 </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="{{ asset('dist/js/entreprise-client-editor.js') }}?v=1" defer></script>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const el = document.querySelector('#{{ form.representant.vars.id }}');
-      if (el && !el.tomselect) {
+      if (el && !el.tomselect && typeof TomSelect !== 'undefined') {
         new TomSelect(el, {
           plugins: ['clear_button'],
-          placeholder: 'Choisir un représentant…',
+          placeholder: 'Rechercher par nom ou adresse e-mail…',
           allowEmptyOption: true,
           closeAfterSelect: true,
           maxOptions: 2000,
@@ -736,7 +788,13 @@
         setText($r.cpville, cpville);
         setText($r.pays, $pays?.value);
 
-        const ok = !!(($raison?.value||'').trim());
+        const contactMode = document.querySelector('[name="entreprise[contactMode]"]:checked')?.value;
+        const newEmail = document.querySelector('[name="entreprise[newContact][email]"]');
+        const reuse = document.querySelector('[name="entreprise[newContact][reuse]"]')?.checked;
+        const namesReady = ['prenom', 'nom'].every(name => document.querySelector(`[name="entreprise[newContact][${name}]"]`)?.value.trim());
+        const contactReady = contactMode === 'later' || (contactMode === 'existing' && document.getElementById('{{ form.representant.vars.id }}')?.value)
+          || (contactMode === 'new' && newEmail?.value.trim() && newEmail.validity.valid && (reuse || namesReady));
+        const ok = !!(($raison?.value||'').trim()) && !!contactReady;
         if ($r.pill) {
           if (ok) {
             $r.pill.textContent = '✅ Prêt';
@@ -755,6 +813,8 @@
         el?.addEventListener('change', refresh);
       });
 
+      document.getElementById('entrepriseForm')?.addEventListener('input', refresh);
+      document.getElementById('entrepriseForm')?.addEventListener('change', refresh);
       refresh();
 
       const stamp = document.getElementById('hero-last-refresh');
