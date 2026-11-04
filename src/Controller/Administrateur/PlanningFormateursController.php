@@ -223,7 +223,7 @@ final class PlanningFormateursController extends AbstractController
         'id' => (string)$fo->getId(),
         'title' => trim((string)($u->getNom() ?? '') . ' ' . (string)($u->getPrenom() ?? '')),
         'email' => (string)($u->getEmail() ?? ''),
-        'qualifs' => (string)($fo->getQualificationEngins()?->count() ?? 0),
+        'specialties' => array_values(array_unique(array_filter(array_map('trim', preg_split('/[\r\n,;|]+/', $fo->getCertifications() ?? '') ?: []), static fn (string $label): bool => $label !== '' && $label !== '—'))),
         'sites' => (string)($fo->getSitePreferes()?->count() ?? 0),
       ];
     }

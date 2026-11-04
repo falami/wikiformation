@@ -1259,7 +1259,10 @@ final class UtilisateurController extends AbstractController
 
   private function canEditIdentity(Utilisateur $target, Entite $entite, Utilisateur $actor): bool
   {
-    if ($actor->isSuperAdmin() || $actor->getId() === $target->getId()) {
+    if ($actor->isSuperAdmin()) return true;
+    // Verified identities belong to their holder, not to the managing tenant.
+    if ($target->isVerified()) return false;
+    if ($actor->getId() === $target->getId()) {
       return true;
     }
     if ($target->getEntite() !== null) {

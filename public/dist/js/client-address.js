@@ -11,7 +11,7 @@
   const empty = root.querySelector('[data-address-empty]');
   const caption = root.querySelector('[data-address-caption]');
   const locate = root.querySelector('[data-address-locate]');
-  let map, point, geocoder, timer, suggestionTimer, revision = 0, filling = false;
+  let map, point, geocoder, timer, suggestionTimer, revision = 0, suggestionRevision = 0, filling = false;
   const unavailable = () => {
     status.textContent = 'Les suggestions Google sont indisponibles. Vous pouvez saisir les coordonnées manuellement.';
     locate.disabled = true;
@@ -55,25 +55,60 @@
   async function initialize() {
     try {
       const {AutocompleteSuggestion, AutocompleteSessionToken} = await google.maps.importLibrary('places');
-      const suggestions = document.createElement('datalist');
+      const host = document.createElement('div');
+      host.className = 'client-address-combobox';
+      address.before(host);
+      host.append(address);
+      const suggestions = document.createElement('div');
+      suggestions.className = 'client-address-suggestions';
       suggestions.id = address.id + '-google-suggestions';
-      address.setAttribute('list', suggestions.id);
+      suggestions.setAttribute('role', 'listbox');
+      suggestions.hidden = true;
+      host.append(suggestions);
+      address.removeAttribute('list');
+      address.setAttribute('role', 'combobox');
+      address.setAttribute('aria-autocomplete', 'list');
+      address.setAttribute('aria-controls', suggestions.id);
+      address.setAttribute('aria-expanded', 'false');
       address.setAttribute('autocomplete', 'off');
-      root.querySelector('[data-address-search]').append(suggestions);
-      let predictions = new Map(), sessionToken = new AutocompleteSessionToken();
+      let predictions = new Map(), sessionToken = new AutocompleteSessionToken(), active = -1;
+      function closeSuggestions() {
+        suggestions.hidden = true;
+        address.setAttribute('aria-expanded', 'false');
+        address.removeAttribute('aria-activedescendant');
+        active = -1;
+      }
+      async function choose(prediction) {
+        ++suggestionRevision;
+        clearTimeout(suggestionTimer);
+        closeSuggestions();
+        predictions.clear();
+        suggestions.replaceChildren();
+        await select(prediction);
+        sessionToken = new AutocompleteSessionToken();
+      }
+      address.addEventListener('keydown', event => {
+        const options = [...suggestions.querySelectorAll('[role="option"]')];
+        if (event.key === 'Escape') { ++suggestionRevision; clearTimeout(suggestionTimer); closeSuggestions(); return; }
+        if (suggestions.hidden || !options.length) return;
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          active = (active + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+          options.forEach((option, index) => option.setAttribute('aria-selected', String(index === active)));
+          address.setAttribute('aria-activedescendant', options[active].id);
+          options[active].scrollIntoView({block: 'nearest'});
+        } else if (event.key === 'Enter' && active >= 0) {
+          event.preventDefault();
+          options[active].click();
+        }
+      });
+      address.addEventListener('blur', () => { ++suggestionRevision; clearTimeout(suggestionTimer); closeSuggestions(); });
       status.textContent = 'Saisissez une adresse dans le champ Adresse puis choisissez une proposition Google Maps.';
       address.addEventListener('input', async () => {
         if (filling) return;
         clearTimeout(suggestionTimer);
-        const prediction = predictions.get(address.value);
-        if (prediction) {
-          predictions.clear();
-          suggestions.replaceChildren();
-          await select(prediction);
-          sessionToken = new AutocompleteSessionToken();
-          return;
-        }
-        const version = revision;
+        const version = ++suggestionRevision;
+        closeSuggestions();
         const input = address.value.trim();
         predictions.clear();
         suggestions.replaceChildren();
@@ -81,18 +116,33 @@
         suggestionTimer = setTimeout(async () => {
           try {
             const result = await AutocompleteSuggestion.fetchAutocompleteSuggestions({input, sessionToken, language: 'fr', region: 'fr'});
-            if (version !== revision) return;
+            if (version !== suggestionRevision) return;
             for (const {placePrediction} of result.suggestions) {
               if (!placePrediction) continue;
               const label = placePrediction.text.toString();
               predictions.set(label, placePrediction);
-              const option = document.createElement('option');
-              option.value = label;
+              const option = document.createElement('button');
+              option.type = 'button';
+              option.tabIndex = -1;
+              option.id = suggestions.id + '-' + predictions.size;
+              option.setAttribute('role', 'option');
+              option.setAttribute('aria-selected', 'false');
+              option.textContent = label;
+              option.addEventListener('mousedown', event => event.preventDefault());
+              option.addEventListener('click', () => choose(placePrediction));
               suggestions.append(option);
             }
+            if (predictions.size) {
+              const attribution = document.createElement('div');
+              attribution.className = 'client-address-attribution';
+              attribution.textContent = 'Google Maps';
+              suggestions.append(attribution);
+            }
+            suggestions.hidden = !predictions.size;
+            address.setAttribute('aria-expanded', String(predictions.size > 0));
             status.textContent = predictions.size ? 'Choisissez une proposition Google Maps dans le champ Adresse.' : 'Aucune adresse trouvée. Précisez votre recherche.';
           } catch (_) {
-            if (version === revision) status.textContent = 'Suggestions Google indisponibles. Vérifiez la configuration Google Places ou réessayez votre saisie.';
+            if (version === suggestionRevision) status.textContent = 'Suggestions Google indisponibles. Vérifiez la configuration Google Places ou réessayez votre saisie.';
           }
         }, 250);
       });

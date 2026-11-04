@@ -397,11 +397,15 @@ final class TrainerWorkflowTest extends KernelTestCase
 
     public function testAdminAndTrainerCalendarsUseTheEffectiveTrainerOnly(): void
     {
+        $this->morning->setCertifications("Excel\nWord\nExcel");
+        $this->em->flush();
         $client = $this->client();
         $range = ['start' => '2026-10-01', 'end' => '2026-11-01'];
         $client->request('GET', $this->url('app_administrateur_planning_formateurs_data'), $range);
         self::assertSame(200, $client->getResponse()->getStatusCode());
         $json = json_decode($client->getResponse()->getContent(), true);
+        $resource = array_values(array_filter($json['resources'], fn (array $row): bool => $row['id'] === (string) $this->morning->getId()))[0];
+        self::assertSame(['Excel', 'Word'], $resource['specialties']);
         self::assertCount(2, $json['events']);
         $client->request('GET', $this->url('app_administrateur_planning_sessions_data'), $range + ['formateur' => $this->afternoon->getId()]);
         $json = json_decode($client->getResponse()->getContent(), true);

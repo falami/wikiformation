@@ -612,7 +612,9 @@
       email.textContent = resource.extendedProps.email || 'Email non renseigné';
       const meta = document.createElement('small');
       meta.className = 'trainer-meta';
-      meta.textContent = (resource.extendedProps.qualifs ?? 0) + ' qualification(s) · ' + (resource.extendedProps.sites ?? 0) + ' site(s)';
+      const specialties = resource.extendedProps.specialties || [];
+      meta.textContent = specialties.length + ' spécialité' + (specialties.length > 1 ? 's' : '') + ' · ' + (resource.extendedProps.sites ?? 0) + ' site(s)';
+      meta.title = specialties.join(', ');
       details.append(name, email, meta);
       wrap.append(avatar, details);
       return {domNodes: [wrap]};

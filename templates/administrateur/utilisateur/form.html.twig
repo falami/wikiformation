@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
 
-  <link rel="stylesheet" href="{{ asset('dist/css/client-address.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/client-address.css') }}?v=3">
   <style>
     :root{
     --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
@@ -155,6 +155,49 @@
   .ts-dropdown{ z-index: 9999 !important; }
   .ts-wrapper.focus, .ts-wrapper.dropdown-active{ z-index: 9999; }
   
+
+  /* Company picker: scoped even when its dropdown is attached to body. */
+  .company-picker .ts-control{
+    min-height:56px !important; padding:10px 40px 10px 12px !important;
+    gap:8px; background:#fff; box-shadow:0 2px 5px #20364605;
+  }
+  .company-picker .ts-control > input{font-size:14px; min-width:180px !important;}
+  .company-picker.multi .ts-control > .item{
+    background:#edf3f7; color:#233e50; border:1px solid #dbe5ed;
+    border-radius:9px; padding:6px 9px; margin:0; font-weight:600; font-size:13px;
+    max-width:100%; overflow-wrap:anywhere;
+  }
+  .company-picker.plugin-remove_button .item .remove{
+    border:0; border-radius:5px; margin-left:8px; color:#657c8c;
+  }
+  .company-picker.plugin-remove_button .item .remove:hover{background:#dce7ee;color:#203646;}
+  .company-picker-dropdown{
+    border:1px solid #dce5ed; border-radius:16px; padding:7px;
+    box-shadow:0 16px 40px #20364620,0 3px 8px #20364608;
+    background:#fff; overflow:hidden; margin-top:8px;
+  }
+  .company-picker-dropdown .ts-dropdown-content{max-height:300px; padding:0; overscroll-behavior:contain;}
+  .company-picker-dropdown .option{
+    display:flex; align-items:center; gap:12px; padding:12px;
+    border-radius:10px; color:#243e50; font-size:14px; line-height:1.4;
+  }
+  .company-picker-dropdown .option.active{background:#f0f5f8;color:#172f40;}
+  .company-picker-dropdown .company-avatar{
+    flex:0 0 38px; height:38px; display:grid; place-items:center;
+    border:1px solid #e8dfcb; background:#faf6ed; color:#94702e;
+    border-radius:10px; font-size:12px; font-weight:700;
+  }
+  .company-picker-dropdown .company-name{font-weight:600;overflow-wrap:anywhere;min-width:0;}
+  .company-picker-dropdown .highlight{background:#f5e6bb;border-radius:3px;color:inherit;}
+  .company-picker-dropdown .no-results{padding:20px 14px;color:#657b8b;font-size:14px;}
+  .company-picker-dropdown .company-picker-heading{
+    padding:9px 12px 12px;color:#718493;font-size:11px;font-weight:700;
+    letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid #edf1f5;margin-bottom:5px;
+  }
+  @media(max-width:575px){
+    .company-picker .ts-control > input{min-width:100px !important;}
+    .company-picker-dropdown .option{padding:10px 8px;}
+  }
 
   /* ===== Sticky actions (col droite) ===== */
   .sticky-actions{
@@ -431,7 +474,7 @@
         </div>
         <div class="p-3 p-md-4">
           {% if identityLocked|default(false) %}
-            <div class="alert alert-info" role="status"><i class="bi bi-shield-lock me-2" aria-hidden="true"></i>Ce compte est géré par un autre organisme. Son identité doit être corrigée par son titulaire ou par l’organisme d’origine.</div>
+            <div class="alert alert-info" role="status"><i class="bi bi-shield-lock me-2" aria-hidden="true"></i>L’identité de ce compte est protégée. Pour un compte vérifié, seul un super administrateur peut modifier les informations personnelles. Les rôles et les liens avec votre organisme restent gérables.</div>
           {% elseif locked %}
             <div class="alert alert-light border" role="status"><i class="bi bi-person-check me-2" aria-hidden="true"></i>Vous pouvez corriger l’identité de cette personne. Ses inscriptions sont conservées. Une correction de l’email met aussi à jour son adresse de connexion.</div>
           {% endif %}
@@ -972,7 +1015,28 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   const entrepriseTS = initTomSelectOn(entrepriseEl, {
-    plugins: ['remove_button'], maxItems: null, closeAfterSelect: false,
+    plugins: {remove_button: {title: 'Retirer cette entreprise'}},
+    maxItems: null, closeAfterSelect: false, hideSelected: true,
+    placeholder: 'Rechercher une entreprise…',
+    render: {
+      option(data, escape) {
+        const name = String(data.text || '');
+        const initials = name.trim().split(/\s+/).slice(0, 2).map(word => word[0] || '').join('').toLocaleUpperCase('fr');
+        return '<div><span class="company-avatar" aria-hidden="true">' + escape(initials) + '</span><span class="company-name">' + escape(name) + '</span></div>';
+      },
+      no_results() {
+        return '<div class="no-results">Aucune entreprise trouvée. Essayez un autre nom.</div>';
+      }
+    },
+    onInitialize() {
+      this.wrapper.classList.add('company-picker');
+      this.dropdown.classList.add('company-picker-dropdown');
+      const heading = document.createElement('div');
+      heading.className = 'company-picker-heading';
+      heading.textContent = 'Associer une entreprise';
+      heading.setAttribute('aria-hidden', 'true');
+      this.dropdown.prepend(heading);
+    }
   });
 
   // Tous les select multiples du bloc formateur
@@ -1069,12 +1133,79 @@ document.addEventListener('DOMContentLoaded', function () {
   rolesTS?.on('change', () => { refreshBlocks(); refreshResume(); });
   entrepriseTS?.on('change', refreshResume);
 
+  const companyFields = {
+    {% for child in form.entrepriseData %}
+      {{ child.vars.name|json_encode|raw }}: document.getElementById({{ child.vars.id|json_encode|raw }}),
+    {% endfor %}
+  };
+  const companyStatus = document.createElement('p');
+  companyStatus.className = 'small text-muted mb-3';
+  companyStatus.setAttribute('role', 'status');
+  entrepriseCard?.querySelector('.soft-box')?.prepend(companyStatus);
+  let companyRequest = 0;
+  function fillCompany(data) {
+    Object.entries(companyFields).forEach(([name, field]) => {
+      if (!field || field.disabled || name.startsWith('_')) return;
+      const value = data[name === 'representant' ? 'representantId' : name] ?? '';
+      if (field.tomselect) field.tomselect.setValue(String(value), true);
+      else field.value = String(value);
+      field.dispatchEvent(new Event('input', {bubbles: true}));
+      field.dispatchEvent(new Event('change', {bubbles: true}));
+    });
+  }
+  async function loadSelectedCompany() {
+    const request = ++companyRequest;
+    const ids = Array.from(entrepriseEl?.selectedOptions || []).map(option => option.value).filter(Boolean);
+    if (ids.length !== 1) {
+      fillCompany({});
+      companyStatus.textContent = ids.length > 1
+        ? 'Plusieurs entreprises sont associées. Sélectionnez une seule entreprise pour afficher ses informations.'
+        : 'Sélectionnez une entreprise pour préremplir ses informations.';
+      return;
+    }
+    fillCompany({});
+    companyStatus.textContent = 'Chargement des informations de l’entreprise…';
+    try {
+      const url = {{ path('app_administrateur_utilisateur_entreprise_json', {entite: entite.id, id: 0})|json_encode|raw }}.replace('/entreprise/0/json', '/entreprise/' + encodeURIComponent(ids[0]) + '/json');
+      const response = await fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+      if (!response.ok) throw new Error('Chargement impossible');
+      const result = await response.json();
+      if (!result.ok) throw new Error('Entreprise indisponible');
+      if (request !== companyRequest) return;
+      fillCompany(result.data);
+      companyStatus.textContent = 'Informations préremplies depuis l’entreprise sélectionnée.';
+    } catch (error) {
+      if (request !== companyRequest) return;
+      companyStatus.textContent = 'Impossible de charger les informations de l’entreprise. Retirez puis sélectionnez à nouveau l’entreprise pour réessayer.';
+    }
+  }
+  entrepriseEl?.addEventListener('change', loadSelectedCompany);
+
+
   [prenomEl, nomEl, emailEl, telEl, villeEl].forEach(el => {
     el?.addEventListener('input', refreshResume);
     el?.addEventListener('change', refreshResume);
   });
   verifiedEl?.addEventListener('change', refreshResume);
 
+  // The form uses novalidate: explicitly report the phone error before submission.
+  if (telEl && !telEl.disabled) {
+    const validatePhone = () => {
+      const value = telEl.value.trim();
+      const valid = !value || /^(?:0[1-9](?:[ .\-]?[0-9]){8}|(?:\+|00)[1-9](?:[ .\-]?[0-9]){7,14})$/.test(value);
+      telEl.setCustomValidity(valid ? '' : 'Saisissez un téléphone valide : 06 12 34 56 78 ou +33 6 12 34 56 78.');
+      telEl.setAttribute('aria-invalid', String(!valid));
+      return valid;
+    };
+    telEl.addEventListener('input', validatePhone);
+    telEl.form?.addEventListener('submit', event => {
+      if (!validatePhone()) {
+        event.preventDefault();
+        telEl.focus();
+        telEl.reportValidity();
+      }
+    });
+  }
   refreshBlocks();
   refreshResume();
   const errors = document.getElementById('user-form-errors');
@@ -1094,5 +1225,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
 {% block javascripts_bottom %}
   {{ parent() }}
-  <script src="{{ asset('dist/js/client-address.js') }}?v=2"></script>
+  <script src="{{ asset('dist/js/client-address.js') }}?v=3"></script>
 {% endblock %}

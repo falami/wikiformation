@@ -13,6 +13,7 @@ use Symfony\Component\Form\Extension\Core\Type\{
     ChoiceType,
     EmailType,
     TextType,
+    TelType,
     FileType,
     HiddenType
 };
@@ -71,10 +72,11 @@ final class UtilisateurType extends AbstractType
             ])
             ->add('email', EmailType::class, [
                 'disabled' => $emailLocked,
-                'help' => $emailLocked ? 'Ce compte appartient à un autre organisme : son adresse est protégée.' : 'Cette adresse sera utilisée pour la connexion et les prochains emails. Les inscriptions sont conservées.',
+                'help' => $emailLocked ? 'L’identité de ce compte est protégée.' : 'Cette adresse sera utilisée pour la connexion et les prochains emails. Les inscriptions sont conservées.',
                 'attr' => ['class' => 'form-control']
             ])
             ->add('photo', FileType::class, [
+                'disabled' => $identityLocked,
                 'mapped' => false,
                 'required' => false,
                 'label'  => 'Photo de profil',
@@ -91,6 +93,7 @@ final class UtilisateurType extends AbstractType
                 ],
             ])
             ->add('removePhoto', HiddenType::class, [
+                'disabled' => $identityLocked,
                 'mapped' => false,
                 'required' => false,
                 'data' => '0',
@@ -111,23 +114,34 @@ final class UtilisateurType extends AbstractType
                 'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('e')->where('e.entite = :entite')->setParameter('entite', $entite)->orderBy('e.raisonSociale', 'ASC'),
                 'help' => 'Le stagiaire pourra être sélectionné pour les conventions de chacune de ces entreprises.',
             ])
-            ->add('telephone', TextType::class, [
+            ->add('telephone', TelType::class, [
+                'disabled' => $identityLocked,
+                'label' => 'Téléphone',
                 'required' => false,
-                'attr' => ['class' => 'form-control']
+                'constraints' => [new \Symfony\Component\Validator\Constraints\Regex(
+                    pattern: '/\A(?:0[1-9](?:[ .\-]?[0-9]){8}|(?:\+|00)[1-9](?:[ .\-]?[0-9]){7,14})\z/',
+                    message: 'Saisissez un téléphone valide : 06 12 34 56 78 ou +33 6 12 34 56 78.',
+                )],
+                'help' => 'Format français à 10 chiffres ou international avec + ou 00.',
+                'attr' => ['class' => 'form-control', 'inputmode' => 'tel', 'autocomplete' => 'tel', 'maxlength' => 32, 'placeholder' => '06 12 34 56 78']
             ])
             ->add('adresse', TextType::class, [
+                'disabled' => $identityLocked,
                 'required' => false,
                 'attr' => ['class' => 'form-control']
             ])
             ->add('complement', TextType::class, [
+                'disabled' => $identityLocked,
                 'required' => false,
                 'attr' => ['class' => 'form-control']
             ])
             ->add('codePostal', TextType::class, [
+                'disabled' => $identityLocked,
                 'required' => false,
                 'attr' => ['class' => 'form-control']
             ])
             ->add('ville', TextType::class, [
+                'disabled' => $identityLocked,
                 'required' => false,
                 'attr' => ['class' => 'form-control']
             ])

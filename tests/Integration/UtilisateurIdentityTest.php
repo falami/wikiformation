@@ -266,8 +266,35 @@ final class UtilisateurIdentityTest extends KernelTestCase
         self::assertSame(422, $client->getResponse()->getStatusCode());
     }
 
-    public function testEnrolledVerifiedIdentityCanBeCorrectedWithoutChangingAccountOrEnrollments(): void
+    public function testVerifiedIdentityIgnoresForgedPersonalChanges(): void
     {
+        $this->learner->setIsVerified(true)->setTelephone('0612345678')->setAdresse('12 rue Test');
+        $this->em->flush();
+        $id = $this->learner->getId();
+        $client = $this->client();
+        $page = $client->request('GET', $this->editUrl($id));
+        foreach (['civilite','prenom','nom','email','telephone','adresse','complement','codePostal','ville','dateNaissance','photo','removePhoto'] as $field) {
+            self::assertCount(1, $page->filter('#utilisateur_'.$field.'[disabled]'));
+        }
+        $values = $page->filter('form[name="utilisateur"]')->form()->getPhpValues();
+        $values['utilisateur'] = array_merge($values['utilisateur'], [
+            'prenom'=>'Intrusion', 'nom'=>'Intrusion', 'email'=>'intrusion@example.test',
+            'telephone'=>'0799999999', 'adresse'=>'Autre adresse', 'isVerified'=>'0',
+        ]);
+        $client->request('POST', $this->editUrl($id), $values);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $this->em->clear();
+        $saved = $this->em->find(Utilisateur::class, $id);
+        self::assertSame('JAson', $saved->getPrenom());
+        self::assertSame('learner-identity@example.test', $saved->getEmail());
+        self::assertSame('0612345678', $saved->getTelephone());
+        self::assertSame('12 rue Test', $saved->getAdresse());
+        self::assertTrue($saved->isVerified());
+    }
+
+    public function testSuperAdminCanCorrectVerifiedIdentityWithoutChangingEnrollments(): void
+    {
+        $this->admin->setRoles(['ROLE_USER', 'ROLE_SUPER_ADMIN']);
         $this->learner->setIsVerified(true); $this->em->flush();
         $id = $this->learner->getId();
         $client = $this->client(); $crawler = $client->request('GET', $this->editUrl($id));
@@ -342,7 +369,7 @@ final class UtilisateurIdentityTest extends KernelTestCase
         $crawler = $client->request('GET', $this->editUrl($id));
         self::assertSame(200, $client->getResponse()->getStatusCode());
         self::assertNotNull($crawler->filter('#utilisateur_prenom')->attr('disabled'));
-        self::assertStringContainsString('Ce compte est géré par un autre organisme', $crawler->text());
+        self::assertStringContainsString('L’identité de ce compte est protégée.', $crawler->text());
         $profileForm = self::getContainer()->get('form.factory')->create(\App\Form\Administrateur\UtilisateurType::class, $this->learner, ['entite'=>$this->entite]);
         foreach ($profileForm->get('formateurData')->get('representant')->createView()->vars['choices'] as $choice) {
             self::assertNotSame((string) $owner->getId(), $choice->value);
@@ -428,6 +455,27 @@ final class UtilisateurIdentityTest extends KernelTestCase
         $repo = $this->em->getRepository(UtilisateurEntite::class);
         self::assertSame([UtilisateurEntite::TENANT_ADMIN], $repo->findOneBy(['utilisateur'=>$id,'entite'=>$otherId])->getRoles());
         self::assertSame([UtilisateurEntite::TENANT_STAGIAIRE], $repo->findOneBy(['utilisateur'=>$id,'entite'=>$this->entite->getId()])->getRoles());
+    }
+
+    public function testPhoneFormatIsValidatedOnServer(): void
+    {
+        $client = $this->client();
+        $url = $this->editUrl($this->learner->getId());
+        foreach (['bonjour', '0612', '06abc12345678', '0000000000', '+00000000000'] as $phone) {
+            $page = $client->request('GET', $url);
+            $form = $page->filter('form[name="utilisateur"]')->form();
+            $form['utilisateur[telephone]'] = $phone;
+            $client->submit($form);
+            self::assertSame(200, $client->getResponse()->getStatusCode());
+            self::assertStringContainsString('Saisissez un téléphone valide', $client->getResponse()->getContent());
+        }
+        foreach (['06 12 34 56 78', '+33 6 12 34 56 78', '0044 20 7946 0958', ''] as $phone) {
+            $page = $client->request('GET', $url);
+            $form = $page->filter('form[name="utilisateur"]')->form();
+            $form['utilisateur[telephone]'] = $phone;
+            $client->submit($form);
+            self::assertSame(302, $client->getResponse()->getStatusCode());
+        }
     }
 
     public function testUserCreationWithOnlyTrainerRoleAndManualAddress(): void
