@@ -299,6 +299,30 @@ final class TrainerWorkflowTest extends KernelTestCase
         }
     }
 
+    public function testTrainerCannotSignBeforeTrainingStarts(): void
+    {
+        foreach ($this->session->getJours() as $jour) {
+            $jour->setDateDebut(new \DateTimeImmutable('tomorrow ' . $jour->getDateDebut()->format('H:i')));
+            $jour->setDateFin(new \DateTimeImmutable('tomorrow ' . $jour->getDateFin()->format('H:i')));
+        }
+        $this->em->flush();
+        $client = $this->client();
+        $client->loginUser($this->morning->getUtilisateur());
+        $client->request('GET', $this->url('app_formateur_dashboard'));
+        preg_match("/form\.append\('_token', (\"[^\"]+\")\)/", $client->getResponse()->getContent(), $matches);
+        self::assertNotEmpty($matches);
+        $token = json_decode($matches[1], true);
+        $client->request('GET', $this->url('app_formateur_emargement_feed'), [
+            'session' => $this->session->getId(), 'date' => (new \DateTimeImmutable('tomorrow'))->format('Y-m-d'),
+        ]);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertFalse(json_decode($client->getResponse()->getContent(), true)['signatureAvailable']);
+        $client->request('POST', $this->url('app_formateur_emargement_sign', ['id' => $this->session->getId()]), ['_token' => $token]);
+        self::assertSame(403, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('début de la formation', json_decode($client->getResponse()->getContent(), true)['message']);
+        self::assertSame(0, $this->em->getRepository(\App\Entity\Emargement::class)->count([]));
+    }
+
     public function testAssignmentsCountHalfDaysAndPreventSigningAnotherPeriod(): void
     {
         self::assertCount(2, $this->session->getFormateursEffectifs());

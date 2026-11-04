@@ -234,6 +234,7 @@ class EmargementController extends AbstractController
             'sessionLabel' => trim(($session->getCode() ?: '') . ' — ' . ($session->getFormation()?->getTitre() ?: ($session->getFormationIntituleLibre() ?: 'Session'))),
             'outOfSession' => false,
             'allowedDays'  => $allowedDays,
+            'signatureAvailable' => \App\Service\Session\ParticipantQrAvailability::hasStarted($session) && $date->format('Y-m-d') <= (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('Y-m-d'),
             'trainer'      => $trainer,
             'trainees'     => $trainees,
         ]);
@@ -323,6 +324,10 @@ class EmargementController extends AbstractController
         }
 
         $this->assertCanManageSession($entite, $id);
+        if (!\App\Service\Session\ParticipantQrAvailability::hasStarted($id)) {
+            return new JsonResponse(['success' => false, 'message' => 'La signature sera disponible au début de la formation.'], 403);
+        }
+
 
         // Vérifier que $user est inscrit à la session
         $isTrainee = (bool) $em->getRepository(Inscription::class)->findOneBy([
@@ -349,6 +354,10 @@ class EmargementController extends AbstractController
         $day = $this->dayFromFr($dateStr);
         if (!$day) {
             return new JsonResponse(['success' => false, 'message' => 'Format de date invalide (attendu d/m/Y)'], 400);
+        }
+
+        if ($day->format('Y-m-d') > (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('Y-m-d')) {
+            return new JsonResponse(['success' => false, 'message' => 'Impossible de signer une journée future.'], 403);
         }
 
         // Bloquer hors session
@@ -427,6 +436,10 @@ class EmargementController extends AbstractController
         }
 
         $this->assertCanManageSession($entite, $id);
+        if (!\App\Service\Session\ParticipantQrAvailability::hasStarted($id)) {
+            return new JsonResponse(['success' => false, 'message' => 'La signature sera disponible au début de la formation.'], 403);
+        }
+
         if (!$id->isEmargementRequis()) {
             return new JsonResponse(['success' => false, 'message' => 'Les émargements ne sont pas disponibles pour cette session.'], 403);
         }
@@ -449,6 +462,10 @@ class EmargementController extends AbstractController
 
         if (!$dataUrl || !str_starts_with($dataUrl, 'data:image/png;base64,')) {
             return new JsonResponse(['success' => false, 'error' => 'signature_invalid'], 400);
+        }
+
+        if ($date->format('Y-m-d') > (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('Y-m-d')) {
+            return new JsonResponse(['success' => false, 'message' => 'Impossible de signer une journée future.'], 403);
         }
 
         // Bloquer hors session

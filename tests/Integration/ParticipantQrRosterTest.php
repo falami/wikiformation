@@ -39,6 +39,7 @@ final class ParticipantQrRosterTest extends KernelTestCase
         $this->em->persist($formation); $this->em->persist($site);
         $this->session = (new Session())->setEntite($this->entite)->setCreateur($this->trainer)->setCode('SES-QR-DEMO')->setFormation($formation)->setSite($site)->setFormateur($formateur);
         $this->session->addJour((new SessionJour())->setEntite($this->entite)->setCreateur($this->trainer)->setDateDebut(new \DateTimeImmutable('yesterday 08:30'))->setDateFin(new \DateTimeImmutable('today 23:59')));
+        $this->session->setStatus(\App\Enum\StatusSession::PUBLISHED);
         $this->em->persist($this->session);
         $inscription = (new Inscription())->setSession($this->session)->setStagiaire($this->learner)->setEntite($this->entite)->setCreateur($this->trainer);
         $this->em->persist($inscription);
@@ -91,7 +92,29 @@ final class ParticipantQrRosterTest extends KernelTestCase
         $crawler = $client->request('GET', self::getContainer()->get('router')->generate('app_stagiaire_dashboard', ['entite' => $this->entite->getId()]));
         self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
         self::assertCount(2, $crawler->filter('[data-participant-qr]'));
+        self::assertCount(2, $crawler->filter('.js-next-ema'));
         self::assertStringContainsString('Camille Durand', $crawler->filter('[data-qr-card]')->text());
+    }
+
+    public function testFutureSessionHidesDashboardAttendanceActions(): void
+    {
+        foreach ($this->session->getJours() as $day) {
+            $day->setDateDebut(new \DateTimeImmutable('2099-11-23 08:30'));
+            $day->setDateFin(new \DateTimeImmutable('2099-11-23 17:00'));
+        }
+        $this->em->flush();
+        $client = $this->client($this->learner);
+        $router = self::getContainer()->get('router');
+        $params = ['entite' => $this->entite->getId()];
+        $page = $client->request('GET', $router->generate('app_stagiaire_dashboard', $params));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertCount(0, $page->filter('.js-next-ema'));
+        self::assertStringContainsString('Émargement indisponible avant le début', $page->text());
+        $client->request('POST', $router->generate('app_stagiaire_sessions_ajax', $params));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $rows = json_decode($client->getResponse()->getContent(), true)['data'];
+        self::assertNotEmpty($rows);
+        foreach ($rows as $row) self::assertStringNotContainsString('js-emargement', $row['actions']);
     }
 
     private function membership(Utilisateur $user, string $role): void

@@ -1023,6 +1023,7 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
 </style>
 <link rel="stylesheet" href="{{ asset('dist/css/attendance-modal.css') }}?v=1">
 <link rel="stylesheet" href="{{ asset('dist/css/trainer-session-ledger.css') }}">
+<link rel="stylesheet" href="{{ asset('dist/css/trainer-upcoming-sessions.css') }}">
 {% endblock %}
 
 {% block body %}
@@ -1193,6 +1194,7 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
 
                 {% set nextIso = nextSession.emaDefaultIso ?? (nextSession.start ? nextSession.start|date('Y-m-d') : null) %}
 
+                {% if nextSession.canSign %}
                 <div class="d-flex flex-wrap gap-2 mt-3">
                   <button type="button"
                           class="btn btn-sm btn-outline-success js-next-ema"
@@ -1212,6 +1214,9 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
                     <i class="bi bi-sunset me-1"></i> Émargement après-midi
                   </button>
                 </div>
+                {% else %}
+                  <p class="small text-muted mt-3 mb-0"><i class="bi bi-lock me-1" aria-hidden="true"></i>Émargement indisponible avant le début de la formation.</p>
+                {% endif %}
 
 
 
@@ -1376,10 +1381,15 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
         </div>
         <div class="card-body p-4">
           <div id="calendar" class="mb-4"></div>
-          <h6 class="fw-bold mb-2">Prochaines sessions</h6>
-          <ul class="timeline" id="upcoming-timeline">
-            <li><span class="dot"></span><span class="when">—</span><span class="what">Chargement…</span></li>
-          </ul>
+          <section class="trainer-upcoming px-0 pb-0" aria-labelledby="upcoming-title">
+            <div class="trainer-upcoming-heading">
+              <div><span class="trainer-upcoming-eyebrow">VOTRE AGENDA</span><h6 id="upcoming-title">Prochaines sessions</h6><p>Vos rendez-vous de formation et les informations utiles pour vous préparer.</p></div>
+              <span class="trainer-upcoming-count" id="upcoming-count" aria-live="polite">Chargement…</span>
+            </div>
+            <ul class="trainer-upcoming-list" id="upcoming-timeline" aria-live="polite" aria-busy="true">
+              <li class="trainer-upcoming-empty"><i class="bi bi-calendar3" aria-hidden="true"></i><span>Chargement de vos prochaines sessions…</span></li>
+            </ul>
+          </section>
         </div>
       </div>
     </div>
@@ -1578,6 +1588,7 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
 })();
 </script>
 
+<script src="{{ asset('dist/js/trainer-upcoming-sessions.js') }}"></script>
 <script>
 $(function(){
 
@@ -1741,53 +1752,16 @@ $(function(){
   }
 
   function buildTimelineFromTable(api, selector, maxItems){
-    const data = api.rows({ search: 'applied' }).data().toArray();
-    const nowTs = Date.now();
-
-    const items = [];
-
-    data.forEach(row => {
-      const startTs = parseIsoToTs(row.firstStartIso);
-      const endTs   = parseIsoToTs(row.lastEndIso);
-
-      if(startTs === null || endTs === null) return;
-
-      // ✅ On garde la session si elle n'est pas terminée
-      if(endTs <= nowTs) return;
-
-      const isLive = (startTs <= nowTs && nowTs <= endTs);
-      const d = new Date(startTs);
-
-      items.push({
-        sortTs: isLive ? nowTs - 1 : startTs, // live en haut
-        when: d.toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
-        what: `${stripHtml(row.formation)} (${row.code || ''})`.trim(),
-        badge: isLive ? '<span class="soft-badge ms-2">EN COURS</span>' : ''
-      });
-    });
-
-    items.sort((a,b)=> a.sortTs - b.sortTs);
-
-    const ul = document.querySelector(selector);
-    ul.innerHTML = '';
-
-    if(items.length === 0){
-      ul.innerHTML = `
-        <li>
-          <span class="dot"></span>
-          <span class="when">—</span>
-          <span class="what">Aucun évènement à venir.</span>
-        </li>`;
-      return;
-    }
-
-    items.slice(0, maxItems || 6).forEach(it => {
-      const li = document.createElement('li');
-      li.innerHTML = `
-        <span class="dot"></span>
-        <span class="when">${it.when}</span>
-        <span class="what">${escapeHtml(it.what)} ${it.badge}</span>`;
-      ul.appendChild(li);
+    const rows = api.rows({ search: 'applied' }).data().toArray().map(row => ({
+      ...row,
+      firstStartIso: parseIsoToTs(row.firstStartIso),
+      lastEndIso: parseIsoToTs(row.lastEndIso),
+      formationTitle: row.formation,
+      trainerName: row.formateur,
+    }));
+    window.renderTrainerUpcomingSessions(document.querySelector(selector), rows, maxItems, {
+      includeOngoing: true,
+      showTrainees: false,
     });
   }
 

@@ -11,305 +11,7 @@
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
 
-  <style>
-    :root{
-      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
-      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
-      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
-
-      --bg:#f5f7fb;
-      --panel:#ffffff;
-      --ink:#0f172a;
-      --muted:#64748b;
-      --stroke: rgba(15, 23, 42, .10);
-      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
-      --radius: 18px;
-    }
-
-    body{ overflow-x:hidden; }
-
-    /* ================= HERO (même langage que session/show) ================= */
-    .hero{
-      border-radius: 22px;
-      position: relative;
-      overflow: hidden;
-      color: #fff;
-      box-shadow: 0 18px 50px rgba(0,0,0,.14);
-      background:
-        radial-gradient(1200px 420px at 12% -10%,
-          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
-          transparent 58%
-        ),
-        radial-gradient(900px 380px at 92% 0%,
-          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
-          transparent 60%
-        ),
-        radial-gradient(700px 260px at 55% 115%,
-          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
-          transparent 62%
-        ),
-        linear-gradient(135deg,
-          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
-          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
-        );
-    }
-    .hero::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      pointer-events:none;
-      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
-      opacity:.85;
-    }
-    .hero .accent{
-      width: 12px;
-      border-radius: 999px;
-      background: var(--theme-color-secondaire);
-      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
-      flex: 0 0 auto;
-    }
-    .hero .chip{
-      display:inline-flex;
-      align-items:center;
-      gap:.5rem;
-      padding:.32rem .7rem;
-      border-radius:999px;
-      background: rgba(255,255,255,.10);
-      border: 1px solid rgba(255,255,255,.14);
-      font-size:.82rem;
-      color: rgba(255,255,255,.92);
-      backdrop-filter: blur(6px);
-      white-space: nowrap;
-    }
-    .hero .chip i{ color: var(--theme-color-secondaire); }
-    .hero .chip--pill{
-      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
-      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
-      color:#fff;
-    }
-    .hero .btn{ border-radius: 14px; font-weight: 800; }
-    .hero .btn-outline-theme{
-      border-color: rgba(255,255,255,.35);
-      color:#fff;
-    }
-    .hero .btn-outline-theme:hover{
-      background: rgba(255,255,255,.10);
-      border-color: rgba(255,255,255,.55);
-      color:#fff;
-    }
-
-    /* ================= Premium Card ================= */
-    /* ===== Cards premium ===== */
-    .cardx{
-      background: var(--panel);
-      border: 1px solid var(--stroke);
-      border-radius: var(--radius);
-      box-shadow: 0 10px 28px rgba(15,23,42,.08);
-      overflow:hidden;
-    }
-    .cardx-h{
-      padding: .95rem 1.05rem;
-      display:flex; align-items:center; justify-content:space-between; gap:1rem;
-      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
-      border-bottom: 1px solid var(--stroke);
-    }
-    .cardx-title{
-      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
-      display:flex; align-items:center; gap:.6rem;
-    }
-    .cardx-sub{
-      margin:.15rem 0 0;
-      color: var(--muted);
-      font-size:.9rem;
-    }
-
-    .chip{
-      font-size:.78rem;
-      padding:.3rem .6rem;
-      border-radius:999px;
-      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
-      background: color-mix(in srgb, var(--theme-color-principal) 9%, transparent);
-      color: var(--ink);
-      white-space:nowrap;
-      display:inline-flex;
-      align-items:center;
-      gap:.4rem;
-    }
-    .badge-soft{
-      border-radius:999px;
-      padding:.35rem .65rem;
-      border:1px solid var(--stroke);
-      background: rgba(255,255,255,.65);
-      color: var(--ink);
-      display:inline-flex;
-      align-items:center;
-      gap:.45rem;
-      font-weight:800;
-    }
-
-    /* ================= KPI row ================= */
-    .kpi{
-      border:1px solid var(--stroke);
-      border-radius: 18px;
-      background: rgba(255,255,255,.78);
-      padding: .9rem .95rem;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:.85rem;
-    }
-    .kpi .label{ color: var(--muted); font-size:.85rem; }
-    .kpi .value{
-      color: var(--ink);
-      font-size: 1.35rem;
-      font-weight: 950;
-      letter-spacing:-.02em;
-      line-height:1;
-    }
-    .kpi-ico{
-      width:44px;height:44px;border-radius:16px;
-      display:flex;align-items:center;justify-content:center;
-      border:1px solid var(--stroke);
-      background: color-mix(in srgb, var(--theme-color-secondaire) 14%, transparent);
-      color: color-mix(in srgb, var(--theme-color-secondaire) 95%, #000);
-      flex:0 0 auto;
-    }
-
-    /* ================= Timeline style list (comme planning) ================= */
-    .timeline{
-      border-left:2px solid color-mix(in srgb, var(--theme-color-principal) 10%, var(--stroke));
-      padding-left:1rem;
-      margin:0;
-    }
-    .timeline-item{
-      position:relative;
-      margin-bottom:.95rem;
-      padding: 1rem 1.05rem;
-      border-radius: 20px;
-      border:1px solid rgba(15,23,42,.10);
-      background:
-        linear-gradient(180deg, rgba(255,255,255,.78), rgba(255,255,255,.62));
-      box-shadow: 0 16px 44px rgba(15,23,42,.08);
-      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-    }
-    .timeline-item::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      border-radius: 20px;
-      padding:1px;
-      background:
-        linear-gradient(135deg,
-          color-mix(in srgb, var(--theme-color-secondaire) 22%, transparent),
-          color-mix(in srgb, var(--theme-color-principal) 18%, transparent),
-          transparent
-        );
-      -webkit-mask:
-        linear-gradient(#000 0 0) content-box,
-        linear-gradient(#000 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events:none;
-      opacity:.95;
-    }
-    .timeline-item:hover{
-      transform: translateY(-2px);
-      box-shadow: 0 24px 70px rgba(15,23,42,.12);
-      border-color: rgba(15,23,42,.14);
-    }
-
-    .t-head{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:1rem;
-      flex-wrap:wrap;
-    }
-    .t-title{
-      font-weight: 950;
-      letter-spacing:-.02em;
-      color: var(--ink);
-      margin:0;
-      display:flex;
-      align-items:center;
-      gap:.55rem;
-      flex-wrap:wrap;
-    }
-    .t-meta{
-      color: var(--muted);
-      font-size:.9rem;
-      display:flex;
-      align-items:center;
-      gap:.75rem;
-      flex-wrap:wrap;
-      margin-top:.25rem;
-    }
-    /* Ultra premium status pill */
-    .pill{
-      border-radius:999px;
-      padding:.48rem .85rem;
-      border:1px solid rgba(15,23,42,.10);
-      background: rgba(255,255,255,.72);
-      font-weight:900;
-      font-size:.82rem;
-      letter-spacing:-.01em;
-      box-shadow:
-        0 10px 26px rgba(15,23,42,.06),
-        inset 0 1px 0 rgba(255,255,255,.55);
-      backdrop-filter: blur(10px);
-    }
-    .pill-ok{
-      border-color: rgba(16,185,129,.22);
-      background:
-        radial-gradient(120px 40px at 20% 0%, rgba(16,185,129,.18), transparent 60%),
-        rgba(255,255,255,.70);
-    }
-    .pill-wait{
-      border-color: rgba(245,158,11,.22);
-      background:
-        radial-gradient(120px 40px at 20% 0%, rgba(245,158,11,.18), transparent 60%),
-        rgba(255,255,255,.70);
-    }
-    .pill-danger{
-      border-color: rgba(239,68,68,.22);
-      background:
-        radial-gradient(120px 40px at 20% 0%, rgba(239,68,68,.18), transparent 60%),
-        rgba(255,255,255,.70);
-    }
-
-    .t-actions{
-      display:flex;
-      align-items:center;
-      gap:.5rem;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-    }
-    .btn-soft{
-      border-radius: 14px;
-      border: 1px solid var(--stroke);
-      background: rgba(255,255,255,.75);
-    }
-    .btn-soft:hover{ background: rgba(255,255,255,.95); }
-
-    /* ================= Table premium (fallback mobile) ================= */
-    .table thead th{ white-space: nowrap; }
-    .table td{ vertical-align: middle; }
-    .table .badge{ border-radius: 999px; }
-
-    /* highlight “missing” */
-    .is-missing{
-      border-color: rgba(239,68,68,.22) !important;
-      background:
-        radial-gradient(900px 240px at 12% 0%, rgba(239,68,68,.10), transparent 60%),
-        linear-gradient(180deg, rgba(239,68,68,.04), transparent);
-    }
-
-    /* responsive helpers */
-    @media (max-width: 576px){
-      .hero .btn{ width:100%; }
-    }
-  </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/formateur-emargements.css') }}?v=1">
 {% endblock %}
 
 {% block body %}
@@ -328,67 +30,47 @@
   {% if j.isMissing ?? false %}{% set totalMissing = totalMissing + 1 %}{% endif %}
 {% endfor %}
 
-{# ================= HERO ================= #}
-<div class="hero p-3 mb-4 d-flex gap-3">
-  <div class="accent"></div>
-
-  <div class="flex-grow-1" style="position:relative; z-index:2;">
-    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
-      <div>
-        <h2 class="m-0 fw-bold">
-          <i class="bi bi-pen text-theme-secondaire me-2"></i>
-          Émargements
-          <span class="opacity-75">- {{ session.formation ? session.formation.titre : '-' }}</span>
-        </h2>
-        
-        <div class="opacity-75 mt-1">ID Session : {{ session.code }} - Site : {{ session.site ? session.site.nom : '-' }}</div>
-
-        <div class="d-flex flex-wrap gap-2 mt-3">
-          <span class="chip"><i class="bi bi-calendar3"></i> {{ jours|length }} jour(s)</span>
-          <span class="chip"><i class="bi bi-check2-circle"></i> {{ totalSigned }} signature(s)</span>
-          <span class="chip"><i class="bi bi-building"></i> {{ entite.nom ?? '—' }}</span>
-          <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">-</span></span>
-        </div>
-
-        <div class="small opacity-75 mt-2">
-          Récapitulatif des signatures par journée (AM/PM cumulées)
-        </div>
-      </div>
-
-      <div class="d-flex gap-2 flex-wrap">
-        <a href="{{ path('app_formateur_dashboard', { entite: entite.id }) }}"
-           class="btn btn-outline-theme btn-sm fw-semibold">
-          <i class="bi bi-arrow-left"></i> Retour
-        </a>
-
-        {# optionnel : lien PDF si tu as la route (tu l’utilises dans session/show) #}
-        <a href="{{ path('app_formateur_emargement_pdf', {entite: entite.id}) ~ '?session=' ~ session.id }}"
-           class="btn btn-light btn-sm fw-semibold"
-           target="_blank">
-          <i class="bi bi-file-earmark-pdf"></i> PDF émargements
-        </a>
-      </div>
+{% set completion = totalExpected > 0 ? min(100, (totalSigned / totalExpected * 100))|round(0, 'floor') : 0 %}
+<div class="attendance-page">
+<header class="attendance-hero">
+  <div class="attendance-heading">
+    <span class="attendance-eyebrow">ESPACE FORMATEUR <span>/</span> SUIVI DES PRÉSENCES</span>
+    <h1>Émargements</h1>
+    <p class="attendance-course">{{ session.formation ? session.formation.titre : 'Votre session de formation' }}</p>
+    <div class="attendance-meta">
+      <span><i class="bi bi-hash" aria-hidden="true"></i>{{ session.code ?? ('Session ' ~ session.id) }}</span>
+      {% if session.site %}<span><i class="bi bi-geo-alt" aria-hidden="true"></i>{{ session.site.nom }}</span>{% endif %}
+      <span><i class="bi bi-building" aria-hidden="true"></i>{{ entite.nom }}</span>
     </div>
   </div>
-</div>
+  <div class="attendance-hero-actions">
+    <a href="{{ path('app_formateur_emargement_pdf', {entite: entite.id}) ~ '?session=' ~ session.id }}" class="btn attendance-export" target="_blank" rel="noopener"><i class="bi bi-download" aria-hidden="true"></i> Exporter les émargements</a>
+    <a href="{{ path('app_formateur_dashboard', { entite: entite.id }) }}" class="attendance-back"><i class="bi bi-arrow-left" aria-hidden="true"></i> Retour au tableau de bord</a>
+  </div>
+</header>
+<div class="attendance-context"><span><span class="attendance-dot"></span> Vue d’ensemble de la session</span><span id="hero-last-refresh"></span></div>
 
 {% include 'flagMessage.html.twig' %}
 
 {# ================= KPIs ================= #}
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
+<div class="row g-4 mb-4 attendance-layout">
+  <aside class="col-lg-4">
     <div class="cardx">
       <div class="cardx-h">
         <div>
           <h5 class="cardx-title">
-            <i class="bi bi-check2-circle text-theme-secondaire"></i> Signatures
+            <i class="bi bi-check2-circle text-theme-secondaire"></i> Suivi des signatures
           </h5>
-          <div class="cardx-sub">Total enregistrées (toutes demi-journées confondues)</div>
+          <div class="cardx-sub">Matin et après-midi cumulés</div>
         </div>
-        <span class="badge-soft"><i class="bi bi-graph-up"></i> Global</span>
+
       </div>
 
       <div class="p-3 p-md-4">
+        <div class="attendance-completion" style="--completion: {{ completion }}%;">
+          <div class="attendance-ring"><div><strong>{{ totalExpected > 0 ? completion ~ '%' : '—' }}</strong><span>{{ totalExpected > 0 ? 'complété' : 'non défini' }}</span></div></div>
+          <p>{{ totalExpected > 0 ? totalSigned ~ ' signatures sur ' ~ totalExpected ~ ' attendues' : 'Le nombre de signatures attendues n’est pas défini.' }}</p>
+        </div>
         <div class="kpi">
           <div class="d-flex align-items-center gap-3">
             <div class="kpi-ico"><i class="bi bi-pen"></i></div>
@@ -428,19 +110,19 @@
         </div>
       </div>
     </div>
-  </div>
+  </aside>
 
-  <div class="col-md-8">
+  <div class="col-lg-8">
     <div class="cardx">
       <div class="cardx-h">
         <div>
           <h5 class="cardx-title">
             <i class="bi bi-calendar-week text-theme-secondaire"></i> Journées de session
           </h5>
-          <div class="cardx-sub">Vue premium (timeline) + statut (complet / en cours / manquant)</div>
+          <div class="cardx-sub">Consultez les signatures et la progression de chaque journée.</div>
         </div>
         <span class="badge-soft">
-          <i class="bi bi-building"></i> {{ entite.nom }}
+          <i class="bi bi-calendar3"></i> {{ jours|length }} jour{{ jours|length > 1 ? 's' : '' }}
         </span>
       </div>
 
@@ -543,7 +225,7 @@
                 </div>
 
                 {% if exp > 0 %}
-                  {% set pctDay = exp > 0 ? (c / exp * 100) : 0 %}
+                  {% set pctDay = min(100, max(0, c / exp * 100)) %}
                   <div class="mt-3">
                     <div class="d-flex justify-content-between small text-muted mb-1">
                       <span>Progression</span>
@@ -554,7 +236,7 @@
                           role="progressbar"
                           style="width: {{ pctDay|round(0,'floor') }}%;"
                           aria-valuenow="{{ pctDay|round(0,'floor') }}"
-                          aria-valuemin="0" aria-valuemax="100"></div>
+                          aria-label="Signatures du {{ j.date|date('d/m/Y') }}" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                   </div>
                 {% endif %}
@@ -562,13 +244,8 @@
             {% endfor %}
           </div>
 
-          {# fallback table (au cas où tu préfères garder une table en plus) #}
-          <div class="mt-4">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-              <div class="text-muted small">
-                Vue tableau (compact) - utile pour copier/coller rapidement.
-              </div>
-            </div>
+          <details class="attendance-table mt-4">
+            <summary><i class="bi bi-table" aria-hidden="true"></i> Afficher le récapitulatif détaillé <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
 
             <div class="table-responsive mt-2">
               <table class="table table-hover align-middle mb-0">
@@ -648,7 +325,7 @@
                 </tbody>
               </table>
             </div>
-          </div>
+          </details>
 
         {% endif %}
       </div>
@@ -656,6 +333,7 @@
   </div>
 </div>
 
+</div>
 {% endblock %}
 
 {% block javascripts %}
@@ -667,7 +345,7 @@
         return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
       }
       const el = document.getElementById('hero-last-refresh');
-      if (el) el.textContent = 'Maj : ' + nowLabel();
+      if (el) el.textContent = 'Consulté le ' + nowLabel();
     });
   </script>
 {% endblock %}

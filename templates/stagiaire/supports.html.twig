@@ -5,55 +5,34 @@
 
 {% block stylesheets %}
 {{ parent() }}
-<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
-<style>
-:root{
-  --teal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#1e3a5f')) }};
-  --amber: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffb703')) }};
-  --ink:#0f2336; --muted:#6f8897; --card:#ffffff; --card-2:#f8fbfe; --line:#e6eef5; --radius:1rem;
-}
-.section-card{ background:var(--card); border:1px solid var(--line); border-radius:1rem; box-shadow:0 14px 48px rgba(15,35,54,.12); }
-.asset{ border:1px solid var(--line); border-radius:.9rem; padding:.7rem .8rem; display:flex; gap:.75rem; align-items:center; background:linear-gradient(180deg,var(--card),var(--card-2)); }
-.asset .icon{ width:36px;height:36px;display:grid;place-items:center;border-radius:.6rem;background:color-mix(in oklab, var(--teal) 12%, white 88%); color:color-mix(in oklab, var(--teal) 85%, black 15%); }
-.asset .name{ font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-:root{ --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
-       --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-       --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
-       --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};}
-@media (max-width:768px){
-  table.dataTable td.action-column{ position:sticky; right:0; background:#fff; z-index:5; box-shadow:-8px 0 12px -8px rgba(0,0,0,.08); }
-}
-</style>
-<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
-<link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+<link rel="stylesheet" href="{{ asset('dist/css/learner-supports.css') }}">
 {% endblock %}
 
 {% block body %}
-<div class="container-fluid py-3">
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <h1 class="h5 mb-0">Mes supports</h1>
-    <a class="btn btn-outline-secondary" href="{{ path('app_stagiaire_dashboard', { entite: entite.id }) }}"><i class="bi bi-arrow-left"></i> Retour</a>
-  </div>
-
-  <div class="section-card p-3">
-    <div class="row g-3 align-items-center mb-3">
-      <div class="col-12 col-md-6">
-        <div class="input-group">
-          <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
-          <input id="q" type="text" class="form-control border-start-0" placeholder="Rechercher un titre, une session…">
-        </div>
-      </div>
-      <div class="col-12 col-md-6 text-md-end small text-muted">
-        <span id="count">—</span> document(s)
-      </div>
+<div class="container-fluid py-4 learner-supports">
+  <header class="supports-hero">
+    <div>
+      <span class="supports-eyebrow">VOTRE BIBLIOTHÈQUE DE FORMATION</span>
+      <h1>Mes supports</h1>
+      <p>Les ressources pour apprendre, pratiquer et aller plus loin.</p>
+      <span class="supports-session"><i class="bi bi-book" aria-hidden="true"></i> {{ session.code }}</span>
     </div>
+    <a class="supports-back" href="{{ path('app_stagiaire_dashboard', { entite: entite.id }) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Tableau de bord</a>
+  </header>
 
-    <div id="assets" class="row g-3">
-      <div class="col-12 text-muted">Chargement…</div>
+  <section class="supports-library" aria-labelledby="library-title">
+    <div class="supports-library-heading">
+      <div><span class="supports-eyebrow">RESSOURCES PÉDAGOGIQUES</span><h2 id="library-title">Vos documents, à portée de main</h2><p>Retrouvez les supports partagés pour votre session.</p></div>
+      <span class="supports-count" aria-live="polite"><i class="bi bi-files" aria-hidden="true"></i> <span id="count">—</span> document(s)</span>
     </div>
-  </div>
+    <div class="supports-toolbar">
+      <label class="supports-search" for="q"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Rechercher un support</span><input id="q" type="search" placeholder="Rechercher un titre, une session…" autocomplete="off"></label>
+      <span class="supports-hint"><i class="bi bi-download" aria-hidden="true"></i> Consultez vos supports à tout moment</span>
+    </div>
+    <div id="assets" class="supports-grid" aria-live="polite" aria-busy="true">
+      <div class="supports-empty"><span class="spinner-border spinner-border-sm" role="status"></span><p>Chargement de vos supports…</p></div>
+    </div>
+  </section>
 </div>
 {% endblock %}
 
@@ -78,33 +57,34 @@
     function render(list){
       wrap.innerHTML = '';
       if(!list.length){
-        wrap.innerHTML = '<div class="col-12 text-muted">Aucun support.</div>';
+        const searching = q.value.trim().length > 0;
+        wrap.innerHTML = searching
+          ? '<div class="supports-empty"><div class="supports-empty-icon"><i class="bi bi-search"></i></div><h3>Aucun résultat pour cette recherche</h3><p>Essayez un autre titre ou effacez votre recherche pour retrouver tous vos supports.</p><button type="button" class="supports-reset">Effacer la recherche</button></div>'
+          : '<div class="supports-empty"><div class="supports-empty-icon"><i class="bi bi-journal-bookmark"></i></div><span class="supports-eyebrow">VOTRE ESPACE EST PRÊT</span><h3>Vos prochains supports vous attendront ici</h3><p>Aucun document n’a encore été partagé pour cette session.<br>Vous retrouverez ici les ressources mises à votre disposition par votre organisme.</p></div>';
+        wrap.querySelector('.supports-reset')?.addEventListener('click', () => { q.value = ''; applyFilter(); q.focus(); });
         return;
       }
 
       list.forEach(a=>{
         const col = document.createElement('div');
-        col.className = 'col-12 col-md-6 col-xxl-3';
+        col.className = 'support-card';
 
         const name = a.titre || a.originalName || 'Document';
         const meta = [a.mimeType||'', a.sessionCode?('Session '+a.sessionCode):'', a.sessionTitle||'']
           .filter(Boolean).join(' · ');
 
         col.innerHTML = `
-          <div class="asset">
-            <div class="icon"><i class="bi bi-file-earmark-text"></i></div>
-            <div class="flex-grow-1 text-truncate">
-              <div class="name"></div>
-              <div class="text-muted small support-meta"></div>
-            </div>
-            <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer">
-              <i class="bi bi-download"></i>
-            </a>
-          </div>`;
+            <div class="support-card-top"><div class="support-icon"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></div><span>SUPPORT DE FORMATION</span></div>
+            <h3 class="name"></h3>
+            <p class="support-meta"></p>
+            <a class="support-open" target="_blank" rel="noopener noreferrer">
+              Consulter le document <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+            </a>`;
         col.querySelector('.name').textContent = name;
         col.querySelector('.name').title = name;
         col.querySelector('.support-meta').textContent = meta;
         col.querySelector('a').href = a.url;
+        col.querySelector('a').setAttribute('aria-label', 'Consulter ' + name + ' (nouvel onglet)');
         wrap.appendChild(col);
       });
     }
@@ -124,17 +104,22 @@
     // ✅ si tu es bien sur /session/{id}/supports, session existe
     const feedUrl = "{{ path('app_stagiaire_session_supports_feed', { entite: entite.id, id: session.id }) }}";
 
+    function loadSupports(){
+    wrap.setAttribute('aria-busy', 'true');
     fetch(feedUrl, { headers: { 'Accept': 'application/json' } })
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then(p => {
         rows = Array.isArray(p?.data) ? p.data : [];
         count.textContent = rows.length;
-        filtered = rows.slice(0);
-        render(filtered);
+        applyFilter();
       })
       .catch(() => {
-        wrap.innerHTML = '<div class="col-12 text-danger">Erreur de chargement.</div>';
-      });
+        count.textContent = '—';
+        wrap.innerHTML = '<div class="supports-empty"><div class="supports-empty-icon"><i class="bi bi-cloud-slash"></i></div><h3>Vos supports n’ont pas pu être chargés</h3><p>Réessayez dans un instant pour accéder à vos documents.</p><button type="button" class="supports-reset">Réessayer</button></div>';
+        wrap.querySelector('button').addEventListener('click', loadSupports);
+      }).finally(() => wrap.setAttribute('aria-busy', 'false'));
+    }
+    loadSupports();
 
     q.addEventListener('input', applyFilter);
   }

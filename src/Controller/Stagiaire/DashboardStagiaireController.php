@@ -221,6 +221,7 @@ class DashboardStagiaireController extends AbstractController
 
             $nextSession = [
                 'id'            => $next->getId(),
+                'canSign' => $next->isEmargementRequis() && \App\Service\Session\ParticipantQrAvailability::hasStarted($next),
                 'code'          => $next->getCode(),
                 'formationTitre' => $next->getFormation()
                     ? $next->getFormation()->getTitre()
@@ -519,6 +520,7 @@ class DashboardStagiaireController extends AbstractController
             $actions = $this->renderView('stagiaire/_actions_dashboard.html.twig', [
                 'entite'       => $entite,
                 's'            => $s,
+                'canSign' => $s->isEmargementRequis() && \App\Service\Session\ParticipantQrAvailability::hasStarted($s),
                 'inscription'  => $inscription, // ✅
                 'hasPublishedTrainers' => $this->publishedTrainers->forSession($s) !== [],
                 'satisfactionBtn' => $satisfactionBtn ?? '',
@@ -538,6 +540,9 @@ class DashboardStagiaireController extends AbstractController
                     : $s->getFormationIntituleLibre(),
                 'dates'        => $dates,
                 'formateur'    => $formateurNom,
+                'siteName' => $s->getSite()?->getNom(),
+                'statusLabel' => $s->getStatus()?->label(),
+                'sessionUrl' => $this->generateUrl('app_stagiaire_session_show', ['entite' => $entite->getId(), 'id' => $s->getId()]),
                 'actions'      => $actions,
                 'firstStartIso' => $first?->format(\DateTimeInterface::ATOM),
                 'lastEndIso'   => $last?->format(\DateTimeInterface::ATOM),

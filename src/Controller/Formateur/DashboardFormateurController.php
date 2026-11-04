@@ -106,7 +106,7 @@ class DashboardFormateurController extends AbstractController
      * DASHBOARD
      * ========================================================= */
     #[Route('/dashboard', name: 'dashboard', methods: ['GET', 'POST'])]
-    public function dashboard(Entite $entite, Request $request, EntityManagerInterface $em, SessionRepository $sessions, \App\Service\Session\TrainerSessionFollowUp $followUp, \App\Service\Session\SessionLifecycle $lifecycle, \App\Service\TrainerCharter\CharterManager $charters): Response
+    public function dashboard(Entite $entite, Request $request, EntityManagerInterface $em, SessionRepository $sessions, \App\Service\Session\TrainerSessionFollowUp $followUp, \App\Service\Session\SessionLifecycle $lifecycle, \App\Service\TrainerCharter\CharterManager $charters, \App\Service\Satisfaction\SatisfactionAccess $satisfactionAccess): Response
     {
         $calculateTravel = $request->isMethod('POST');
         if ($calculateTravel && !$this->isCsrfTokenValid('trainer_travel_'.$entite->getId(), $request->request->getString('_token'))) {
@@ -351,7 +351,15 @@ class DashboardFormateurController extends AbstractController
         }
 
         $pendingSessions = [];
-        $pendingReports = [];
+        $pendingSatisfactions = [];
+        foreach ($em->getRepository(\App\Entity\FormateurSatisfactionAssignment::class)->findBy([
+            'entite' => $entite,
+            'formateur' => $user,
+        ]) as $assignment) {
+            if ($assignment->getTemplate() && $satisfactionAccess->canFillTrainer($assignment)) {
+                $pendingSatisfactions[] = $assignment;
+            }
+        }
         if ($formateur) {
             $candidates = $sessions->createForFormateurQueryBuilder($entite, $formateur)
                 ->andWhere('s.status NOT IN (:closedStatuses)')
@@ -364,7 +372,6 @@ class DashboardFormateurController extends AbstractController
                 }
             }
             foreach ($candidates as $candidate) {
-                if (\App\Service\TrainerReminder\PendingTrainerReport::isMissing($candidate, $formateur, new \DateTimeImmutable())) $pendingReports[] = $candidate;
                 $pending = $followUp->summarize($candidate, $formateur, $todayStart, $conventionsBySession[$candidate->getId()] ?? []);
                 if ($pending) $pendingSessions[] = $pending;
             }
@@ -378,7 +385,7 @@ class DashboardFormateurController extends AbstractController
             'automaticTravel' => $automaticTravel,
             'travelSettings' => $travelSettings,
             'pendingSessions' => $pendingSessions,
-            'pendingReports' => $pendingReports,
+            'pendingSatisfactions' => $pendingSatisfactions,
             'pendingCharters' => $formateur ? $charters->pending($entite,$formateur) : [],
             'pendingContracts' => $formateur
                 ? $em->getRepository(ContratFormateur::class)->findAwaitingTrainerSignature($entite, $formateur)
@@ -611,6 +618,11 @@ class DashboardFormateurController extends AbstractController
                 'sessionId' => $s->getId(),
                 'code'      => $s->getCode() ?: '-',
                 'formation' => $formationHtml, // ✅ HTML riche
+                'formationTitle' => $formationTitre,
+                'siteName' => $siteNom,
+                'organisationName' => $orgNom,
+                'statusLabel' => $stLabel,
+                'sessionUrl' => $this->generateUrl('app_formateur_session_show', ['entite' => $entite->getId(), 'id' => $s->getId()]),
                 'dates'     => $dates,
                 'inscrits'  => $inscrits,
                 'actions'   => $this->renderView('formateur/_actions_session.html.twig', [
