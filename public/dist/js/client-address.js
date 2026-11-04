@@ -11,7 +11,7 @@
   const empty = root.querySelector('[data-address-empty]');
   const caption = root.querySelector('[data-address-caption]');
   const locate = root.querySelector('[data-address-locate]');
-  let map, point, geocoder, timer, revision = 0;
+  let map, point, geocoder, timer, suggestionTimer, revision = 0, filling = false;
   const unavailable = () => {
     status.textContent = 'Les suggestions Google sont indisponibles. Vous pouvez saisir les coordonnées manuellement.';
     locate.disabled = true;
@@ -54,17 +54,49 @@
   };
   async function initialize() {
     try {
-      const {PlaceAutocompleteElement} = await google.maps.importLibrary('places');
-      await google.maps.importLibrary('maps');
-      const {Geocoder} = await google.maps.importLibrary('geocoding');
-      geocoder = new Geocoder();
-      const search = new PlaceAutocompleteElement();
-      search.setAttribute('placeholder', 'Commencez à saisir une adresse…');
-      search.setAttribute('aria-label', 'Rechercher une adresse avec Google');
-      root.querySelector('[data-address-search]').append(search);
-      status.textContent = 'Choisissez une suggestion pour compléter l’adresse, le code postal et la ville.';
-      search.addEventListener('gmp-error', unavailable);
-      search.addEventListener('gmp-select', async ({placePrediction}) => {
+      const {AutocompleteSuggestion, AutocompleteSessionToken} = await google.maps.importLibrary('places');
+      const suggestions = document.createElement('datalist');
+      suggestions.id = address.id + '-google-suggestions';
+      address.setAttribute('list', suggestions.id);
+      address.setAttribute('autocomplete', 'off');
+      root.querySelector('[data-address-search]').append(suggestions);
+      let predictions = new Map(), sessionToken = new AutocompleteSessionToken();
+      status.textContent = 'Saisissez une adresse dans le champ Adresse puis choisissez une proposition Google Maps.';
+      address.addEventListener('input', async () => {
+        if (filling) return;
+        clearTimeout(suggestionTimer);
+        const prediction = predictions.get(address.value);
+        if (prediction) {
+          predictions.clear();
+          suggestions.replaceChildren();
+          await select(prediction);
+          sessionToken = new AutocompleteSessionToken();
+          return;
+        }
+        const version = revision;
+        const input = address.value.trim();
+        predictions.clear();
+        suggestions.replaceChildren();
+        if (input.length < 3) return;
+        suggestionTimer = setTimeout(async () => {
+          try {
+            const result = await AutocompleteSuggestion.fetchAutocompleteSuggestions({input, sessionToken, language: 'fr', region: 'fr'});
+            if (version !== revision) return;
+            for (const {placePrediction} of result.suggestions) {
+              if (!placePrediction) continue;
+              const label = placePrediction.text.toString();
+              predictions.set(label, placePrediction);
+              const option = document.createElement('option');
+              option.value = label;
+              suggestions.append(option);
+            }
+            status.textContent = predictions.size ? 'Choisissez une proposition Google Maps dans le champ Adresse.' : 'Aucune adresse trouvée. Précisez votre recherche.';
+          } catch (_) {
+            if (version === revision) status.textContent = 'Suggestions Google indisponibles. Vérifiez la configuration Google Places ou réessayez votre saisie.';
+          }
+        }, 250);
+      });
+      async function select(placePrediction) {
         clearTimeout(timer);
         const version = ++revision;
         try {
@@ -75,23 +107,38 @@
           address.value = [component('street_number'), component('route')].filter(Boolean).join(' ') || place.formattedAddress || '';
           postal.value = component('postal_code');
           city.value = component('locality') || component('postal_town') || component('administrative_area_level_3');
+          filling = true;
           [address, postal, city].forEach(field => {
             field.dispatchEvent(new Event('input', {bubbles: true}));
             field.dispatchEvent(new Event('change', {bubbles: true}));
           });
+          filling = false;
           clearTimeout(timer);
+          try { await google.maps.importLibrary('maps'); }
+          catch (_) {
+            status.textContent = 'Adresse sélectionnée. Le plan est indisponible.';
+            return;
+          }
+          if (version !== revision) return;
           if (place.location) display(place.location, place.formattedAddress || address.value);
           else { clearMap(); caption.textContent = 'Cette adresse ne dispose pas de localisation sur le plan.'; }
           status.textContent = 'Adresse sélectionnée. Vous pouvez ajouter un complément ou ajuster les coordonnées.';
         } catch (_) {
+          filling = false;
           if (version === revision) status.textContent = 'Impossible de récupérer cette adresse. Réessayez ou renseignez les champs manuellement.';
         }
-      });
-      locate.disabled = false;
-      geocode();
+      }
+      try {
+        await google.maps.importLibrary('maps');
+        const {Geocoder} = await google.maps.importLibrary('geocoding');
+        geocoder = new Geocoder();
+        locate.disabled = false;
+        geocode();
+      } catch (_) { caption.textContent = 'Le plan est indisponible. Vous pouvez toujours sélectionner une adresse.'; }
     } catch (_) { unavailable(); }
   }
   [address, postal, city].forEach(field => field.addEventListener('input', () => {
+    if (filling) return;
     ++revision;
     clearTimeout(timer);
     clearMap();
@@ -101,6 +148,18 @@
   locate.disabled = true;
   if (!root.dataset.googleKey) { unavailable(); return; }
   if (window.google?.maps?.importLibrary) { initialize(); return; }
+  // The global address assistant may already be loading the same SDK.
+  const pendingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+  if (pendingScript) {
+    let attempts = 0;
+    const waitForGoogle = () => {
+      if (window.google?.maps?.importLibrary) { initialize(); return; }
+      if (++attempts >= 150) { unavailable(); return; }
+      setTimeout(waitForGoogle, 100);
+    };
+    waitForGoogle();
+    return;
+  }
   window.initClientAddressGoogle = initialize;
   const priorAuthFailure = window.gm_authFailure;
   window.gm_authFailure = () => { unavailable(); priorAuthFailure?.(); };

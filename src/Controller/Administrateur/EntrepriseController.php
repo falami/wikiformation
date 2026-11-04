@@ -6,6 +6,7 @@ use App\Service\Filter\ChoiceFilter;
 
 use App\Entity\{Entreprise, Entite, Utilisateur};
 use App\Form\Administrateur\EntrepriseType;
+use App\Service\Entreprise\EntrepriseClientEditor;
 use App\Security\Permission\TenantPermission;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -184,12 +185,25 @@ final class EntrepriseController extends AbstractController
       ]);
   }
 
+    #[Route('/rechercher-contact', name: 'app_administrateur_entreprise_lookup_contact', methods: ['GET'])]
+    public function lookupContact(Entite $entite, Request $request, EntrepriseClientEditor $editor): JsonResponse
+    {
+        $account = $editor->lookup($request->query->getString('email'), $entite);
+        $response = $this->json($account ? [
+            'found' => true,
+            'contact' => ['prenom' => $account->getPrenom(), 'nom' => $account->getNom(), 'telephone' => $account->getTelephone(), 'civilite' => $account->getCivilite()],
+        ] : ['found' => false]);
+        $response->headers->set('Cache-Control', 'no-store');
+        return $response;
+    }
+
     #[Route('/ajouter', name: 'app_administrateur_entreprise_ajouter', methods: ['GET', 'POST'])]
     #[Route('/modifier/{id}', name: 'app_administrateur_entreprise_modifier', methods: ['GET', 'POST'])]
     public function addEdit(
         Entite $entite,
         Request $request,
         EntityManagerInterface $em,
+        EntrepriseClientEditor $clientEditor,
         ?Entreprise $entreprise = null
     ): Response {
         /** @var Utilisateur $user */
@@ -213,10 +227,16 @@ final class EntrepriseController extends AbstractController
         $form = $this->createForm(EntrepriseType::class, $entreprise, [
             'entite' => $entite,
             'locked' => $locked,
+            'client_workflow' => true,
         ]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            $membership = null;
+            $duplicate = $em->getRepository(Entreprise::class)->findOneBy(['entite' => $entite, 'raisonSociale' => $entreprise->getRaisonSociale()]);
+            if ($duplicate && $duplicate->getId() !== $entreprise->getId()) {
+                $form->get('raisonSociale')->addError(new FormError('Une entreprise porte déjà ce nom dans votre organisme. Modifiez sa fiche existante.'));
+            }
             if (!$isEdit) {
                 try {
                     $this->billingGuard->assertCanCreateEntreprise($entite);
@@ -230,6 +250,16 @@ final class EntrepriseController extends AbstractController
 
             if ($deleteLogo && $logoFile instanceof UploadedFile) {
                 $form->get('deleteLogo')->addError(new FormError('Tu ne peux pas supprimer le logo et en téléverser un nouveau en même temps.'));
+            }
+
+            if ($form->isValid()) {
+                try {
+                    $membership = $clientEditor->prepareRepresentative(
+                        $entreprise, $form->get('contactMode')->getData(), $form->get('newContact')->getData() ?? [], $user,
+                    );
+                } catch (\InvalidArgumentException|\App\Exception\BillingQuotaExceededException $exception) {
+                    $form->get('contactMode')->addError(new FormError($exception->getMessage()));
+                }
             }
 
             if ($form->isValid()) {
@@ -247,10 +277,15 @@ final class EntrepriseController extends AbstractController
                     $entreprise->setLogo($newFilename);
                 }
 
+                $clientEditor->syncUsers($entreprise, $form->get('associatedUsers')->getData());
+                if ($membership) {
+                    $em->persist($membership->getUtilisateur());
+                    $em->persist($membership);
+                }
                 $em->persist($entreprise);
                 $em->flush();
 
-                $this->addFlash('success', $isEdit ? 'Entreprise modifiée.' : 'Entreprise ajoutée.');
+                $this->addFlash('success', $isEdit ? 'Fiche client mise à jour.' : 'Entreprise cliente créée.');
 
                 return $this->redirectToRoute('app_administrateur_entreprise_index', [
                     'entite' => $entite->getId(),

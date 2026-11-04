@@ -59,6 +59,71 @@ final class UtilisateurIdentityTest extends KernelTestCase
         }
     }
 
+    public function testTrainerCanCreateAccountDirectly(): void
+    {
+        $client = $this->client();
+        $page = $client->request('GET', '/fr/administrateur/'.$this->entite->getId().'/formateur/ajouter');
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $form = $page->filter('form[name="formateur"]')->form();
+        $form['formateur[identity][email]'] = 'New-Trainer@example.test';
+        $form['formateur[identity][nom]'] = 'Martin';
+        $form['formateur[identity][prenom]'] = 'Camille';
+        $form['formateur[identity][dateNaissance]'] = '1990-05-12';
+        $form['formateur[identity][adresse]'] = '12 rue des Écoles';
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $account = $this->em->getRepository(Utilisateur::class)->findOneBy(['email' => 'new-trainer@example.test']);
+        self::assertNotNull($account);
+        self::assertSame('1990-05-12', $account->getDateNaissance()->format('Y-m-d'));
+        self::assertSame('12 rue des Écoles', $account->getAdresse());
+        self::assertNotEmpty($account->getPassword());
+        $membership = $this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur' => $account, 'entite' => $this->entite]);
+        self::assertTrue($membership->hasRole(UtilisateurEntite::TENANT_FORMATEUR));
+        self::assertNotNull($this->em->getRepository(\App\Entity\Formateur::class)->findOneBy(['utilisateur' => $account, 'entite' => $this->entite]));
+    }
+
+    public function testTrainerReuseNeedsConfirmationAndPreservesExistingIdentity(): void
+    {
+        $client = $this->client();
+        $url = '/fr/administrateur/'.$this->entite->getId().'/formateur/ajouter';
+        $page = $client->request('GET', $url);
+        $form = $page->filter('form[name="formateur"]')->form();
+        $form['formateur[identity][email]'] = $this->learner->getEmail();
+        $page = $client->submit($form);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Confirmez la reprise', $client->getResponse()->getContent());
+        $form = $page->filter('form[name="formateur"]')->form();
+        $form['formateur[identity][reuse]']->tick();
+        $form['formateur[identity][prenom]'] = 'Unwanted overwrite';
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertSame('JAson', $this->learner->getPrenom());
+        $membership = $this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur' => $this->learner, 'entite' => $this->entite]);
+        self::assertTrue($membership->hasRole(UtilisateurEntite::TENANT_STAGIAIRE));
+        self::assertTrue($membership->hasRole(UtilisateurEntite::TENANT_FORMATEUR));
+        $page = $client->request('GET', $url);
+        $form = $page->filter('form[name="formateur"]')->form();
+        $form['formateur[identity][email]'] = $this->learner->getEmail();
+        $form['formateur[identity][reuse]']->tick();
+        $client->submit($form);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('déjà formateur', $client->getResponse()->getContent());
+    }
+
+    public function testTrainerLookupDoesNotExposeForeignAccount(): void
+    {
+        $foreign = $this->user('foreign-trainer@example.test', 'Private');
+        $this->em->flush();
+        $client = $this->client();
+        $url = '/fr/administrateur/'.$this->entite->getId().'/formateur/rechercher-utilisateur';
+        $client->request('GET', $url, ['email' => $foreign->getEmail()]);
+        self::assertSame(['found' => false], json_decode($client->getResponse()->getContent(), true));
+        $client->request('GET', $url, ['email' => strtoupper($this->learner->getEmail())]);
+        $data = json_decode($client->getResponse()->getContent(), true);
+        self::assertTrue($data['found']);
+        self::assertSame('JAson', $data['fields']['prenom']);
+    }
+
     public function testTrainerDetailsPersistAndReloadWithoutChangingAnotherOrganism(): void
     {
         $other = (new Entite())->setNom('Autre organisme')->setPublic(false)->setCreateur($this->admin);
@@ -363,6 +428,30 @@ final class UtilisateurIdentityTest extends KernelTestCase
         $repo = $this->em->getRepository(UtilisateurEntite::class);
         self::assertSame([UtilisateurEntite::TENANT_ADMIN], $repo->findOneBy(['utilisateur'=>$id,'entite'=>$otherId])->getRoles());
         self::assertSame([UtilisateurEntite::TENANT_STAGIAIRE], $repo->findOneBy(['utilisateur'=>$id,'entite'=>$this->entite->getId()])->getRoles());
+    }
+
+    public function testUserCreationWithOnlyTrainerRoleAndManualAddress(): void
+    {
+        $client = $this->client();
+        $url = '/fr/administrateur/'.$this->entite->getId().'/utilisateur/ajouter';
+        $page = $client->request('GET', $url);
+        $form = $page->selectButton('btnBottomSubmit')->form();
+        $form['utilisateur[prenom]'] = 'Camille';
+        $form['utilisateur[nom]'] = 'Formation';
+        $form['utilisateur[email]'] = 'trainer-manual@example.test';
+        $form['utilisateur[ueRoles]']->select([UtilisateurEntite::TENANT_FORMATEUR]);
+        $form['utilisateur[formateurData][adresse]'] = '12 rue des Écoles';
+        $form['utilisateur[formateurData][codePostal]'] = '30100';
+        $form['utilisateur[formateurData][ville]'] = 'Alès';
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+        $this->em->clear();
+        $created = $this->em->getRepository(Utilisateur::class)->findOneBy(['email'=>'trainer-manual@example.test']);
+        self::assertNotNull($created);
+        $trainer = $this->em->getRepository(\App\Entity\Formateur::class)->findOneBy(['utilisateur'=>$created]);
+        self::assertNotNull($trainer);
+        self::assertSame('12 rue des Écoles', $trainer->getAdresse());
+        self::assertSame('Alès', $trainer->getVille());
     }
 
     public function testHttpCreationPersistsCanonicalEmailAndTenantRoleWithoutSendingMail(): void

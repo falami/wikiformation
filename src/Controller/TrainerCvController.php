@@ -81,10 +81,10 @@ final class TrainerCvController extends AbstractController
         $response=$this->file($this->directory.'/'.basename($cv->filename),$cv->originalName);$response->headers->set('Cache-Control','private, no-store');$response->headers->set('X-Content-Type-Options','nosniff');return $response;
     }
     #[Route('/stagiaire/{entite}/session/{id}/formateurs',name:'app_learner_trainer_cvs',methods:['GET'])]
-    public function trainers(Entite $entite,Session $session): Response {
+    public function trainers(Entite $entite,Session $session, \App\Service\TrainerProfile\PublishedSessionTrainers $publishedTrainers): Response {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
         if($session->getEntite()?->getId()!==$entite->getId() || !$this->em->getRepository(Inscription::class)->findOneBy(['session'=>$session,'stagiaire'=>$this->getUser()])) throw $this->createAccessDeniedException();
-        $rows=[];foreach($session->getFormateursEffectifs() as $trainer) { if($trainer->getEntite()?->getId()!==$entite->getId()) continue; $cv=$this->cv($trainer);if($cv->published) $rows[]=['trainer'=>$trainer,'cv'=>$cv]; }
+        $rows = $publishedTrainers->forSession($session);
         return $this->render('formateur/cv/list.html.twig',['entite'=>$entite,'session'=>$session,'rows'=>$rows]);
     }
     #[Route('/stagiaire/{entite}/session/{session}/formateur/{id}/cv',name:'app_learner_trainer_cv',methods:['GET'])]

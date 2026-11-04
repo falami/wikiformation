@@ -3,6 +3,17 @@
   if (!modal || modal.dataset.ready) return;
   modal.dataset.ready = 'true';
   const body = modal.querySelector('.modal-body');
+  const enhance = () => {
+    body.querySelectorAll('select[data-trainer-expertise]').forEach(select => {
+      if (!window.TomSelect || select.tomselect) return;
+      new TomSelect(select, {
+        plugins: ['remove_button'], maxItems: 40,
+        create: input => ({value: input.trim(), text: input.trim()}),
+        createFilter: input => input.trim().length > 0 && input.length <= 255 && !/[\x00-\x1F\x7F]/.test(input),
+        render: {option_create: (data, escape) => '<div class="create">Ajouter <strong>' + escape(data.input) + '</strong></div>'}
+      });
+    });
+  };
   let target;
   let loading = false;
   const showError = () => {
@@ -22,6 +33,7 @@
       if (!response.ok) throw new Error();
       const data = await response.json();
       body.innerHTML = data.html;
+      enhance();
     } catch { body.textContent = ''; showError(); }
   }));
   modal.addEventListener('hide.bs.modal', event => { if (loading) event.preventDefault(); });
@@ -38,6 +50,7 @@
       const data = await response.json();
       if (response.status === 422 && data.html) {
         body.innerHTML = data.html;
+      enhance();
         body.querySelector('.is-invalid, input, select')?.focus();
       } else if (response.ok && data.id) {
         const value = String(data.id);

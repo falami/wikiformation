@@ -10,13 +10,15 @@ final class ParticipantQrPresenter
 
     public function card(SessionParticipantAccess $participant): array
     {
+        $started = ParticipantQrAvailability::hasStarted($participant->getSession());
         $this->templates->forSession($participant->getSession());
         return [
+            'available' => $started,
             'name' => $participant->getDisplayName(),
             'guest' => $participant->isGuest(),
-            'attendanceUrl' => $participant->getSession()->isEmargementRequis()
+            'attendanceUrl' => $started && $participant->getSession()->isEmargementRequis()
                 ? $this->router->generate('app_participant_qr_attendance', ['token' => $this->access->token($participant, 'attendance')], UrlGeneratorInterface::ABSOLUTE_URL) : null,
-            'satisfactionUrl' => $this->router->generate('app_participant_qr_satisfaction', ['token' => $this->access->token($participant, 'satisfaction')], UrlGeneratorInterface::ABSOLUTE_URL),
+            'satisfactionUrl' => $started ? $this->router->generate('app_participant_qr_satisfaction', ['token' => $this->access->token($participant, 'satisfaction')], UrlGeneratorInterface::ABSOLUTE_URL) : null,
         ];
     }
 }

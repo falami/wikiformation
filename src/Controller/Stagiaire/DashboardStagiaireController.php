@@ -39,6 +39,7 @@ class DashboardStagiaireController extends AbstractController
         private FileUploader $fileUploader,
         private ParameterBagInterface $params,
         private SupportLibraryAccess $supportAccess,
+        private \App\Service\TrainerProfile\PublishedSessionTrainers $publishedTrainers,
     ) {}
     /* =========================
      * Helpers (mêmes signatures)
@@ -519,6 +520,7 @@ class DashboardStagiaireController extends AbstractController
                 'entite'       => $entite,
                 's'            => $s,
                 'inscription'  => $inscription, // ✅
+                'hasPublishedTrainers' => $this->publishedTrainers->forSession($s) !== [],
                 'satisfactionBtn' => $satisfactionBtn ?? '',
                 'qcmBtn'          => $qcmBtn ?? '',
             ]);

@@ -1,5 +1,8 @@
 <article class="participant-qr-card" data-qr-card data-name="{{ card.name|lower }}">
   <header><span class="participant-qr-avatar"><i class="bi bi-person"></i></span><div><h2>{{ card.name }}</h2><p>{{ card.guest ? 'Participant sans compte' : 'Stagiaire inscrit' }}</p></div></header>
+  {% if card.available is defined and not card.available %}
+    <p class="participant-qr-unavailable">Les QR codes seront disponibles à partir du début de la formation.</p>
+  {% else %}
   <div class="participant-qr-pair">
     <section><h3><i class="bi bi-pen"></i> Émargement</h3>
       {% if card.attendanceUrl %}
@@ -14,5 +17,6 @@
       <p>Questionnaire de la formation.</p>
     </section>
   </div>
+  {% endif %}
   <footer><i class="bi bi-shield-lock"></i> Accès personnel, sans connexion. À remettre uniquement à {{ card.name }}.</footer>
 </article>

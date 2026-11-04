@@ -38,7 +38,7 @@ final class ParticipantQrRosterTest extends KernelTestCase
         $site = (new Site())->setNom('Salle de formation')->setSlug('qr-site')->setEntite($this->entite)->setCreateur($this->trainer);
         $this->em->persist($formation); $this->em->persist($site);
         $this->session = (new Session())->setEntite($this->entite)->setCreateur($this->trainer)->setCode('SES-QR-DEMO')->setFormation($formation)->setSite($site)->setFormateur($formateur);
-        $this->session->addJour((new SessionJour())->setEntite($this->entite)->setCreateur($this->trainer)->setDateDebut(new \DateTimeImmutable('today 08:30'))->setDateFin(new \DateTimeImmutable('today 23:59')));
+        $this->session->addJour((new SessionJour())->setEntite($this->entite)->setCreateur($this->trainer)->setDateDebut(new \DateTimeImmutable('yesterday 08:30'))->setDateFin(new \DateTimeImmutable('today 23:59')));
         $this->em->persist($this->session);
         $inscription = (new Inscription())->setSession($this->session)->setStagiaire($this->learner)->setEntite($this->entite)->setCreateur($this->trainer);
         $this->em->persist($inscription);
@@ -64,6 +64,7 @@ final class ParticipantQrRosterTest extends KernelTestCase
         $crawler = $client->request('GET', $this->url('app_formateur_session_qr'));
         self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
         self::assertCount(3, $crawler->filter('[data-qr-card]'));
+        self::assertCount(1, $crawler->filter('[data-qr-search]'));
         self::assertCount(6, $crawler->filter('[data-participant-qr]'));
         self::assertStringContainsString('Alex Martin', $crawler->text());
         self::assertStringContainsString('no-store', $client->getResponse()->headers->get('Cache-Control'));
@@ -83,6 +84,9 @@ final class ParticipantQrRosterTest extends KernelTestCase
         $crawler = $client->request('GET', $this->url('app_stagiaire_session_qr'));
         self::assertSame(200, $client->getResponse()->getStatusCode());
         self::assertCount(1, $crawler->filter('[data-qr-card]'));
+        self::assertCount(0, $crawler->filter('[data-qr-search]'));
+        self::assertCount(0, $crawler->filter('[data-qr-no-result]'));
+        self::assertCount(1, $crawler->filter('[data-qr-print]'));
         self::assertStringNotContainsString('Alex Martin', $crawler->text());
         $crawler = $client->request('GET', self::getContainer()->get('router')->generate('app_stagiaire_dashboard', ['entite' => $this->entite->getId()]));
         self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());

@@ -625,7 +625,7 @@
               <div class="d-flex align-items-end gap-2">
                 <div class="flex-grow-1">{{ form_row(form.formateur) }}</div>
                 <button type="button" class="btn btn-outline-secondary"
-                        data-bs-toggle="modal" data-bs-target="#modal-new-formateur" title="Créer un formateur">
+                        data-quick-create-url="{{ path('app_session_formateur_quick_create', {entite: entite.id}) }}" data-quick-create-target="{{ form.formateur.vars.id }}" data-quick-create-title="Nouveau formateur" title="Créer un formateur">
                   <i class="fa fa-user-plus"></i>
                 </button>
               </div>
@@ -1240,90 +1240,13 @@
     </div>
   </div>
 </div>
-{# ===== NOUVEAU FORMATEUR (ULTRA) ===== #}
-<div class="modal fade modal-ultra" id="modal-new-formateur" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-
-      <form id="form-new-formateur">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            <span class="ico"><i class="bi bi-mortarboard"></i></span>
-            Nouveau formateur
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-        </div>
-
-        <div class="modal-body">
-          <div class="ultra-hint mb-3">
-            <i class="bi bi-stars"></i>
-            <div>
-              <div class="fw-semibold" style="color:var(--ink)">Profil formateur</div>
-              <div>Renseigne les infos essentielles, le reste pourra être complété plus tard.</div>
-            </div>
-          </div>
-
-          <div class="ultra-panel">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label">Prénom *</label>
-                <div class="ultra-field">
-                  <span class="fi"><i class="bi bi-person"></i></span>
-                  <input type="text" name="prenom" class="form-control" required placeholder="Marie">
-                </div>
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Nom *</label>
-                <div class="ultra-field">
-                  <span class="fi"><i class="bi bi-person"></i></span>
-                  <input type="text" name="nom" class="form-control" required placeholder="Martin">
-                </div>
-              </div>
-
-              <div class="col-12">
-                <label class="form-label">Email *</label>
-                <div class="ultra-field">
-                  <span class="fi"><i class="bi bi-envelope"></i></span>
-                  <input type="email" name="email" class="form-control" required placeholder="marie.martin@mail.com">
-                </div>
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Téléphone</label>
-                <div class="ultra-field">
-                  <span class="fi"><i class="bi bi-telephone"></i></span>
-                  <input type="text" name="telephone" class="form-control" placeholder="+33612345678">
-                </div>
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Certifications (optionnel)</label>
-                <div class="ultra-field">
-                  <span class="fi"><i class="bi bi-patch-check"></i></span>
-                  <textarea name="certifications" class="form-control" rows="2" placeholder="CACES R4xx, SST, Titre pro…"></textarea>
-                </div>
-              </div>
-            </div>
-
-            <div class="alert alert-danger d-none mt-3 mb-0" id="new-formateur-error"></div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-ultra-cancel" data-bs-dismiss="modal">
-            <i class="bi bi-x-lg me-1"></i> Annuler
-          </button>
-
-          <button type="submit" class="btn btn-ultra-primary">
-            <i class="fa fa-save me-1"></i> Créer & associer
-          </button>
-        </div>
-      </form>
-
-    </div>
-  </div>
+<div class="modal fade modal-ultra" id="formationQuickCreate" tabindex="-1" aria-labelledby="formationQuickCreateTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><h2 class="modal-title fs-5" id="formationQuickCreateTitle">Nouveau formateur</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+    <div class="modal-body"></div>
+  </div></div>
 </div>
+<script src="{{ asset('dist/js/formation-quick-create.js') }}" defer></script>
 
 {# ===== NOUVEAU SITE ===== #}
 <div class="modal fade" id="modal-new-site" tabindex="-1" aria-hidden="true">

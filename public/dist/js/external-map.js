@@ -42,8 +42,15 @@
     if (map.matches?.('[data-external-map]')) loadMap(map);
   });
   function loadAuthorizedMaps(){
-    document.querySelectorAll('[data-external-map][data-map-autoload="true"]').forEach(map => loadMap(map));
+    const choice = window.WikiGoogleServices?.choice?.();
+    const selector = choice === 'allow' ? '[data-external-map]' : '[data-external-map][data-map-autoload="true"]';
+    if (choice !== 'deny') document.querySelectorAll(selector).forEach(map => loadMap(map));
   }
+  document.addEventListener('wiki:google-preference-changed', event => {
+    if (event.detail.choice !== 'allow') reset(document);
+    loadAuthorizedMaps();
+  });
+  document.addEventListener('shown.bs.modal', loadAuthorizedMaps);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadAuthorizedMaps);
   else loadAuthorizedMaps();
   document.addEventListener('turbo:load', loadAuthorizedMaps);

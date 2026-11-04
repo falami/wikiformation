@@ -201,11 +201,16 @@ class FormateurType extends AbstractType
                 ],
             ])
         ;
+        if ($o['inline_user']) {
+            $b->remove('utilisateur');
+            $b->add('identity', TrainerIdentityType::class, ['mapped' => false]);
+        }
     }
 
     public function configureOptions(OptionsResolver $r): void
     {
         $r->setDefaults([
+            'inline_user' => false,
             'data_class' => Formateur::class,
             'entite' => null,
         ]);

@@ -17,10 +17,12 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final class FormationQuickCreateController extends AbstractController
 {
+    #[Route('/administrateur/{entite}/session/creation-rapide/formateur', name: 'app_session_formateur_quick_create', defaults: ['kind' => 'formateur'], methods: ['GET', 'POST'])]
     #[Route('/administrateur/{entite}/formation/creation-rapide/{kind}', name: 'app_formation_quick_create', requirements: ['kind' => 'categorie|engin|formateur'], methods: ['GET', 'POST'])]
     public function create(Entite $entite, string $kind, Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $hasher): JsonResponse
     {
-        $this->denyAccessUnlessGranted(TenantPermission::FORMATION_MANAGE, $entite);
+        $sessionContext = $request->attributes->get('_route') === 'app_session_formateur_quick_create';
+        $this->denyAccessUnlessGranted($sessionContext ? TenantPermission::SESSION_MANAGE : TenantPermission::FORMATION_MANAGE, $entite);
         $this->denyAccessUnlessGranted(match ($kind) {
             'engin' => TenantPermission::ENGIN_MANAGE,
             'formateur' => TenantPermission::FORMATEUR_MANAGE,
@@ -30,10 +32,10 @@ final class FormationQuickCreateController extends AbstractController
         $object->setEntite($entite)->setCreateur($this->getUser());
         $form = $this->createForm(match ($kind) { 'categorie' => CategorieType::class, 'engin' => EnginType::class, default => FormateurType::class }, $object, [
             'entite' => $entite,
-            'action' => $this->generateUrl('app_formation_quick_create', ['entite' => $entite->getId(), 'kind' => $kind]),
+            'action' => $this->generateUrl($sessionContext ? 'app_session_formateur_quick_create' : 'app_formation_quick_create', $sessionContext ? ['entite' => $entite->getId()] : ['entite' => $entite->getId(), 'kind' => $kind]),
             'csrf_token_id' => 'formation_quick_' . $kind . '_' . $entite->getId(),
         ]);
-        $keep = match ($kind) { 'categorie' => ['nom', 'parent', 'slug'], 'engin' => ['nom', 'site', 'type'], default => ['utilisateur'] };
+        $keep = match ($kind) { 'categorie' => ['nom', 'parent', 'slug'], 'engin' => ['nom', 'site', 'type'], default => ['utilisateur', 'certifications'] };
         foreach ($form->all() as $name => $field) {
             if (!in_array($name, $keep, true)) $form->remove($name);
         }
@@ -43,7 +45,7 @@ final class FormationQuickCreateController extends AbstractController
             $options['required'] = false;
             $options['placeholder'] = 'Nouvelle personne (renseigner ci-dessous)';
             $form->add('utilisateur', \Symfony\Bridge\Doctrine\Form\Type\EntityType::class, $options);
-            foreach (['prenom' => 'Prénom', 'nom' => 'Nom', 'email' => 'Adresse e-mail'] as $name => $label) {
+            foreach (['prenom' => 'Prénom', 'nom' => 'Nom', 'email' => 'Adresse e-mail', 'telephone' => 'Téléphone (optionnel)'] as $name => $label) {
                 $form->add($name, $name === 'email' ? EmailType::class : TextType::class, [
                     'mapped' => false, 'required' => false, 'label' => $label,
                     'constraints' => $name === 'email' ? [new Assert\Email(), new Assert\Length(max: 180)] : [new Assert\Length(max: 100)],
@@ -80,6 +82,7 @@ final class FormationQuickCreateController extends AbstractController
                         $form->get('email')->addError(new FormError('Cette adresse est déjà utilisée. Sélectionnez l’utilisateur de votre organisme ou gérez son rattachement dans Utilisateurs.'));
                     }
                     $newUser = (new Utilisateur())->setPrenom(trim((string) $form->get('prenom')->getData()))->setNom(trim((string) $form->get('nom')->getData()))->setEmail($email)->setCreateur($this->getUser());
+                    $newUser->setTelephone(trim((string) $form->get('telephone')->getData()) ?: null);
                     $newUser->setPassword($hasher->hashPassword($newUser, bin2hex(random_bytes(32))));
                     $object->setUtilisateur($newUser);
                 }

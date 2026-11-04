@@ -25,6 +25,9 @@ final class ParticipantQrPublicController extends AbstractController
     {
         $access = $qr->resolve($token, 'attendance');
         if (!$access) return $this->unavailable();
+        if (!\App\Service\Session\ParticipantQrAvailability::hasStarted($access->getSession())) {
+            return $this->unavailable('Cet accès sera disponible à partir du début de la formation.', $access, 403);
+        }
         $session = $access->getSession();
         if (!$session->isEmargementRequis()) {
             return $this->unavailable('Les émargements de cette session sont gérés par votre organisme de formation.', $access, 403);
@@ -117,6 +120,9 @@ final class ParticipantQrPublicController extends AbstractController
     {
         $access = $qr->resolve($token, 'satisfaction');
         if (!$access) return $this->unavailable();
+        if (!\App\Service\Session\ParticipantQrAvailability::hasStarted($access->getSession())) {
+            return $this->unavailable('Cet accès sera disponible à partir du début de la formation.', $access, 403);
+        }
         $session = $access->getSession();
         $assignments = $this->assignments($em, $access);
         foreach ($assignments as $assignment) {

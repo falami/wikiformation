@@ -3,6 +3,10 @@
 namespace App\Controller\Administrateur;
 
 use App\Service\Filter\ChoiceFilter;
+use App\Entity\UtilisateurEntite;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use App\Service\Billing\BillingGuard;
 
 use App\Entity\{Formateur, Entite, Utilisateur, Site, Engin};
 use App\Service\FileUploader;
@@ -218,9 +222,28 @@ final class FormateurController extends AbstractController
 
 
 
+    #[Route('/rechercher-utilisateur', name: 'app_administrateur_formateur_lookup', methods: ['GET'])]
+    public function lookup(Entite $entite, Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $email = Utilisateur::normalizeEmail($request->query->getString('email'));
+        $existing = $em->getRepository(Utilisateur::class)->findByCanonicalEmail(['email' => $email])[0] ?? null;
+        $membership = $existing ? $em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur' => $existing, 'entite' => $entite]) : null;
+        $data = ['found' => false];
+        if ($membership) {
+            $data = ['found' => true, 'fields' => []];
+            foreach (['civilite', 'nom', 'prenom', 'telephone', 'adresse', 'complement', 'codePostal', 'ville'] as $field) {
+                $data['fields'][$field] = $existing->{'get'.ucfirst($field)}();
+            }
+            $data['fields']['dateNaissance'] = $existing->getDateNaissance()?->format('Y-m-d');
+        }
+        $response = $this->json($data);
+        $response->headers->set('Cache-Control', 'no-store');
+        return $response;
+    }
+
     #[Route('/ajouter', name: 'app_administrateur_formateur_ajouter', methods: ['GET', 'POST'])]
     #[Route('/modifier/{id}', name: 'app_administrateur_formateur_modifier', methods: ['GET', 'POST'])]
-    public function addEdit(Entite $entite, Request $request, EntityManagerInterface $em, \App\Service\Satisfaction\CatalogueRatings $ratings, ?Formateur $formateur = null): Response
+    public function addEdit(Entite $entite, Request $request, EntityManagerInterface $em, \App\Service\Satisfaction\CatalogueRatings $ratings, UserPasswordHasherInterface $passwordHasher, BillingGuard $billingGuard, ?Formateur $formateur = null): Response
     {
 
 
@@ -239,8 +262,58 @@ final class FormateurController extends AbstractController
 
         $form = $this->createForm(FormateurType::class, $formateur, [
             'entite' => $entite,
+            'inline_user' => !$isEdit,
         ]);
         $form->handleRequest($request);
+        $newMembership = null;
+        if (!$isEdit && $form->isSubmitted() && $form->isValid()) {
+            $identity = $form->get('identity');
+            $data = $identity->getData();
+            $email = Utilisateur::normalizeEmail($data['email']);
+            $existing = $em->getRepository(Utilisateur::class)->findByCanonicalEmail(['email' => $email])[0] ?? null;
+            if ($existing) {
+                $membership = $em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur' => $existing, 'entite' => $entite]);
+                if (!$membership) {
+                    $identity->get('email')->addError(new FormError('Cette adresse ne peut pas être utilisée ici. Passez par la gestion des utilisateurs pour associer ce compte à votre organisme.'));
+                } elseif (!$data['reuse']) {
+                    $identity->get('reuse')->addError(new FormError('Confirmez la reprise de cet utilisateur ou utilisez une autre adresse e-mail.'));
+                } elseif ($em->getRepository(Formateur::class)->findOneBy(['utilisateur' => $existing, 'entite' => $entite])) {
+                    $identity->get('email')->addError(new FormError('Cet utilisateur est déjà formateur dans cet organisme. Modifiez sa fiche existante.'));
+                } else {
+                    $formateur->setUtilisateur($existing);
+                    $newMembership = $membership;
+                }
+            } else {
+                foreach (['nom', 'prenom'] as $field) {
+                    if (!trim($data[$field] ?? '')) $identity->get($field)->addError(new FormError('Ce champ est obligatoire.'));
+                }
+                if ($form->isValid()) {
+                    $account = (new Utilisateur())->setEmail($email)->setCreateur($user)->setEntite($entite);
+                    foreach (['civilite', 'nom', 'prenom', 'telephone', 'dateNaissance', 'adresse', 'complement', 'codePostal', 'ville'] as $field) {
+                        $account->{'set'.ucfirst($field)}($data[$field]);
+                    }
+                    $account->setPassword($passwordHasher->hashPassword($account, bin2hex(random_bytes(32))));
+                    $formateur->setUtilisateur($account);
+                    $newMembership = (new UtilisateurEntite())->setUtilisateur($account)->setEntite($entite)->setCreateur($user);
+                }
+            }
+            if ($newMembership) {
+                $roles = array_values(array_unique([...($newMembership->getId() ? $newMembership->getRoles() : []), UtilisateurEntite::TENANT_FORMATEUR]));
+                try {
+                    $billingGuard->assertCanTransitionUtilisateurEntite(
+                        entite: $entite,
+                        currentRoles: $newMembership->getId() ? $newMembership->getRoles() : [],
+                        currentStatus: $newMembership->getId() ? $newMembership->getStatus() : UtilisateurEntite::STATUS_INVITED,
+                        futureRoles: $roles,
+                        futureStatus: $newMembership->getStatus(),
+                        excludeUtilisateurEntiteId: $newMembership->getId(),
+                    );
+                    $newMembership->setRoles($roles);
+                } catch (\App\Exception\BillingQuotaExceededException $e) {
+                    $form->addError(new FormError($e->getMessage()));
+                }
+            }
+        }
         if ($form->isSubmitted() && $form->isValid()) {
 
 
@@ -262,6 +335,10 @@ final class FormateurController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             if ($form->get('removePhoto')->getData() && !$form->get('photo')->getData()) {
                 $formateur->setPhoto(null);
+            }
+            if ($newMembership) {
+                $em->persist($formateur->getUtilisateur());
+                $em->persist($newMembership);
             }
             $em->persist($formateur);
             $em->flush();

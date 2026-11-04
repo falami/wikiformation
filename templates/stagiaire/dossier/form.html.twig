@@ -65,6 +65,7 @@
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/stagiaire-dossier.css') }}?v=1">
 {% endblock %}
 
 {% block javascripts %}
@@ -79,9 +80,20 @@
 
 {% block body %}
 
-<h1 class="h4 mb-3">
-  {{ title }} — Inscription #{{ inscription.id }}
-</h1>
+<div class="dossier-page">
+<header class="dossier-hero">
+  <div>
+    <span class="dossier-eyebrow">ESPACE STAGIAIRE / INSCRIPTION #{{ inscription.id }}</span>
+    <h1>{{ title }}</h1>
+    <p>Votre formation commence ici. Retrouvez votre convention et rassemblez vos documents en un seul endroit.</p>
+  </div>
+  <div class="dossier-hero-icon" aria-hidden="true"><i class="fa fa-folder-open"></i></div>
+</header>
+<nav class="dossier-nav" aria-label="Rubriques du dossier">
+  <a href="#dossier-convention"><span>01</span> Ma convention <i class="fa fa-arrow-down" aria-hidden="true"></i></a>
+  <a href="#dossier-informations"><span>02</span> Mes informations <i class="fa fa-arrow-down" aria-hidden="true"></i></a>
+  <a href="#dossier-documents"><span>03</span> Mes documents <i class="fa fa-arrow-down" aria-hidden="true"></i></a>
+</nav>
 
 {% include 'flagMessage.html.twig' %}
 
@@ -97,7 +109,7 @@
    - conventionUploadHelp : string|null (optionnel)
 #}
 
-<div class="convention-card p-3 mb-4">
+<div class="convention-card p-3 mb-4" id="dossier-convention">
   {% if conventions|length > 1 %}
     <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Conventions de cette inscription">
       {% for item in conventions %}
@@ -121,7 +133,7 @@
         {% endif %}
       </div>
       <div class="convention-muted small mt-1">
-        Vous pouvez soit <strong>uploader</strong> la convention signée, soit <strong>signer en ligne</strong> (si disponible).
+        Déposez votre convention signée ou signez directement en ligne lorsque cette option est disponible.
         {% if conventionUploadHelp %}<span class="ms-1">{{ conventionUploadHelp }}</span>{% endif %}
       </div>
     </div>
@@ -145,8 +157,8 @@
   {% if not conventionPdfUrl %}
     <div class="alert alert-warning mt-3 mb-0">
       <i class="fa fa-triangle-exclamation me-1"></i>
-      La convention PDF n’est pas disponible pour le moment (elle doit être générée côté administrateur).
-      Vous pouvez quand même déposer votre convention signée via les pièces du dossier.
+      <strong>Votre convention est en cours de préparation.</strong><br>
+      Vous pouvez déjà compléter vos informations et déposer votre convention signée dans les pièces du dossier.
     </div>
   {% endif %}
 
@@ -172,7 +184,7 @@
 
       <div class="modal-body">
         {% if conventionPdfUrl %}
-          <iframe class="pdf-frame mb-3" src="{{ conventionPdfUrl }}"></iframe>
+          <iframe title="Convention de formation" class="pdf-frame mb-3" src="{{ conventionPdfUrl }}"></iframe>
         {% else %}
           <div class="alert alert-warning">
             PDF non disponible.
@@ -217,10 +229,10 @@
 {{ form_errors(form) }}
 
 {# ====== Carte: Informations administratives ====== #}
-<div class="card shadow-sm mb-4">
+<section class="card dossier-section mb-4" id="dossier-informations">
   <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title d-flex align-items-center">
     <i class="fa fa-briefcase text-theme-secondaire me-2"></i>
-    <span>Informations administratives</span>
+    <div><span class="dossier-eyebrow">02 / VOTRE PROFIL</span><h2>Informations administratives</h2><p>Les informations utiles à la prise en charge de votre formation.</p></div>
   </div>
   <div class="card-body">
     <div class="row g-3">
@@ -230,10 +242,10 @@
       <div class="col-md-6">
         {{ form_row(form.opco) }}
       </div>
-      <div class="col-md-4">
+      <div class="col-md-6">
         {{ form_row(form.numDossierOpco) }}
       </div>
-      <div class="col-md-4 d-flex align-items-center">
+      <div class="col-md-6 dossier-accessibility">
         {{ form_row(form.amenagementHandicap) }}
       </div>
       <div class="col-md-12" id="details-amenagement-wrap">
@@ -241,7 +253,7 @@
       </div>
     </div>
   </div>
-</div>
+</section>
 
 {# ====== Prototype custom des pièces ====== #}
 {% set piecePrototype %}
@@ -267,16 +279,16 @@
 {% endset %}
 
 {# ====== Carte: Pièces du dossier ====== #}
-<div class="card shadow-sm mb-4">
+<section class="card dossier-section mb-4" id="dossier-documents">
   <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title d-flex align-items-center">
     <i class="fa fa-file text-theme-secondaire me-2"></i>
-    <span>Pièces du dossier</span>
+    <div><span class="dossier-eyebrow">03 / VOS JUSTIFICATIFS</span><h2>Pièces du dossier</h2><p>Rassemblez les documents demandés par votre organisme.</p></div>
   </div>
   <div class="card-body">
 
     <p class="text-muted small mb-3">
       Ajoutez ici les documents nécessaires : CNI, règlement intérieur signé, pièces OPCO, justificatif de domicile,
-      certificat médical, etc.
+      selon les demandes de votre organisme.
     </p>
 
     <div id="pieces-collection"
@@ -313,13 +325,16 @@
       {% endfor %}
     </div>
 
+    {% do form.pieces.setRendered %}
+    <div class="dossier-empty" id="pieces-empty" {% if form.pieces|length %}hidden{% endif %}><i class="fa fa-cloud-arrow-up" aria-hidden="true"></i><strong>Vos documents, réunis ici</strong><span>Ajoutez une pièce, choisissez son type puis sélectionnez votre fichier.</span></div>
     <button type="button" class="btn btn-outline-primary mt-3" id="btn-add-piece">
       <i class="fa fa-plus me-1"></i> Ajouter une pièce
     </button>
   </div>
-</div>
+</section>
 
-<div class="mt-3 d-flex gap-2">
+<div class="dossier-actions">
+  <div class="dossier-save-note"><i class="fa fa-circle-info" aria-hidden="true"></i> Pensez à enregistrer après vos modifications.</div>
   <button class="btn btn-primary">
     <i class="fa fa-check me-1"></i> Enregistrer
   </button>
@@ -330,6 +345,7 @@
 </div>
 
 {{ form_end(form) }}
+</div>
 
 {# ====== JS: toggle aménagement + collection pièces + Flatpickr + validation + e-sign ====== #}
 <script>
@@ -373,8 +389,14 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const item = btn.closest('.piece-item');
         if (item) item.remove();
+        updatePiecesState();
       }
     });
+  }
+
+  function updatePiecesState(){
+    const empty = document.getElementById('pieces-empty');
+    if (empty) empty.hidden = !!collection?.querySelector('.piece-item');
   }
 
   function addPiece(){
@@ -385,6 +407,8 @@ document.addEventListener('DOMContentLoaded', () => {
     wrapper.className = 'piece-item mb-3';
     wrapper.innerHTML = html;
     collection.appendChild(wrapper);
+    updatePiecesState();
+    wrapper.querySelector('select, input')?.focus();
 
     // Re-init Flatpickr dans le bloc ajouté
     if (window.flatpickr) {

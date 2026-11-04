@@ -25,7 +25,7 @@ final class FormationQuickCreateTest extends KernelTestCase
             $client = self::getContainer()->get('test.client');
             $client->disableReboot(); $client->catchExceptions(false); $client->loginUser($admin);
             $base = '/fr/administrateur/'.$entite->getId().'/formation/creation-rapide/';
-            $submit = function (string $kind, array $values) use ($client, $base) {
+            $submit = function (string $kind, array $values) use ($client, &$base) {
                 $client->request('GET', $base.$kind);
                 self::assertSame(200, $client->getResponse()->getStatusCode());
                 $html = json_decode($client->getResponse()->getContent(), true)['html'];
@@ -68,6 +68,17 @@ final class FormationQuickCreateTest extends KernelTestCase
             $submit('formateur', ['prenom'=>'Jean', 'nom'=>'Test', 'email'=>'JEAN@test.fr']);
             self::assertSame(422, $client->getResponse()->getStatusCode());
             self::assertSame(1, $em->getRepository(Formateur::class)->count([]));
+            $formationBase = $base;
+            $base = '/fr/administrateur/'.$entite->getId().'/session/creation-rapide/';
+            $submit('formateur', ['prenom'=>'Marie', 'nom'=>'Session', 'email'=>'marie@test.fr', 'telephone'=>'0612345678', 'certifications'=>['Excel', 'Spécialité personnalisée']]);
+            self::assertSame(201, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+            $trainer = $em->find(Formateur::class, json_decode($client->getResponse()->getContent(), true)['id']);
+            self::assertSame("Excel\nSpécialité personnalisée", $trainer->getCertifications());
+            self::assertSame('0612345678', $trainer->getUtilisateur()->getTelephone());
+            $submit('formateur', ['prenom'=>'', 'nom'=>'Session', 'email'=>'invalid']);
+            self::assertSame(422, $client->getResponse()->getStatusCode());
+            self::assertSame(2, $em->getRepository(Formateur::class)->count([]));
+            $base = $formationBase;
             $client->request('POST', $base.'categorie', ['categorie'=>['nom'=>'Invalid csrf']]);
             self::assertSame(422, $client->getResponse()->getStatusCode());
             self::assertSame(3, $em->getRepository(Categorie::class)->count([]));

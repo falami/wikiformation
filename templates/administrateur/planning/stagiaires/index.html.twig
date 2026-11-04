@@ -14,7 +14,7 @@
     --card: #fff; --card2: #f7f9fc; --ink: #233342; --line: #e6eaf0;
   }
   </style>
-  <link rel="stylesheet" href="{{ asset('dist/css/trainee-planning.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/trainee-planning.css') }}?v=2">
 
 
 {% endblock %}
@@ -466,6 +466,40 @@
   const calendarEl = document.getElementById('calendar');
   const schedulerKey = {{ schedulerKey ? schedulerKey|json_encode|raw : '""' }};
 
+  let columnFrame = null;
+  let columnSizes = '';
+  function scheduleColumnSizing(){
+    cancelAnimationFrame(columnFrame);
+    columnFrame = requestAnimationFrame(() => {
+      const cell = calendarEl.querySelector('td .fc-datagrid-cell-cushion');
+      if (!cell || !calendarEl.clientWidth) return;
+      const style = getComputedStyle(cell);
+      const context = document.createElement('canvas').getContext('2d');
+      if (!context) return;
+      context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const resources = calendar.getResources();
+      const measure = (value) => context.measureText(String(value || '')).width;
+      // Include cell padding, borders and the resource expander space.
+      const nameWidth = Math.ceil(Math.max(measure('Stagiaire'), ...resources.map(r => measure(r.title))) + 40);
+      const companyWidth = Math.ceil(Math.max(measure('Société'), ...resources.map(r => measure(r.extendedProps.societe))) + 24);
+      const available = Math.max(160, Math.floor(calendarEl.clientWidth * 0.55));
+      const desiredName = Math.max(110, nameWidth);
+      const desiredCompany = Math.max(110, companyWidth);
+      const ratio = Math.min(1, available / (desiredName + desiredCompany));
+      const widths = [Math.floor(desiredName * ratio), Math.floor(desiredCompany * ratio)];
+      const key = widths.join(':');
+      if (key === columnSizes) return;
+      columnSizes = key;
+      calendar.batchRendering(() => {
+        calendar.setOption('resourceAreaWidth', (widths[0] + widths[1]) + 'px');
+        calendar.setOption('resourceAreaColumns', [
+          { field: 'title', headerContent: 'Stagiaire', width: widths[0] },
+          { field: 'societe', headerContent: 'Société', width: widths[1] }
+        ]);
+      });
+    });
+  }
+
   // ✅ IMPORTANT : calendar défini mais aucune fonction appelée n’en dépend
   const calendar = new FullCalendar.Calendar(calendarEl, {
     schedulerLicenseKey: schedulerKey || 'CC-Attribution-NonCommercial-NoDerivatives',
@@ -478,11 +512,12 @@
     editable: false,
     selectable: false,
 
-    resourceAreaWidth: window.innerWidth < 768 ? '180px' : '340px',
+    resourceAreaWidth: '340px',
     resourceAreaColumns: [
-      { field: 'title',   headerContent: 'Stagiaire', width: 220 },
-      { field: 'societe', headerContent: 'Société',   width: 120 }
+      { field: 'title',   headerContent: 'Stagiaire', width: 170 },
+      { field: 'societe', headerContent: 'Société',   width: 170 }
     ],
+    resourcesSet: scheduleColumnSizing,
     slotMinWidth: 70,
     resourceOrder: 'societe,title',
 
@@ -610,6 +645,9 @@
   // ----------------------------
   initTomSelect();
   calendar.render();
+  const columnResizeObserver = new ResizeObserver(scheduleColumnSizing);
+  columnResizeObserver.observe(calendarEl);
+  document.fonts?.ready.then(scheduleColumnSizing);
   initPeriodPicker(calendar);
 
   $lastRefresh.textContent = 'Maj : ' + nowLabel();

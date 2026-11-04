@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   if (window.WikiGoogleServices) return;
-  window.WikiGoogleServices = true;
+  window.WikiGoogleServices = { choice: () => read() };
   const boot = document.currentScript;
   const key = 'wiki.google.maps.v1.' + (boot?.dataset.googleUser || 'anonymous');
   const preferencesUrl = boot?.dataset.googlePreferencesUrl || '';
@@ -34,6 +34,7 @@
       [settings, notice].filter(Boolean).forEach(root => { root.querySelector('[data-google-status]').textContent = message; });
     };
     function render() {
+      document.dispatchEvent(new CustomEvent("wiki:google-preference-changed", {detail: {choice}}));
       status(choice === 'allow' ? 'Autorisation mémorisée pour toutes les pages de ce navigateur.' : choice === 'deny' ? 'Services Google désactivés. La saisie manuelle reste disponible.' : 'Les services Google sont désactivés tant que vous ne les autorisez pas.');
       if (notice) notice.hidden = choice !== null;
     }

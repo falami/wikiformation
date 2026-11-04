@@ -347,7 +347,19 @@
     },
     enctype: 'multipart/form-data'
   }) }}
-  {{ form_errors(form) }}
+  {% if form.vars.submitted and not form.vars.valid %}
+    {% macro validation_errors(field) %}
+      {% for error in field.vars.errors %}
+        <li><a href="#{{ field.vars.id }}">{{ field.vars.label|default(field.vars.name) }} : {{ error.message }}</a></li>
+      {% endfor %}
+      {% for child in field %}{{ _self.validation_errors(child) }}{% endfor %}
+    {% endmacro %}
+    <div class="alert alert-danger" role="alert" tabindex="-1" id="user-form-errors">
+      <strong>L’utilisateur n’a pas été enregistré. Corrigez les champs suivants :</strong>
+      <ul class="mb-0">{{ _self.validation_errors(form) }}</ul>
+    </div>
+  {% endif %}
+
 
   <div class="row g-4">
     {# ====================== COL LEFT ====================== #}
@@ -1065,6 +1077,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   refreshBlocks();
   refreshResume();
+  const errors = document.getElementById('user-form-errors');
+  if (errors) {
+    errors.focus();
+    errors.scrollIntoView({block: 'center'});
+  }
 });
 </script>
 
@@ -1077,5 +1094,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
 {% block javascripts_bottom %}
   {{ parent() }}
-  <script src="{{ asset('dist/js/client-address.js') }}"></script>
+  <script src="{{ asset('dist/js/client-address.js') }}?v=2"></script>
 {% endblock %}

@@ -565,24 +565,48 @@
     return { left: 'prev,next today', center: 'title', right: 'resourceTimelineDay,resourceTimelineWeek,resourceTimelineMonth' };
   }
 
+  let resourceWidths = [160, 220, 140];
+  let sizingFrame;
   function getResourceColumns(){
-    if (isTablet()){
-      return [
-        { field: 'title', headerContent: 'Session', width: 210 },
-        { field: 'site', headerContent: 'Site', width: 150 },
-      ];
-    }
     return [
-      { field: 'title',     headerContent: 'Session',   width: 200 },
-      { field: 'formation', headerContent: 'Formation', width: 220 },
-      { field: 'site',      headerContent: 'Site',      width: 170 },
-      { field: 'range',     headerContent: 'Dates',     width: 120 }
+      { field: 'title', headerContent: 'Session', width: resourceWidths[0] },
+      { field: 'formation', headerContent: 'Formation', width: resourceWidths[1] },
+      { field: 'site', headerContent: 'Site', width: resourceWidths[2] }
     ];
   }
-
   function getResourceAreaWidth(){
-    if (isTablet()) return '360px';
-    return '520px';
+    return resourceWidths.reduce((sum, width) => sum + width, 0) + 'px';
+  }
+  function sizeResourceColumns(){
+    cancelAnimationFrame(sizingFrame);
+    sizingFrame = requestAnimationFrame(() => {
+      if (isMobile()) return;
+      const cell = calendarEl.querySelector('td .fc-datagrid-cell-cushion');
+      if (!cell || !calendarEl.clientWidth) return;
+      const style = getComputedStyle(cell);
+      const context = document.createElement('canvas').getContext('2d');
+      if (!context) return;
+      context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const rows = calendar.getResources();
+      const measure = (field, label, max) => {
+        let width = context.measureText(label).width;
+        rows.forEach(row => {
+          width = Math.max(width, context.measureText(String(field === 'title' ? row.title : row.extendedProps[field] || '')).width);
+        });
+        return Math.min(max, Math.ceil(width + (field === 'title' ? 36 : 26)));
+      };
+      const desired = [measure('title', 'Session', 190), measure('formation', 'Formation', 260), measure('site', 'Site', 190)];
+      const available = Math.floor(calendarEl.clientWidth * 0.55);
+      // Keep the reference compact and give the remaining space to the labels.
+      const ratio = Math.min(1, available / desired.reduce((sum, width) => sum + width, 0));
+      const next = desired.map(width => Math.floor(width * ratio));
+      if (next.join(':') === resourceWidths.join(':')) return;
+      resourceWidths = next;
+      calendar.batchRendering(() => {
+        calendar.setOption('resourceAreaColumns', getResourceColumns());
+        calendar.setOption('resourceAreaWidth', getResourceAreaWidth());
+      });
+    });
   }
 
   const calendar = new FullCalendar.Calendar(calendarEl, {
@@ -602,6 +626,7 @@
     resourceAreaWidth: getResourceAreaWidth(),
     resourceAreaColumns: getResourceColumns(),
     slotMinWidth: isTablet() ? 62 : 70,
+    resourcesSet: sizeResourceColumns,
     resourceOrder: 'title',
 
     views: {
@@ -709,6 +734,9 @@
   // Init
   initTomSelect();
   calendar.render();
+  const resourceResizeObserver = new ResizeObserver(sizeResourceColumns);
+  resourceResizeObserver.observe(calendarEl);
+  document.fonts?.ready.then(sizeResourceColumns);
   initPeriodPicker(calendar);
   $lastRefresh.textContent = 'Maj : ' + nowLabel();
   refetchDebounced(50);

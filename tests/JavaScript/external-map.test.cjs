@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../../public/dist/js/external-map.js'), 'utf8');
 
-function browser(src = 'https://www.google.com/maps?q=Paris&output=embed', auto = false) {
+function browser(src = 'https://www.google.com/maps?q=Paris&output=embed', auto = false, preference = null) {
   const listeners = {}, created = [];
   const canvas = {children: [], get childElementCount() { return this.children.length; }, append(child) { this.children.push(child); }, replaceChildren() { this.children = []; }};
   const placeholder = {hidden: false}, error = {textContent: ''};
@@ -12,10 +12,10 @@ function browser(src = 'https://www.google.com/maps?q=Paris&output=embed', auto 
   const button = {closest: () => map};
   const root = {querySelectorAll: selector => selector.includes('data-map-autoload') && !auto ? [] : [map]};
   const document = {...root, addEventListener(name, fn) { listeners[name] = fn; }, createElement(tag) { const frame = {tag, focus() { this.focused = true; }};created.push(frame);return frame; }};
-  const window = {};
+  const window = {WikiGoogleServices: {choice: () => preference}};
   const run = () => vm.runInNewContext(source, {window, document, URL});run();
   const click = () => listeners.click({target: {closest: () => button}, preventDefault() {}});
-  return {created, canvas, placeholder, error, listeners, click, root, run};
+  return {setPreference(value) { preference = value; listeners['wiki:google-preference-changed']({detail: {choice: value}}); }, created, canvas, placeholder, error, listeners, click, root, run};
 }
 
 test('creates one external iframe only after an explicit click', () => {
@@ -46,4 +46,21 @@ test('remembered trainer permission loads automatically and survives Turbo navig
   b.listeners['turbo:before-cache']();
   b.listeners['turbo:load']();
   assert.equal(b.created.length, 2);
+});
+
+
+test('saved Google preference loads maps and withdrawal removes existing frames', () => {
+  const b = browser(undefined, false, 'allow');
+  assert.equal(b.canvas.childElementCount, 1);
+  b.setPreference('deny');
+  assert.equal(b.canvas.childElementCount, 0);
+  b.listeners['turbo:load']();
+  assert.equal(b.canvas.childElementCount, 0);
+  b.setPreference('allow');
+  assert.equal(b.canvas.childElementCount, 1);
+});
+
+test('Google refusal overrides legacy autoload permission', () => {
+  const b = browser(undefined, true, 'deny');
+  assert.equal(b.canvas.childElementCount, 0);
 });
