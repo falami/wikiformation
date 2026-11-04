@@ -34,6 +34,7 @@ class EmargementController extends AbstractController
         if (!$ins || $ins->getEntite()?->getId() !== $entite->getId() || $session?->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateurUtilisateur($actor)) return $this->json(['error'=>'Accès refusé.'],403);
         $date = $request->request->getString('date'); $period = $request->request->getString('period'); $status = $request->request->getString('status');
         if (!in_array($period,['AM','PM','DAY'],true) || !in_array($status,['absent','unknown'],true) || $ins->getStatus() === \App\Enum\StatusInscription::ANNULE) return $this->json(['error'=>'Choix invalide.'],422);
+        if (!\App\Service\Session\ParticipantQrAvailability::hasStarted($session)) return $this->json(['error'=>'La déclaration d’absence sera disponible au début de la formation.'],409);
         $periods = $calculator->periods($ins); $online = $calculator->online($ins); $keys = [];
         foreach ($period === 'DAY' ? ['AM','PM'] : [$period] as $half) {
             $key = $date.':'.$half;
@@ -235,6 +236,7 @@ class EmargementController extends AbstractController
             'outOfSession' => false,
             'allowedDays'  => $allowedDays,
             'signatureAvailable' => \App\Service\Session\ParticipantQrAvailability::hasStarted($session) && $date->format('Y-m-d') <= (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('Y-m-d'),
+            'absenceAvailable' => \App\Service\Session\ParticipantQrAvailability::hasStarted($session) && $date->format('Y-m-d') <= (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('Y-m-d'),
             'trainer'      => $trainer,
             'trainees'     => $trainees,
         ]);

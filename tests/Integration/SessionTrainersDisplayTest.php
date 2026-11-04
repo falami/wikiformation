@@ -366,11 +366,53 @@ final class SessionTrainersDisplayTest extends KernelTestCase
         self::assertSame(0, $this->em->getRepository(\App\Entity\Emargement::class)->count([]));
     }
 
-    private function attendanceToken(KernelBrowser $client): string
+    public function testTrainerAbsenceRequiresTrainingToHaveStarted(): void
+    {
+        $user = $this->referent->getUtilisateur();
+        $user->setRoles(['ROLE_SUPER_ADMIN']);
+        $user->addUtilisateurEntite((new UtilisateurEntite())->setUtilisateur($user)->setEntite($this->entite)->setCreateur($this->admin)->setRoles(['TENANT_ADMIN']));
+        $inscription = (new \App\Entity\Inscription())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)->setStagiaire($this->admin);
+        $this->session->addInscription($inscription);
+        $this->em->persist($inscription);
+        foreach ($this->session->getJours() as $day) {
+            $day->setDateDebut(new \DateTimeImmutable('tomorrow '.$day->getDateDebut()->format('H:i'), new \DateTimeZone('Europe/Paris')));
+            $day->setDateFin(new \DateTimeImmutable('tomorrow '.$day->getDateFin()->format('H:i'), new \DateTimeZone('Europe/Paris')));
+            $day->setFormateur($this->referent);
+        }
+        $this->em->flush();
+        $client = new KernelBrowser(self::$kernel);
+        $client->disableReboot();
+        $client->catchExceptions(false);
+        $client->loginUser($user);
+        $router = self::getContainer()->get('router');
+        $client->request('GET', $router->generate('app_formateur_emargement_feed', ['entite' => $this->entite->getId(), 'session' => $this->session->getId()]));
+        $token = $this->attendanceToken($client, 'trainer_absence_');
+        $url = $router->generate('app_formateur_emargement_absence', ['entite' => $this->entite->getId()]);
+        foreach (['AM', 'PM', 'DAY'] as $period) {
+            $client->request('POST', $url, ['inscription' => $inscription->getId(), 'date' => (new \DateTimeImmutable('tomorrow'))->format('Y-m-d'), 'period' => $period, 'status' => 'absent', '_token' => $token]);
+            self::assertSame(409, $client->getResponse()->getStatusCode());
+            self::assertStringContainsString('début de la formation', json_decode($client->getResponse()->getContent(), true)['error']);
+        }
+        $this->em = self::getContainer()->get('doctrine')->getManager();
+        $this->session = $this->em->find(Session::class, $this->session->getId());
+        $inscription = $this->em->find(\App\Entity\Inscription::class, $inscription->getId());
+        self::assertEmpty($inscription->getPresencesManuelles());
+        foreach ($this->session->getJours() as $day) {
+            $day->setDateDebut(new \DateTimeImmutable('yesterday '.$day->getDateDebut()->format('H:i')));
+            $day->setDateFin(new \DateTimeImmutable('yesterday '.$day->getDateFin()->format('H:i')));
+        }
+        $this->em->flush();
+        $client->request('POST', $url, ['inscription' => $inscription->getId(), 'date' => (new \DateTimeImmutable('yesterday'))->format('Y-m-d'), 'period' => 'DAY', 'status' => 'absent', '_token' => $token]);
+        self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+        $inscription = self::getContainer()->get('doctrine')->getManager()->find(\App\Entity\Inscription::class, $inscription->getId());
+        self::assertCount(2, $inscription->getPresencesManuelles());
+    }
+
+    private function attendanceToken(KernelBrowser $client, string $prefix = 'attendance_'): string
     {
         $stack = self::getContainer()->get('request_stack');
         $stack->push($client->getRequest());
-        try { return self::getContainer()->get('security.csrf.token_manager')->getToken('attendance_'.$this->entite->getId())->getValue(); }
+        try { return self::getContainer()->get('security.csrf.token_manager')->getToken($prefix.$this->entite->getId())->getValue(); }
         finally { $client->getRequest()->getSession()->save(); $stack->pop(); }
     }
 

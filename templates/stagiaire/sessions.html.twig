@@ -230,6 +230,16 @@
       }
       .hero{ border-radius: 16px; }
     }
+    body #sessionFilters .wf-list-search input[type="search"],
+    body #sessionFilters .wf-list-search input[type="search"]:focus {
+      border:0 !important; outline:0 !important; box-shadow:none !important;
+      background:transparent !important; border-radius:0 !important; min-width:0;
+    }
+    #sessionFilters .session-period { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:9px 14px; border:1px solid #e4e7ec; border-radius:24px; background:#f8f9fa; font-size:13px; }
+    #sessionFilters .session-period input { width:132px; min-width:0; border:0; background:transparent; color:inherit; font:inherit; }
+    #sessionFilters .session-period input:focus-visible { outline:2px solid var(--theme-color-secondaire); outline-offset:3px; }
+    #sessionFilters .filter-control { flex:0 1 auto; }
+    @media(max-width:600px) { #sessionFilters .session-period { width:100%; } }
   </style>
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
@@ -365,23 +375,26 @@
   {% include 'flagMessage.html.twig' %}
 
   {# ===== TOOLBAR ===== #}
-  <div class="toolbar mb-3 catalogue-filters wf-filters-theme">
+  <div id="sessionFilters" class="toolbar mb-3 catalogue-filters wf-filters-theme dashboard-filters" data-list-filters="tableauSessions">
     <div class="d-flex flex-wrap gap-2 align-items-center">
       <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
-        <span class="chip">
-          <i class="bi bi-funnel"></i>
-          Statut
-          <select id="sessionStateFilter" class="form-select form-select-sm ms-2" style="width:auto">
-            <option value="all">Toutes</option>
-            <option value="upcoming">À venir</option>
-            <option value="ongoing">En cours</option>
-            <option value="done">Terminées</option>
+        <div class="filter-control">
+          <label class="visually-hidden" for="sessionStateFilter">Statut</label>
+          <select id="sessionStateFilter" class="form-select" data-wf-multi>
+            <option value="all">Tous les statuts</option><option value="upcoming">À venir</option><option value="ongoing">En cours</option><option value="done">Terminées</option><option value="unknown">Dates non définies</option>
           </select>
-        </span>
-
-        <span class="hint d-none d-lg-inline">
-          Recherche : code, formation, site.
-        </span>
+        </div>
+        {% for filterId, filterLabel in {sessionFormationFilter: 'Formation', siteFilter: 'Site', niveauFilter: 'Niveau'} %}
+          <div class="filter-control">
+            <label class="visually-hidden" for="{{ filterId }}">{{ filterLabel }}</label>
+            <select id="{{ filterId }}" class="form-select" data-wf-multi><option value="all">Tout</option></select>
+          </div>
+        {% endfor %}
+        <div class="session-period">
+          <i class="bi bi-calendar-range" aria-hidden="true"></i>
+          <label for="sessionDateFrom">Du</label><input type="date" id="sessionDateFrom" aria-label="Début de période">
+          <label for="sessionDateTo">au</label><input type="date" id="sessionDateTo" aria-label="Fin de période">
+        </div>
       </div>
 
       <div class="d-flex gap-2 align-items-center">
@@ -399,6 +412,9 @@
       </div>
     </div>
   </div>
+
+  <p id="sessionPeriodError" class="text-danger small" role="alert" hidden>La fin de période doit être postérieure ou égale au début.</p>
+  <p class="small text-muted">La période inclut les sessions ayant lieu, même partiellement, entre les dates choisies.</p>
 
   {# ===== TABLE ===== #}
   <div class="table-card premium-list mb-4">
@@ -423,7 +439,11 @@
           {% set end = s.dateFin %}
 
           <tr data-start="{{ start ? start|date('c') : '' }}"
-              data-end="{{ end ? end|date('c') : '' }}">
+              data-end="{{ end ? end|date('c') : '' }}"
+              data-from="{{ start ? start|date('Y-m-d') : '' }}" data-to="{{ end ? end|date('Y-m-d') : '' }}"
+              data-formation="{{ f ? f.id : '' }}" data-formation-label="{{ f.titre ?? 'Non renseignée' }}"
+              data-site="{{ s.site ? s.site.id : '' }}" data-site-label="{{ s.site ? s.site.nom : 'Non renseigné' }}"
+              data-level="{{ f and f.niveau ? (f.niveau.value ?? f.niveau) : '' }}">
             <td class="fw-semibold">{{ s.code ?? '—' }}</td>
 
             <td>
@@ -511,33 +531,43 @@ $(function(){
     return '<span class="badge text-bg-secondary">—</span>';
   }
 
-  function applyStateAndFilter(tableApi){
-    const wanted = $filter.val() || 'all';
-
-    tableApi.rows().every(function(){
-      const $tr = $(this.node());
-
-      const state = computeState($tr);
-      $tr.attr('data-state', state);
-      $tr.find('.col-status').html(stateBadge(state));
-
-      const show = (wanted === 'all') || (state === wanted);
-      $tr.toggle(show);
-    });
+  const filterIds = {sessionFormationFilter: 'formation', siteFilter: 'site', niveauFilter: 'level'};
+  const rows = [...document.querySelectorAll('#tableauSessions tbody tr')];
+  Object.entries(filterIds).forEach(([id, key]) => {
+    const options = new Map();
+    rows.forEach(row => options.set(row.dataset[key] || '__missing__', row.dataset[key + 'Label'] || row.dataset[key] || 'Non renseigné'));
+    [...options].sort((a,b) => a[1].localeCompare(b[1], 'fr')).forEach(([value, label]) => document.getElementById(id).add(new Option(label, value)));
+  });
+  function matchesChoice(raw, value) {
+    if (!raw || raw === 'all') return true;
+    if (raw.startsWith('[')) {
+      try { return JSON.parse(raw).includes(value); } catch (_) { return false; }
+    }
+    return raw === value;
   }
+  function matchesPeriod(start, end, from, to) {
+    if (!from && !to) return true;
+    if (from && to && from > to) return false;
+    if (!start && !end) return false;
+    return (!from || (end || start) >= from) && (!to || (start || end) <= to);
+  }
+  rows.forEach(row => {
+    row.dataset.state = computeState($(row));
+    row.querySelector('.col-status').innerHTML = stateBadge(row.dataset.state);
+  });
+  const sessionPredicate = (settings, data, index) => {
+    if (settings.nTable.id !== 'tableauSessions') return true;
+    const row = settings.aoData[index].nTr;
+    return matchesChoice($filter.val(), row.dataset.state)
+      && Object.entries(filterIds).every(([id,key]) => matchesChoice(document.getElementById(id).value, row.dataset[key] || '__missing__'))
+      && matchesPeriod(row.dataset.from, row.dataset.to, $('#sessionDateFrom').val(), $('#sessionDateTo').val());
+  };
+  $.fn.dataTable.ext.search.push(sessionPredicate);
 
-  function updateKpis(){
-    const $rows = $('#tableauSessions tbody tr').filter(function(){
-      return $(this).find('td').length > 1;
-    });
-
+  function updateKpis(api){
     let count = 0, upcoming = 0, ongoing = 0, done = 0;
-
-    $rows.each(function(){
-      const $tr = $(this);
-      if($tr.css('display') === 'none') return;
-
-      const st = $tr.attr('data-state') || 'unknown';
+    api.rows({search:'applied'}).every(function(){
+      const st = this.node().dataset.state;
       count++;
       if(st === 'upcoming') upcoming++;
       if(st === 'ongoing') ongoing++;
@@ -607,23 +637,30 @@ $(function(){
 
       $(container).hide();
 
-      applyStateAndFilter(api);
-      updateKpis();
+      updateKpis(api);
       $('#hero-last-refresh').text('Maj : ' + nowLabel());
     }
   });
 
-  table.on('draw.dt', function(){
-    applyStateAndFilter(table);
-    updateKpis();
+  table.on('destroy.dt', () => {
+    const index = $.fn.dataTable.ext.search.indexOf(sessionPredicate);
+    if (index >= 0) $.fn.dataTable.ext.search.splice(index, 1);
   });
 
-  $filter.on('change', function(){
-    table.draw(false);
+  table.on('draw.dt', function(){
+    updateKpis(table);
+  });
+
+  $('#sessionFilters select, #sessionFilters input[type="date"]').on('change', function(){
+    const from = $('#sessionDateFrom').val(), to = $('#sessionDateTo').val();
+    document.getElementById('sessionPeriodError').hidden = !(from && to && from > to);
+    table.draw();
   });
 
   $('#btnReset').on('click', function(){
-    $filter.val('all');
+    $('#sessionFilters select').val('all').trigger('change');
+    $('#sessionDateFrom, #sessionDateTo').val('');
+    document.getElementById('sessionPeriodError').hidden = true;
     table.search('').draw();
   });
 });
