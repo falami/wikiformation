@@ -172,6 +172,7 @@ class StagiaireEspaceController extends AbstractController
             'days' => $days,
             'signStates' => $signStates,
             'signatureImages' => $signatureImages,
+            'sessionStarted' => \App\Service\Session\ParticipantQrAvailability::hasStarted($id),
 
         ]);
     }

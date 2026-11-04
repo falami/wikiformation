@@ -273,6 +273,36 @@ final class SessionTrainersDisplayTest extends KernelTestCase
         }
     }
 
+    public function testTraineeCannotSignBeforeTrainingStarts(): void
+    {
+        $user = $this->admin;
+        $offset = 0;
+        foreach ($this->session->getJours() as $day) {
+            $day->setDateDebut((new \DateTimeImmutable('2099-11-23 08:30:00'))->modify('+'.$offset.' days'));
+            $day->setDateFin((new \DateTimeImmutable('2099-11-23 17:00:00'))->modify('+'.$offset.' days'));
+            ++$offset;
+        }
+        $inscription = (new \App\Entity\Inscription())->setSession($this->session)->setEntite($this->entite)->setCreateur($user)->setStagiaire($user);
+        $this->em->persist($inscription);
+        $this->em->flush();
+        $client = new KernelBrowser(self::$kernel);
+        $client->disableReboot(); $client->catchExceptions(false); $client->loginUser($user);
+        $params = ['entite' => $this->entite->getId(), 'id' => $this->session->getId()];
+        $router = self::getContainer()->get('router');
+        $page = $client->request('GET', $router->generate('app_stagiaire_session_show', $params));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertCount(1, $page->filter('#pad[hidden]'));
+        self::assertStringContainsString('La signature sera disponible au début de la formation', $page->text());
+        $before = $this->em->getRepository(\App\Entity\Emargement::class)->count([]);
+        $client->request('POST', $router->generate('app_stagiaire_emargement_sign', $params), [
+            'date' => '23/11/2099', 'periode' => 'AM', 'signatureData' => 'data:image/png;base64,test',
+            '_token' => $this->attendanceToken($client),
+        ]);
+        self::assertSame(403, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('début de la formation', json_decode($client->getResponse()->getContent(), true)['message']);
+        self::assertSame($before, $this->em->getRepository(\App\Entity\Emargement::class)->count([]));
+    }
+
     public function testTraineeUsesCompletedInscriptionAndOnlyActualSignatures(): void
     {
         $user = $this->admin;

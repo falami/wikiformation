@@ -175,6 +175,10 @@ class StagiaireEmargementController extends AbstractController
             return new JsonResponse(['success' => false, 'message' => 'Émargement indisponible pour cette session.'], 403);
         }
 
+        if (!\App\Service\Session\ParticipantQrAvailability::hasStarted($id)) {
+            return new JsonResponse(['success' => false, 'message' => 'La signature sera disponible au début de la formation.'], 403);
+        }
+
         $periodeStr = strtoupper((string)$request->request->get('periode', ''));
         $dateFr     = (string)$request->request->get('date', ''); // d/m/Y
         $dataUrl    = (string)$request->request->get('signatureData', '');

@@ -1005,6 +1005,21 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
 
 
 
+.session-search-bar{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px 24px;background:#fff;border:1px solid #e0e7ec;border-radius:14px;box-shadow:0 3px 12px #20374704}
+.session-search-caption{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+.session-search-caption label{font-size:.9rem;font-weight:600;color:#203747;cursor:pointer}
+.session-search-caption span{font-size:.77rem;color:#657785}
+.session-search-field{display:flex;align-items:center;gap:12px;flex:1;max-width:650px;min-width:0;padding:0 14px;background:#f7f9fb;border:1px solid #dce5eb;border-radius:9px;transition:border-color .15s,box-shadow .15s}
+.session-search-field:focus-within{border-color:#718d9e;box-shadow:0 0 0 3px #233b4b12;background:#fff}
+.session-search-field>i{color:#718593;font-size:1rem}
+.session-search-field input{width:100%;min-width:0;height:46px;background:transparent;border:0;outline:0;font-size:.85rem;color:#203747}
+.session-search-field input::placeholder{color:#71808c}
+.session-search-field input::-webkit-search-cancel-button{-webkit-appearance:none}
+.session-search-field button{display:grid;place-items:center;flex-shrink:0;width:28px;height:28px;border:0;border-radius:5px;background:#e9eef2;color:#4e6778}
+.session-search-field button[hidden]{display:none}
+.session-search-field button:hover{background:#dce5eb}
+.session-search-field button:focus-visible{outline:2px solid #718d9e;outline-offset:3px}
+@media(max-width:767px){.session-search-bar{align-items:stretch;flex-direction:column;gap:12px;padding:16px}.session-search-field{max-width:none;flex:auto}}
 </style>
 <link rel="stylesheet" href="{{ asset('dist/css/attendance-modal.css') }}?v=1">
 <link rel="stylesheet" href="{{ asset('dist/css/trainer-session-ledger.css') }}">
@@ -1102,12 +1117,17 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
 </div>
 
   {# ===== TOOLBAR ===== #}
-  <div class="toolbar d-flex flex-wrap gap-2 align-items-center mb-4">
-    <div class="input-group" style="max-width:520px;">
-      <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
-      <input id="searchAll" type="text" class="form-control border-start-0" placeholder="Rechercher une session, un code, une formation…">
+  <section class="session-search-bar mb-4" aria-label="Recherche de sessions">
+    <div class="session-search-caption">
+      <label for="searchAll">Retrouvez votre formation</label>
+      <span>Recherchez parmi vos sessions.</span>
     </div>
-  </div>
+    <div class="session-search-field">
+      <i class="bi bi-search" aria-hidden="true"></i>
+      <input id="searchAll" data-dt-search="#table-stagiaire" type="search" placeholder="Formation, code ou formateur…" autocomplete="off">
+      <button type="button" id="clearSessionSearch" aria-label="Effacer la recherche" title="Effacer la recherche" hidden><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+    </div>
+  </section>
 
 
     {# ===== PROCHAINE SESSION ===== #}
@@ -1599,6 +1619,7 @@ $(function(){
 
   /* ===== DataTables : mes sessions ===== */
   const dt = $('#table-stagiaire').DataTable({
+    layout: { topEnd: null }, // The dedicated search above controls this table.
     ajax:{ url:"{{ path('app_stagiaire_sessions_ajax', { entite: entite.id }) }}", type:'POST' },
     columns:[
       {data:'code'},
@@ -1657,7 +1678,14 @@ $(function(){
     }
   });
 
-  $('#searchAll').on('input', function(){ dt.search(this.value).draw(); });
+  const clearSearch = document.getElementById('clearSessionSearch');
+  $('#searchAll').on('input', function(){
+    clearSearch.hidden = !this.value;
+    dt.search(this.value).draw();
+  });
+  clearSearch.addEventListener('click', () => {
+    $('#searchAll').val('').trigger('input').trigger('focus');
+  });
 
   /* ===== KPIs ===== */
   function computeKpisFromTable(api){
