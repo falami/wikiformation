@@ -1156,24 +1156,61 @@ html, body{
 
   {% if pendingCharters is not empty %}
   <section class="card border-0 shadow-sm rounded-4 mb-4 mt-3" aria-labelledby="charters-dashboard-title">
-    <div class="card-body p-4"><div class="d-flex flex-wrap justify-content-between align-items-center gap-3"><div><h2 id="charters-dashboard-title" class="h4 fw-bold"><i class="bi bi-journal-check text-warning me-2"></i>Mes engagements qualité</h2><p class="text-muted mb-0">{{ pendingCharters|length ? pendingCharters|length ~ ' charte(s) attendent votre signature.' : 'Retrouvez vos chartes et vos exemplaires signés.' }}</p></div><a class="btn btn-outline-dark rounded-pill" href="{{ path('app_charter_mine',{entite:entite.id}) }}">Mes chartes qualité</a></div>
-    {% for signature in pendingCharters %}<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 border-top pt-3 mt-3"><strong>{{ signature.version.title }} · Version {{ signature.version.number }}</strong><a class="btn btn-warning rounded-pill" href="{{ path('app_charter_sign',{entite:entite.id,id:signature.id}) }}">Lire et signer</a></div>{% endfor %}</div>
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+          <h2 id="charters-dashboard-title" class="h4 fw-bold mb-1"><i class="bi bi-journal-check text-warning me-2" aria-hidden="true"></i>Mes engagements qualité</h2>
+          <p class="text-muted mb-0">{{ pendingCharters|length }} charte{{ pendingCharters|length > 1 ? 's attendent' : ' attend' }} votre signature. Prenez connaissance de vos engagements avant de signer.</p>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm rounded-pill" href="{{ path('app_charter_mine', {entite: entite.id}) }}">Mes chartes qualité <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
+      </div>
+      <div class="row g-3">
+        {% for signature in pendingCharters %}
+        <div class="col-12 col-xl-6">
+          <article class="border rounded-4 p-3 h-100 bg-light d-flex flex-column gap-2">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <span class="small fw-semibold text-muted">Charte qualité · Version {{ signature.version.number }}</span>
+              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">À signer</span>
+            </div>
+            <h3 class="h6 fw-bold mb-0">{{ signature.version.title }}</h3>
+            <p class="small text-muted mb-2">Consultez le document et confirmez vos engagements qualité.</p>
+            <div class="mt-auto">
+              <a class="btn btn-warning btn-sm rounded-pill" href="{{ path('app_charter_sign', {entite: entite.id, id: signature.id}) }}" aria-label="Lire et signer : {{ signature.version.title }} · Version {{ signature.version.number }}"><i class="bi bi-pen me-1" aria-hidden="true"></i> Lire et signer</a>
+            </div>
+          </article>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
   </section>
   {% endif %}
   {% if pendingSatisfactions is not empty %}
   <section class="card border-0 shadow-sm rounded-4 mb-4" aria-labelledby="satisfaction-dashboard-title">
     <div class="card-body p-4">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div><h2 id="satisfaction-dashboard-title" class="h4 fw-bold"><i class="bi bi-chat-square-heart text-warning me-2" aria-hidden="true"></i>Satisfaction formateur</h2><p class="text-muted mb-0">{% if pendingSatisfactions is not empty %}Partagez votre avis sur vos formations : {{ pendingSatisfactions|length }} questionnaire{{ pendingSatisfactions|length > 1 ? 's' : '' }} à compléter.{% else %}Aucun questionnaire de satisfaction formateur à compléter pour le moment.{% endif %}</p></div>
-
-      </div>
-      {% for assignment in pendingSatisfactions %}
-        {% set session = assignment.session %}
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 border-top pt-3 mt-3">
-          <div><strong>{{ session.code }}</strong><div class="small text-muted">{{ session.formation.titre|default(session.formationIntituleLibre) }}</div></div>
-          <a class="btn btn-warning rounded-pill" href="{{ path('app_formateur_satisfaction_fill', {entite:entite.id,session:session.id}) }}">Donner mon avis</a>
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+          <h2 id="satisfaction-dashboard-title" class="h4 fw-bold mb-1"><i class="bi bi-chat-square-heart text-warning me-2" aria-hidden="true"></i>Mes appréciations formateur</h2>
+          <p class="text-muted mb-0">{{ pendingSatisfactions|length }} questionnaire{{ pendingSatisfactions|length > 1 ? 's' : '' }} à compléter. Partagez votre retour sur vos formations.</p>
         </div>
-      {% endfor %}
+      </div>
+      <div class="row g-3">
+        {% for assignment in pendingSatisfactions %}
+          {% set session = assignment.session %}
+          <div class="col-12 col-xl-6">
+            <article class="border rounded-4 p-3 h-100 bg-light d-flex flex-column gap-2">
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span class="small fw-semibold text-muted">{{ session.code }}</span>
+                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">À compléter</span>
+              </div>
+              <h3 class="h6 fw-bold mb-0">{{ session.formation.titre|default(session.formationIntituleLibre) }}</h3>
+              <p class="small text-muted mb-2">Votre retour contribue à améliorer la qualité des formations.</p>
+              <div class="mt-auto">
+                <a class="btn btn-warning btn-sm rounded-pill" href="{{ path('app_formateur_satisfaction_fill', {entite: entite.id, session: session.id}) }}" aria-label="Donner mon avis sur la session {{ session.code }}"><i class="bi bi-chat-square-text me-1" aria-hidden="true"></i> Donner mon avis</a>
+              </div>
+            </article>
+          </div>
+        {% endfor %}
+      </div>
     </div>
   </section>
   {% endif %}

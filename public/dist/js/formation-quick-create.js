@@ -4,6 +4,18 @@
   modal.dataset.ready = 'true';
   const body = modal.querySelector('.modal-body');
   const enhance = () => {
+    const submit = body.querySelector('.quick-create-submit');
+    if (submit) {
+      const rgb = getComputedStyle(submit).backgroundColor.match(/[\d.]+/g);
+      if (rgb && rgb.length >= 3) {
+        const linear = rgb.slice(0, 3).map(value => {
+          const channel = Number(value) / 255;
+          return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+        });
+        const luminance = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+        modal.style.setProperty('--qc-button-text', luminance > 0.179 ? '#000' : '#fff');
+      }
+    }
     body.querySelectorAll('select[data-trainer-expertise]').forEach(select => {
       if (!window.TomSelect || select.tomselect) return;
       new TomSelect(select, {
