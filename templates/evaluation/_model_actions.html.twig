@@ -1,6 +1,6 @@
 {% set trainerMode = trainerMode|default(false) %}
 <div class="ev-actions">
-{% if not trainerMode %}<a class="ev-btn" href="{{ path('app_administrateur_evaluation_template_show', {entite:entite.id,id:template.id}) }}">Consulter</a>{% endif %}
+{% if not trainerMode and not hideConsult|default(false) %}<a class="ev-btn" href="{{ path('app_administrateur_evaluation_template_show', {entite:entite.id,id:template.id}) }}">Consulter</a>{% endif %}
 {% if trainerMode and (locked or template.archivedAt) %}<a class="ev-btn" href="{{ path('app_formateur_evaluation_template_edit', {entite:entite.id,id:template.id}) }}">Consulter</a>{% endif %}
 {% if canManage %}
   {% if not locked and not template.archivedAt %}<a class="ev-btn" href="{{ path(trainerMode ? 'app_formateur_evaluation_template_edit' : 'app_administrateur_evaluation_template_edit', {entite:entite.id,id:template.id}) }}">Modifier le modèle</a>{% endif %}

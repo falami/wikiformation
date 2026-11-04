@@ -1,2 +1,18 @@
-<section class="ev-card"><div class="ev-card-head"><h2>Test théorique</h2></div><div class="ev-card-body">{% for q in template.schema.theory|default([]) %}<article class="ev-question"><h3>{{ loop.index }}. {{ q.label }}</h3><p class="ev-muted">{{ q.points }} points · {{ q.type == 'text' ? 'Réponse libre' : (q.type == 'order' ? 'Classement' : 'Choix de réponses') }}</p>{% for option in q.options|default([]) %}<p>{{ option.label }} {% if option.id in q.correct|default([]) %}<span class="ev-badge ev-badge-success">{{ q.type == 'order' ? 'Ordre : ' ~ (q.correct|keys|filter(k => q.correct[k] == option.id)|first + 1) : 'Réponse attendue' }}</span>{% endif %}</p>{% endfor %}</article>{% endfor %}</div></section>
-<section class="ev-card"><div class="ev-card-head"><h2>Grille pratique</h2></div><div class="ev-card-body">{% for item in template.schema.practice|default([]) %}<article class="ev-question"><h3>{{ loop.index }}. {{ item.label }}</h3><p>{{ item.points }} points {% if item.critical %}· Critère éliminatoire{% endif %} {% if item.allowNa %}· Non applicable autorisé{% endif %}</p></article>{% endfor %}</div></section>
+<div class="ev-model-document">
+{% for section in ['theory', 'practice'] %}
+{% set items = attribute(template.schema, section)|default([]) %}
+<section id="ev-{{ section }}" class="ev-document-section" aria-labelledby="ev-{{ section }}-title">
+  <header class="ev-document-heading"><div class="ev-document-icon"><i class="bi {{ section == 'theory' ? 'bi-journal-text' : 'bi-clipboard-check' }}" aria-hidden="true"></i></div><div><span class="ev-kicker">{{ section == 'theory' ? '01 · LE STAGIAIRE RÉPOND' : '02 · LE FORMATEUR OBSERVE' }}</span><h2 id="ev-{{ section }}-title">{{ section == 'theory' ? 'Test théorique' : 'Grille pratique' }}</h2></div><span class="ev-badge">{{ items|length }} {{ section == 'theory' ? (items|length > 1 ? 'questions' : 'question') : (items|length > 1 ? 'critères' : 'critère') }}</span></header>
+  {% for item in items %}
+  <article class="ev-document-question">
+    <div class="ev-document-question-top"><span class="ev-document-number">{{ loop.index < 10 ? '0' : '' }}{{ loop.index }}</span><div class="ev-document-question-title"><div class="ev-document-meta"><span>{{ section == 'practice' ? 'Observation pratique' : (item.type == 'text' ? 'Réponse libre' : (item.type == 'order' ? 'Classement' : 'Choix de réponses')) }}</span><span>{{ item.points }} point{{ item.points > 1 ? 's' : '' }}</span></div><h3>{{ item.label }}</h3></div></div>
+    {% if section == 'theory' %}
+      {% if item.type == 'text' %}<div class="ev-document-free"><i class="bi bi-pencil-square" aria-hidden="true"></i> Réponse rédigée par le stagiaire, évaluée par le formateur.</div>{% else %}
+      <div class="ev-document-options">{% for option in item.options|default([]) %}{% set expected = option.id in item.correct|default([]) %}<div class="ev-document-option {{ expected ? 'is-expected' : '' }}"><span class="ev-document-option-mark" aria-hidden="true">{% if expected %}<i class="bi bi-check2"></i>{% else %}{{ loop.index }}{% endif %}</span><span class="ev-document-option-label">{{ option.label }}</span>{% if expected %}<span class="ev-document-answer">{{ item.type == 'order' ? 'Position ' ~ (item.correct|keys|filter(k => item.correct[k] == option.id)|first + 1) : 'Réponse attendue' }}</span>{% endif %}</div>{% endfor %}</div>
+      {% endif %}
+    {% else %}<div class="ev-document-criteria">{% if item.critical %}<span class="ev-badge ev-badge-danger"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> Critère éliminatoire</span>{% endif %}{% if item.allowNa %}<span class="ev-badge">Non applicable autorisé</span>{% endif %}{% if not item.critical and not item.allowNa %}<span class="ev-muted">Évaluation selon le barème du modèle.</span>{% endif %}</div>{% endif %}
+  </article>
+  {% else %}<div class="ev-card ev-empty">{{ section == 'theory' ? 'Aucune question théorique dans ce modèle.' : 'Aucun critère pratique dans ce modèle.' }}</div>{% endfor %}
+</section>
+{% endfor %}
+</div>
