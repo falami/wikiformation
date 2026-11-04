@@ -104,10 +104,12 @@
               {% if signature %}
                 <div class="ts-sign-preview"><img src="{{ signature.signatureDataUrl ?: asset(signature.signaturePath) }}" alt="Signature du formateur"></div><small class="ts-sign-date">Enregistré le {{ signature.signedAt|date('d/m/Y à H:i') }}</small>
               {% elseif session.emargementRequis and session.isFormateurUtilisateurSurPeriode(app.user, day, period) %}
+                {% if trainingStarted and key <= attendanceToday %}
                 <div class="trainer-signature" data-date="{{ day|date('d/m/Y') }}" data-period="{{ period }}">
                   <p class="ts-sign-hint">Tracez votre signature dans le cadre.</p><canvas height="150" class="sign-pad" aria-label="Signature {{ label }}"></canvas>
                   <div class="ts-sign-actions"><button type="button" class="ts-button ts-button-light pad-clear">Effacer</button><button type="button" class="ts-button pad-save"><i class="bi bi-pen"></i> Signer</button></div><p class="sign-status small mt-2" role="status"></p>
                 </div>
+                {% else %}<p class="ts-sign-hint">Signature disponible au début de la formation, pour les journées commencées.</p>{% endif %}
               {% else %}<p class="ts-sign-hint">Aucune signature à recueillir.</p>{% endif %}
             </div>
           {% endfor %}

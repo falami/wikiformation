@@ -59,6 +59,8 @@ class FormateurEspaceController extends AbstractController
             'session' => $session,
             'entite' => $entite,
             'attendanceDays' => $days,
+            'trainingStarted' => \App\Service\Session\ParticipantQrAvailability::hasStarted($session),
+            'attendanceToday' => (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('Y-m-d'),
             'signatures' => $signatures,
         ]);
     }

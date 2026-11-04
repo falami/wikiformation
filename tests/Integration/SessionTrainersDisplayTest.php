@@ -240,7 +240,7 @@ final class SessionTrainersDisplayTest extends KernelTestCase
         self::assertSame(403, $client->getResponse()->getStatusCode());
     }
 
-    public function testTrainerSignatureUsesExistingHalfDayStorage(): void
+    public function testTrainerCannotSignFutureSessionFromDetailPage(): void
     {
         $user = $this->referent->getUtilisateur();
         $user->setRoles(['ROLE_SUPER_ADMIN']);
@@ -249,6 +249,7 @@ final class SessionTrainersDisplayTest extends KernelTestCase
             $slot->setDateDebut(new \DateTimeImmutable('2107-06-15 ' . $slot->getDateDebut()->format('H:i')));
             $slot->setDateFin(new \DateTimeImmutable('2107-06-15 ' . $slot->getDateFin()->format('H:i')));
         }
+        $this->session->setStatus(\App\Enum\StatusSession::VALIDATED);
         $this->em->flush();
         $path = self::getContainer()->getParameter('kernel.project_dir') . '/public/uploads/emargements/' . $this->session->getId() . '/2107-06-15/trainer-AM-' . $user->getId() . '.png';
         self::assertFileDoesNotExist($path);
@@ -259,15 +260,15 @@ final class SessionTrainersDisplayTest extends KernelTestCase
         $url = self::getContainer()->get('router')->generate('app_formateur_session_sign', ['entite' => $this->entite->getId(), 'id' => $this->session->getId()]);
         try {
             $client->request('GET', self::getContainer()->get('router')->generate('app_formateur_session_show', ['entite' => $this->entite->getId(), 'id' => $this->session->getId()]));
+            self::assertSame(200, $client->getResponse()->getStatusCode());
+            self::assertStringNotContainsString('<canvas', $client->getResponse()->getContent());
+            self::assertStringContainsString('Signature disponible au début de la formation', $client->getResponse()->getContent());
             $token = $this->attendanceToken($client);
             $client->request('POST', $url, ['date' => '2107-06-15', 'periode' => 'AM', 'dataUrl' => $this->png(), '_token' => $token]);
-            self::assertSame(200, $client->getResponse()->getStatusCode());
-            self::assertTrue(json_decode($client->getResponse()->getContent(), true)['success']);
-            $signature = $this->em->getRepository(\App\Entity\Emargement::class)->findOneBy(['session' => $this->session, 'utilisateur' => $user, 'role' => 'trainer']);
-            self::assertNotNull($signature);
-            self::assertSame(\App\Enum\DemiJournee::AM, $signature->getPeriode());
-            self::assertSame('2107-06-15', $signature->getDateJour()->format('Y-m-d'));
-            self::assertFileExists($path);
+            self::assertSame(403, $client->getResponse()->getStatusCode());
+            self::assertFalse(json_decode($client->getResponse()->getContent(), true)['success']);
+            self::assertSame(0, $this->em->getRepository(\App\Entity\Emargement::class)->count([]));
+            self::assertFileDoesNotExist($path);
         } finally {
             if (is_file($path)) unlink($path);
         }
