@@ -21,7 +21,26 @@
 {% endif %}
 {% endblock %}
 {% block body_attributes %}class="market-page"{% endblock %}
-{% block stylesheets %}<link rel="stylesheet" href="{{ asset('dist/css/marketplace.css') }}">{% endblock %}
+{% block stylesheets %}<link rel="stylesheet" href="{{ asset('dist/css/marketplace.css') }}">
+{% if entite is defined and entite %}
+<style>
+:root {
+  --theme-color-principal: {{ entite.couleurPrincipal|default('#233342') }};
+  --theme-color-secondaire: {{ entite.couleurSecondaire|default('#ffc107') }};
+  --mk-gold: var(--theme-color-secondaire);
+}
+.market-page .mk-hero, .market-page .mk-platform-bar {
+  background: linear-gradient(120deg, color-mix(in srgb, var(--theme-color-principal) 78%, #000), color-mix(in srgb, var(--theme-color-principal) 85%, #fff));
+}
+.market-page .mk-hero strong, .market-page .mk-hero .mk-kicker,
+.market-page .mk-platform-bar .mk-platform-return {
+  color: color-mix(in srgb, var(--theme-color-secondaire) 65%, #fff);
+}
+.market-page .mk-kicker, .market-page .mk-anchor { color: var(--theme-color-principal); }
+.market-page .mk-button:focus-visible { outline-color: var(--theme-color-principal); }
+</style>
+{% endif %}
+{% endblock %}
 {% block body %}
 {% set navigation = market_navigation(app.user, entite|default(null)) %}
 {% if app.user %}
