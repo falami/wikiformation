@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\Common\Collections\{ArrayCollection, Collection};
 
 /** Separate from production PRE/POST questionnaires; dossier snapshots preserve past versions. */
 #[ORM\Entity]
@@ -58,7 +59,25 @@ class EvaluationTemplate
     public function archive(): void { $this->archivedAt ??= new \DateTimeImmutable(); $this->active = false; }
     public function getOwnerLabel(): string { return $this->trainerOwner ? trim($this->trainerOwner->getPrenom().' '.$this->trainerOwner->getNom()) : ($this->entite?->getNom() ?? 'Organisme'); }
 
-    public function __construct() { $this->createdAt = new \DateTimeImmutable(); }
+    #[ORM\ManyToMany(targetEntity: Entite::class)]
+    #[ORM\JoinTable(name: 'evaluation_template_authorized_entite')]
+    #[ORM\JoinColumn(name: 'evaluation_template_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'entite_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    private Collection $authorizedEntites;
+
+    public function getAuthorizedEntites(): Collection { return $this->authorizedEntites; }
+    public function authorizes(Entite $entite): bool {
+        foreach ($this->authorizedEntites as $allowed) {
+            if ($allowed === $entite || ($entite->getId() !== null && $allowed->getId() === $entite->getId())) return true;
+        }
+        return false;
+    }
+    public function setAuthorizedEntites(array $entites): void {
+        $this->authorizedEntites->clear();
+        foreach ($entites as $entite) if (!$this->authorizedEntites->contains($entite)) $this->authorizedEntites->add($entite);
+    }
+
+    public function __construct() { $this->authorizedEntites = new ArrayCollection(); $this->createdAt = new \DateTimeImmutable(); }
     public function getId(): ?int { return $this->id; }
     public function getEntite(): ?Entite { return $this->entite; }
     public function setEntite(Entite $value): static { $this->entite = $value; return $this; }

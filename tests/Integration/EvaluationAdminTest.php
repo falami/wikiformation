@@ -215,8 +215,24 @@ final class EvaluationAdminTest extends KernelTestCase
         $this->client->request('POST', $route, ['_token'=>$token,'modelVersion'=>1,'title'=>'Expertise personnelle','schema'=>json_encode($this->schema()),'active'=>'1']);
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         $model = $this->em->find(EvaluationTemplate::class, $id);
+        self::assertFalse($library->available($model, $this->tenant));
+        self::assertNotContains($model, $library->catalog($this->tenant));
+        $permissions = $this->url('app_formateur_evaluation_template_permissions', ['id'=>$id]);
+        $page = $this->client->request('GET', $permissions);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $permissionToken = $page->filter('input[name="_token"]')->attr('value');
+        $this->client->request('POST', $permissions, ['_token'=>'invalid', 'organisms'=>[$this->tenant->getId()]]);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->client->request('POST', $permissions, ['_token'=>$permissionToken, 'organisms'=>['999999']]);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->client->request('POST', $permissions, ['_token'=>$permissionToken, 'organisms'=>[$this->tenant->getId()]]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $model = $this->em->find(EvaluationTemplate::class, $id);
         self::assertTrue($library->available($model, $this->tenant));
-        // Source tenant differs from the assigning tenant; active trainer membership grants use.
+        self::assertContains($model, $library->catalog($this->tenant));
+        $copy = $library->duplicate($model, $this->em->find(Utilisateur::class, $this->trainer->getId()));
+        self::assertCount(0, $copy->getAuthorizedEntites());
+        // Cross-tenant use requires both membership and explicit authorization.
         $this->admin = $this->em->find(Utilisateur::class, $this->admin->getId());
         $other = (new Entite())->setNom('Origine du formateur')->setCreateur($this->admin)->setPublic(false);
         $this->em->persist($other); $model->setEntite($other); $this->em->flush();
@@ -231,6 +247,11 @@ final class EvaluationAdminTest extends KernelTestCase
         self::assertNotNull($assigned);
         $model = $this->em->find(EvaluationTemplate::class, $id); self::assertNotNull($model->getAssignedAt());
         $this->client->loginUser($this->trainer);
+        $this->client->request('POST', $permissions, ['_token'=>$permissionToken]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $model = $this->em->find(EvaluationTemplate::class, $id);
+        self::assertFalse($library->available($model, $this->tenant));
+        self::assertNotContains($model, $library->catalog($this->tenant));
         $page = $this->client->request('GET', $route);
         self::assertSame(0, $page->filter('#evaluation-builder')->count());
         $token = $page->filter('form[action$="/archiver"] input')->attr('value');
@@ -256,6 +277,8 @@ final class EvaluationAdminTest extends KernelTestCase
         $shared = (new EvaluationTemplate())->setEntite($this->tenant)->setCreateur($this->trainer)->setTrainerOwner($this->trainer)->setTitle('Modèle du formateur')->setSchema($this->schema())->setActive(true);
         $private = (new EvaluationTemplate())->setEntite($this->tenant)->setCreateur($this->trainer)->setTrainerOwner($this->trainer)->setTitle('Brouillon secret')->setSchema($this->schema())->setActive(false);
         $this->em->persist($shared); $this->em->persist($private); $this->em->flush();
+        self::assertFalse($library->available($shared, $this->tenant));
+        $shared->setAuthorizedEntites([$this->tenant]); $this->em->flush();
         self::assertTrue($library->available($shared, $this->tenant));
         self::assertFalse($library->available($private, $this->tenant));
         self::assertNotContains($private, $library->catalog($this->tenant));

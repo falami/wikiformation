@@ -32,6 +32,34 @@ final class EvaluationTemplateController extends AbstractController
     {
         return $this->render('evaluation/formateur/library.html.twig', ['entite'=>$entite, 'templates'=>$this->em->getRepository(EvaluationTemplate::class)->findBy(['trainerOwner'=>$this->actor($entite)], ['id'=>'DESC'])]);
     }
+    #[Route('/{id}/autorisations', name:'permissions', requirements:['id'=>'\d+'], methods:['GET','POST'])]
+    public function permissions(Entite $entite, EvaluationTemplate $template, Request $request): Response
+    {
+        $this->own($entite, $template);
+        $organisms = [];
+        foreach ($this->em->getRepository(\App\Entity\UtilisateurEntite::class)->findBy(['utilisateur'=>$this->actor($entite)]) as $membership) {
+            if ($membership->isActive() && $membership->hasRole(\App\Entity\UtilisateurEntite::TENANT_FORMATEUR)) {
+                $organisms[$membership->getEntite()->getId()] = $membership->getEntite();
+            }
+        }
+        if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('evaluation_permissions_'.$template->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException();
+            $allowed = [];
+            foreach ($request->request->all('organisms') as $id) {
+                if (!is_scalar($id) || !ctype_digit((string) $id) || !isset($organisms[$id])) throw $this->createAccessDeniedException('Organisme non éligible.');
+                $allowed[(int) $id] = $organisms[$id];
+            }
+            $this->em->wrapInTransaction(function () use ($template, $allowed) {
+                $this->em->lock($template, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+                $this->em->refresh($template);
+                $template->setAuthorizedEntites(array_values($allowed));
+            });
+            $this->addFlash('success', 'Autorisations enregistrées. Les évaluations déjà attribuées sont conservées.');
+            return $this->redirectToRoute('app_formateur_evaluation_template_permissions', ['entite'=>$entite->getId(), 'id'=>$template->getId()]);
+        }
+        return $this->render('evaluation/formateur/permissions.html.twig', compact('entite', 'template', 'organisms'));
+    }
+
     #[Route('/nouveau', name:'new', methods:['GET','POST'])]
     public function create(Entite $entite, Request $request): Response
     {

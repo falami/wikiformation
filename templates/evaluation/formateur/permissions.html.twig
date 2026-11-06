@@ -1,0 +1,21 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Autorisations · {{ template.title }}{% endblock %}
+{% block stylesheets %}{{ parent() }}{% include 'evaluation/_style.html.twig' %}{% endblock %}
+{% block body %}
+<div class="ev-shell">
+  <a class="ev-btn mb-4" href="{{ path('app_formateur_evaluation_template_index', {entite:entite.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Mes modèles</a>
+  {% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
+  <header class="ev-hero"><span class="ev-kicker">VOTRE EXPERTISE · VOS AUTORISATIONS</span><h1>Choisissez qui peut utiliser votre modèle.</h1><p class="ev-lead">{{ template.title }}</p><span class="ev-chip"><i class="bi bi-shield-check" aria-hidden="true"></i> Propriété : {{ template.ownerLabel }}</span></header>
+  <form method="post">
+    <input type="hidden" name="_token" value="{{ csrf_token('evaluation_permissions_' ~ template.id) }}">
+    <div class="ev-grid">
+      <section class="ev-card"><div class="ev-card-head"><div><span class="ev-kicker">ACCÈS AU MODÈLE</span><h2>Organismes autorisés</h2></div><span class="ev-badge">{{ organisms|length }} organisme{{ organisms|length > 1 ? 's' : '' }}</span></div><div class="ev-card-body">
+        <p class="ev-muted">Activez uniquement les organismes auxquels vous accordez l’utilisation de ce modèle théorique et pratique.</p>
+        {% for organism in organisms %}<label class="ev-alert d-flex align-items-center justify-content-between gap-3" for="organism-{{ organism.id }}"><span><strong>{{ organism.nom }}</strong><small class="d-block ev-muted">Rôle formateur actif</small></span><span class="form-check form-switch m-0"><input id="organism-{{ organism.id }}" class="form-check-input" style="width:2.6em;height:1.4em" role="switch" type="checkbox" name="organisms[]" value="{{ organism.id }}" {{ template.authorizes(organism) ? 'checked' : '' }}></span></label>{% else %}<p class="ev-muted">Aucun organisme éligible actuellement.</p>{% endfor %}
+      </div></section>
+      <aside class="ev-card"><div class="ev-card-head"><h2>Vous gardez le contrôle</h2></div><div class="ev-card-body"><p><strong>Aucun partage automatique.</strong> Un nouvel organisme ne reçoit aucun accès sans votre accord.</p><p class="ev-muted">L’utilisation nécessite un modèle publié, une autorisation et votre rôle formateur actif dans cet organisme.</p><p class="ev-muted">Retirer une autorisation empêche les nouvelles consultations et affectations du modèle. Les évaluations déjà attribuées restent accessibles pour terminer les formations et conserver les résultats.</p><p class="ev-muted">Votre propriété intellectuelle est conservée. Une copie de votre modèle démarre sans autorisation.</p>{% if not template.active or template.archivedAt %}<div class="ev-alert">Ce modèle est actuellement {{ template.archivedAt ? 'archivé' : 'non publié' }} : il ne peut pas être attribué, même aux organismes cochés.</div>{% endif %}</div></aside>
+    </div>
+    <div class="ev-actions"><button class="ev-btn ev-btn-primary" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i> Enregistrer les autorisations</button><span class="ev-muted">Ces choix concernent uniquement ce modèle.</span></div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% set user = formateur.utilisateur %}
+{% set name = ((user.prenom|default('')) ~ ' ' ~ (user.nom|default('')))|trim %}
+{% set photo = formateur.photo ? asset('uploads/photos/formateur/' ~ formateur.photo) : (user and user.photo ? asset('uploads/photos/utilisateur/' ~ user.photo) : null) %}
+<div class="trainer-list-identity">
+  <span class="trainer-list-avatar" aria-hidden="true">
+    <span>{{ ((user.prenom|default('')|slice(0,1)) ~ (user.nom|default('')|slice(0,1)))|upper ?: '?' }}</span>
+    {% if photo %}<img src="{{ photo }}" alt="" width="44" height="44" loading="lazy" decoding="async">{% endif %}
+  </span>
+  <div class="ledger-primary">{{ name ?: '—' }}</div>
+</div>

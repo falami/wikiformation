@@ -21,7 +21,7 @@ final class EvaluationLibrary
     {
         if (!$model->isActive() || $model->getArchivedAt()) return false;
         return $model->getTrainerOwner()
-            ? $this->trainerIn($model->getTrainerOwner(), $tenant)
+            ? $model->authorizes($tenant) && $this->trainerIn($model->getTrainerOwner(), $tenant)
             : $model->getEntite()?->getId() === $tenant->getId();
     }
 
@@ -34,7 +34,7 @@ final class EvaluationLibrary
         }
         $qb = $this->em->createQueryBuilder()->select('m', 'owner', 'tenant')->from(EvaluationTemplate::class, 'm')
             ->leftJoin('m.trainerOwner', 'owner')->join('m.entite', 'tenant')
-            ->where('(m.trainerOwner IS NULL AND m.entite = :tenant) OR (m.trainerOwner IN (:owners) AND m.active = true AND m.archivedAt IS NULL)')
+            ->where('(m.trainerOwner IS NULL AND m.entite = :tenant) OR (:tenant MEMBER OF m.authorizedEntites AND m.trainerOwner IN (:owners) AND m.active = true AND m.archivedAt IS NULL)')
             ->setParameter('tenant', $tenant)->setParameter('owners', $owners ?: [0])->orderBy('m.id', 'DESC');
         if ($availableOnly) $qb->andWhere('m.active = true AND m.archivedAt IS NULL');
         return $qb->getQuery()->getResult();

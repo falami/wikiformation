@@ -199,6 +199,7 @@ final class FormateurController extends AbstractController
             return [
                 'id'               => $sk->getId(),
                 'nom'              => $fullname !== '' ? $fullname : '—',
+                'identite' => $this->renderView('administrateur/formateur/_identity.html.twig', ['formateur' => $sk]),
                 'certifications'   => $sk->getCertifications() ?: '—',
                 'enginsQualifies'  => $enginsStr,
                 'sitesPreferes'    => $sitesStr,

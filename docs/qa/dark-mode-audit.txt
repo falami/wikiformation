@@ -1,0 +1,80 @@
+AUDIT MODE SOMBRE — WIKIFORMATION
+6 novembre 2026 — modifications locales, non déployées
+
+Demande retenue
+Adapter réellement les fonds et textes à la préférence sombre du système,
+sans refonte du design clair, des dimensions ou des parcours métier.
+
+Corrections
+- Déclaration du thème dans tous les gabarits HTML destinés au navigateur.
+- Adaptation partagée des anciennes palettes fixes : surfaces, textes, bordures,
+  dégradés et couleurs composées color-mix. Les couleurs d'action sont conservées
+  lorsqu'elles restent lisibles ; le texte est ajusté en fonction du fond.
+- Prise en compte du contenu chargé ensuite, des listes déroulantes, des modales,
+  des changements de préférence système et des changements de taille de fenêtre.
+- Styles spécifiques pour les listes Tom Select, calendriers Flatpickr, champs,
+  indicateurs de focus, fermeture des modales et survol des tableaux.
+- Conservation des palettes sombres natives de l'accueil et du recrutement.
+- Carte de recrutement : contraste des départements, sélection, clavier et listes.
+- Les pixels des images, cartes Leaflet, QR codes et signatures ne sont pas inversés.
+  Les canvas conservent un fond clair afin de préserver leurs tracés.
+- Aucun changement dans les calculs, droits, données ou traitements métier.
+
+Méthode et périmètre réel
+Inventaire : 2 488 routes et 566 fichiers Twig, incluant des routes POST/API et des
+modèles de courriel/PDF qui ne correspondent pas à des pages interactives distinctes.
+Les gabarits navigateur autonomes sont contrôlés par un test de couverture statique.
+
+210 réponses HTML issues des fixtures d'intégration ont été examinées dans Chrome
+headless isolé : 206 pages navigateur et 4 représentations HTML de documents PDF.
+La liste des rendus est dans dark-mode-pages.json. Les documents PDF sont exclus
+de l'adaptation. Les autres pages présentent des changements de palette en sombre.
+
+Comparaisons automatiques de styles calculés : largeur 1440 x 1000 puis 390 x 844,
+préférences claire/sombre et forced-colors actif. Les scripts métier sont désactivés
+dans ces instantanés ; seul l'adaptateur de thème est exécuté sur les pages anciennes.
+Cette campagne valide le rendu des états capturés, pas tous les parcours interactifs.
+
+Contrôle visuel de captures représentatives : connexion à deux facteurs, accueil,
+recrutement/carte, tableaux de bord administrateur et formateur, création de session,
+création de facture, QR codes stagiaire et pilotage plateforme.
+
+Test navigateur dédié : conservation exacte des couleurs et dimensions en clair,
+passage en sombre puis retour en clair, priorité sur les styles importants, color-mix,
+ajout de contenu dynamique, ouverture d'un menu, préservation des canvas,
+contraste élevé système et impression. Fichier : tests/Browser/color-scheme.mjs.
+
+La carte de recrutement et Tom Select ont également été exécutés avec leurs vrais
+scripts : sélection du département 75 au clavier, valeur synchronisée et menu visible
+en clair, sombre et contraste élevé. Les couleurs avant/après sélection sont distinctes.
+
+Résultats
+- Syntaxe Twig : 566 fichiers valides.
+- Tests ciblés ColorScheme, Recruitment et WorkspaceNavigation :
+  16 tests, 183 assertions, succès.
+- Test navigateur dédié : succès.
+- Suite PHPUnit complète finale : 1 732 tests, 11 132 assertions,
+  28 erreurs et 11 échecs. La suite générale n'est donc PAS verte.
+
+Les erreurs restantes concernent les accès/signatures QR participants, des contrats
+formateur, les contrôles CSRF/accès, une génération de numéro d'attestation, des tests
+Stripe appelant une signature de méthode incompatible, et un test Twig de carte sans
+fonction path. Un premier passage avait 20 erreurs et 8 échecs ; plusieurs tests QR
+utilisent « today 08:30 » et le passage final a eu lieu avant le début de leur journée.
+Aucun résultat global de non-régression métier n'est revendiqué.
+
+Limites
+- Tests effectués sous Chrome sur macOS avec préférences système émulées, pas sur
+  une machine Windows physique ni sur tous les navigateurs/extensions de thème.
+- Les 210 rendus ne représentent pas toutes les combinaisons de données, états,
+  permissions et interactions des 2 488 routes.
+- Les écrans tiers intégrés et les graphiques dessinés en canvas ne sont pas recolorés.
+- L'adaptation des anciennes pages nécessite JavaScript ; les palettes natives sont CSS.
+- Il s'agit d'un audit de compatibilité et de lisibilité, pas d'une certification WCAG.
+- Aucun envoi de courriel, paiement, signature ni modification de données de production.
+
+Maintenance
+Les nouveaux modèles navigateur doivent inclure _color_scheme.html.twig.
+Une page avec une palette sombre native peut réutiliser le bloc color_scheme de
+l'accueil pour désactiver l'adaptateur partagé. data-theme-preserve permet de préserver
+un contenu graphique/documentaire. Les tests ne requièrent aucun compte de production.

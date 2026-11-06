@@ -4,3 +4,67 @@
 .rec-address-search{margin-top:-24px}.rec-address-search [hidden],.rec-upload [hidden]{display:none!important}#rec-address-results{border:1px solid #dce2e6;border-radius:12px;overflow:hidden;box-shadow:0 8px 24px #172c3a12}#rec-address-results button{display:block;width:100%;text-align:left;padding:13px 16px;border:0;border-bottom:1px solid #eef0f2;background:white;color:var(--ink);font-size:14px}#rec-address-results button:hover,#rec-address-results button:focus{background:#f6eee6;outline:2px solid #b85734;outline-offset:-2px}#rec-address-map{height:260px;border:1px solid var(--line);border-radius:14px;z-index:0;margin-bottom:20px}.rec-upload{transition:border-color .2s,background .2s}.rec-upload.is-dragging{border:2px dashed var(--orange);background:#fff3e9}.rec-upload.has-file{border-color:#729782;background:#f7faf8}.rec-form .rec-file-picker{display:inline-block;position:relative;padding:11px 18px;background:white;border:1px solid #bcc9d1;border-radius:9px;margin:0;overflow:hidden;cursor:pointer}.rec-file-picker input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}.rec-file-picker:focus-within{outline:2px solid var(--orange);outline-offset:3px}.rec-drop-hint,.rec-file-status{font-size:12px;margin:12px 0;color:#657783;overflow-wrap:anywhere}.rec-file-preview{display:block;width:100px;height:100px;object-fit:cover;border-radius:50%;margin:16px auto}.rec-file-remove{border:0;background:transparent;color:#a13e27;text-decoration:underline;font-size:12px;padding:8px;cursor:pointer}
 
 .rec-form [data-nda-fields][hidden],.rec-form [data-qualiopi-fields][hidden]{display:none!important}
+
+/* Keep the form, native controls and SVG readable in either system theme. */
+.recruit {
+  color-scheme: light;
+  --rec-surface: #fff;
+  --rec-soft: #f4f6f8;
+  --rec-muted: #526575;
+  --rec-border: #8799a7;
+  --rec-highlight: #f6e5d9;
+  --rec-accent: #934624;
+  --rec-map: #8298aa;
+  --rec-map-edge: #324c60;
+  --rec-selected: #934624;
+  --rec-focus: #172c3a;
+}
+.recruit .rec-card { background: var(--rec-surface); }
+.recruit :is(.rec-rail p,.rec-section-title p,.rec-help,.rec-wide small,.rec-upload small,.rec-input-unit>span,.rec-submit>span,.rec-drop-hint,.rec-file-status,.rec-success p) { color: var(--rec-muted); }
+.recruit :is(.rec-eyebrow,.rec-rail nav a,.rec-upload i,.rec-file-remove) { color: var(--rec-accent); }
+.recruit .rec-hero .rec-eyebrow { color: #efbd97; }
+.recruit :is(.rec-wide,.rec-upload,.rec-upload.has-file,.rec-map) { background: var(--rec-soft); }
+.recruit .rec-section-title>span { background: var(--rec-highlight); color: var(--rec-accent); }
+.recruit .rec-form :is(input:not([type=checkbox]):not([type=file]),textarea,select,.ts-control,.ts-dropdown,.rec-file-picker) {
+  background: var(--rec-surface); color: var(--ink); border-color: var(--rec-border);
+}
+.recruit .rec-form input::placeholder,.recruit .rec-form textarea::placeholder { color: var(--rec-muted); opacity: 1; }
+.recruit .ts-wrapper.multi .ts-control>div { background: var(--rec-highlight); color: var(--ink); }
+.recruit .ts-dropdown :is(.active,.create:hover,.option:hover),
+.recruit #rec-address-results button:is(:hover,:focus),.recruit .rec-upload.is-dragging { background: var(--rec-highlight); color: var(--ink); }
+.recruit .ts-dropdown :is(.create,.no-results) { color: var(--rec-muted); }
+.recruit #rec-address-results button { background: var(--rec-surface); color: var(--ink); border-color: var(--line); }
+.recruit .rec-map path { fill: var(--rec-map); stroke: var(--rec-map-edge); }
+.recruit .rec-map path[aria-checked=true] { fill: var(--rec-selected); }
+.recruit .rec-map path:hover { fill: var(--rec-selected); stroke: var(--rec-focus); stroke-width: 2; }
+.recruit .rec-map path:focus-visible { stroke: var(--rec-focus); stroke-width: 3; outline: none; }
+.recruit .rec-map text { fill: var(--ink); }
+.recruit .rec-form :is(input,textarea,select,button,a):focus-visible { outline: 2px solid var(--rec-focus); outline-offset: 3px; }
+/* Raster street tiles retain their original palette and legible Leaflet controls. */
+.recruit #rec-address-map { color-scheme: light; color: #172c3a; }
+@media (prefers-color-scheme: dark) {
+  .recruit {
+    color-scheme: dark;
+    --ink: #edf3f8;
+    --line: #455b6b;
+    --rec-surface: #1b2d3b;
+    --rec-soft: #142330;
+    --rec-muted: #bccbd7;
+    --rec-border: #7e95a7;
+    --rec-highlight: #4d362b;
+    --rec-accent: #f1b892;
+    --rec-map: #8198ac;
+    --rec-map-edge: #142330;
+    --rec-selected: #f2b373;
+    --rec-focus: #fff;
+    background: #101c26;
+  }
+  .recruit .rec-error { background: #43271e; color: #ffe1d2; }
+}
+/* Respect Windows contrast themes, including selection and keyboard focus. */
+@media (forced-colors: active) {
+  .recruit .rec-map path { fill: Canvas; stroke: CanvasText; }
+  .recruit .rec-map path[aria-checked=true],.recruit .rec-map path:hover { fill: Highlight; stroke: CanvasText; }
+  .recruit .rec-map path:focus-visible { stroke: Highlight; stroke-width: 3; }
+  .recruit .rec-map text { fill: CanvasText; }
+}

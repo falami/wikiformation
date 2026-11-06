@@ -1,6 +1,12 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}{{ dossier.title }} · Mon évaluation{% endblock %}
-{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">{% include 'evaluation/_style.html.twig' %}{% include 'evaluation/formateur/_form_style.html.twig' %}{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">{% include 'evaluation/_style.html.twig' %}{% include 'evaluation/formateur/_form_style.html.twig' %}
+<style>
+.ev-confirm{width:min(560px,calc(100vw - 32px));max-height:calc(100dvh - 40px);overflow:auto;border:1px solid var(--ev-line);border-radius:26px;padding:32px;color:var(--ev-ink);background:linear-gradient(145deg,var(--ev-soft),#fff 55%);box-shadow:0 30px 100px #10243440}
+.ev-confirm::backdrop{background:#10243499;backdrop-filter:blur(5px)}
+.ev-confirm-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:26px}.ev-confirm-icon{display:grid;place-items:center;width:60px;height:60px;border-radius:18px;background:var(--ev-ink);color:var(--ev-accent);font-size:27px}.ev-confirm h2{font-size:28px;line-height:1.2}.ev-confirm-summary{display:flex;align-items:center;gap:16px;background:var(--ev-soft);border:1px solid var(--ev-line);padding:18px;border-radius:16px;margin:24px 0}.ev-confirm-summary>i{font-size:24px}.ev-confirm-summary span{display:block;font-size:13px;color:#687988;margin-top:4px}.ev-confirm-actions{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--ev-line);padding-top:24px;margin-top:24px}
+@media(max-width:575px){.ev-confirm{padding:24px}.ev-confirm-actions{flex-direction:column-reverse}.ev-confirm-actions .ev-btn{width:100%}}
+</style>{% endblock %}
 {% block body %}
 <div class="ev-shell">
   {% if dossier.snapshot.owner is defined %}<p class="ev-muted">Modèle pédagogique · Propriété : <strong>{{ dossier.snapshot.owner }}</strong> · Version {{ dossier.snapshot.version }}</p>{% endif %}
@@ -24,6 +30,15 @@
       </fieldset></div></section>
       <aside class="ev-review-aside"><section class="ev-card"><div class="ev-card-head"><div><div class="ev-kicker">AVANT L’ENVOI</div><h2>Vérifier mes réponses</h2></div></div><div class="ev-card-body"><p class="ev-muted">Après l’envoi, votre test ne pourra plus être modifié. Les résultats de théorie et de pratique seront publiés ensemble par votre formateur.</p><fieldset {{ conflict ? 'disabled' : '' }}><label class="ev-check"><input type="checkbox" name="submission_confirmed" value="1" required>J’ai relu mon test et je souhaite transmettre mes réponses au formateur.</label><button class="ev-btn ev-btn-primary w-100 mt-3" type="submit"><i class="bi bi-send-check"></i> Transmettre mon test</button></fieldset><p class="ev-readonly-note">Restez sur cette page jusqu’à la confirmation de l’envoi.</p></div></section></aside></div>
     </form>
+    <dialog id="evaluation-confirm" class="ev-confirm" aria-labelledby="evaluation-confirm-title" aria-describedby="evaluation-confirm-description">
+      <div class="ev-confirm-head"><span class="ev-confirm-icon"><i class="bi bi-send-check" aria-hidden="true"></i></span><button type="button" class="ev-btn" data-confirm-close aria-label="Fermer la confirmation"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
+      <div class="ev-kicker">DERNIÈRE VÉRIFICATION</div>
+      <h2 id="evaluation-confirm-title">Prêt à transmettre votre test ?</h2>
+      <p id="evaluation-confirm-description" class="ev-muted">Vos réponses seront transmises à votre formateur pour correction. Après l’envoi, vous ne pourrez plus les modifier.</p>
+      <div class="ev-confirm-summary"><i class="bi bi-clipboard-check" aria-hidden="true"></i><div><strong>{{ dossier.title }}</strong><span>{{ dossier.questions|length }} question{{ dossier.questions|length > 1 ? 's' : '' }} · {{ dossier.evaluator }}</span></div></div>
+      <p class="ev-muted"><i class="bi bi-shield-check" aria-hidden="true"></i> Vos résultats seront disponibles après validation du formateur.</p>
+      <div class="ev-confirm-actions"><button type="button" class="ev-btn" data-confirm-close autofocus>Relire mes réponses</button><button type="button" class="ev-btn ev-btn-primary" id="evaluation-confirm-send"><i class="bi bi-send-check" aria-hidden="true"></i> Confirmer l’envoi</button></div>
+    </dialog>
   {% elseif dossier.state == 'to_review' %}
     <section class="ev-card"><div class="ev-card-body ev-empty"><div class="ev-badge mb-3"><i class="bi bi-check2-circle"></i> Test reçu</div><h2>Votre évaluation est entre les mains de votre formateur</h2><p>Votre test a été transmis le {{ dossier.submittedAt|date('d/m/Y à H:i') }}.<br>{{ dossier.evaluator }} va corriger vos réponses et finaliser votre évaluation pratique.</p><p class="ev-muted">Vous retrouverez ici les deux notes et les avis dès leur publication.</p></div></section>
   {% else %}
@@ -47,6 +62,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const validate = () => selects.forEach(select => select.setCustomValidity(select.value && selects.some(other => other !== select && other.value === select.value) ? 'Chaque proposition doit être utilisée une seule fois.' : ''));
     selects.forEach(select => select.addEventListener('change', validate)); validate();
   });
-  document.getElementById('learner-evaluation')?.addEventListener('submit', event => {if(!window.confirm('Transmettre définitivement vos réponses au formateur ?')) event.preventDefault();});
+  const form = document.getElementById('learner-evaluation');
+  const dialog = document.getElementById('evaluation-confirm');
+  if (!form || !dialog) return;
+  const send = document.getElementById('evaluation-confirm-send');
+  const submit = form.querySelector('button[type="submit"]');
+  const originalLabel = submit.innerHTML;
+  let confirmed = false;
+  let sending = false;
+  form.addEventListener('submit', event => {
+    if (sending) { event.preventDefault(); return; }
+    if (!confirmed) {
+      event.preventDefault();
+      dialog.showModal();
+      return;
+    }
+    sending = true;
+    form.setAttribute('aria-busy', 'true');
+    submit.disabled = true;
+    submit.textContent = 'Transmission en cours…';
+  });
+  dialog.querySelectorAll('[data-confirm-close]').forEach(button => button.addEventListener('click', () => dialog.close()));
+  dialog.addEventListener('close', () => { if (!sending) submit.focus(); });
+  send.addEventListener('click', () => {
+    if (sending) return;
+    confirmed = true;
+    dialog.close();
+    form.requestSubmit();
+    confirmed = false;
+  });
+  window.addEventListener('pageshow', () => {
+    sending = false;
+    confirmed = false;
+    form.removeAttribute('aria-busy');
+    submit.disabled = false;
+    submit.innerHTML = originalLabel;
+  });
 });
 </script>{% endblock %}

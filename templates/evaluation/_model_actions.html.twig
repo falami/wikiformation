@@ -3,6 +3,7 @@
 {% if not trainerMode and not hideConsult|default(false) %}<a class="ev-btn" href="{{ path('app_administrateur_evaluation_template_show', {entite:entite.id,id:template.id}) }}">Consulter</a>{% endif %}
 {% if trainerMode and (locked or template.archivedAt) %}<a class="ev-btn" href="{{ path('app_formateur_evaluation_template_edit', {entite:entite.id,id:template.id}) }}">Consulter</a>{% endif %}
 {% if canManage %}
+  {% if trainerMode %}<a class="ev-btn" href="{{ path('app_formateur_evaluation_template_permissions', {entite:entite.id,id:template.id}) }}"><i class="bi bi-shield-lock" aria-hidden="true"></i> Autorisations</a>{% endif %}
   {% if not locked and not template.archivedAt %}<a class="ev-btn" href="{{ path(trainerMode ? 'app_formateur_evaluation_template_edit' : 'app_administrateur_evaluation_template_edit', {entite:entite.id,id:template.id}) }}">Modifier le modèle</a>{% endif %}
   {% for action,label in {dupliquer:'Dupliquer',archiver:'Archiver'} %}{% if action != 'archiver' or not template.archivedAt %}<form method="post" action="{{ path(trainerMode ? 'app_formateur_evaluation_template_lifecycle' : 'app_administrateur_evaluation_template_lifecycle', {entite:entite.id,id:template.id,action:action}) }}"><input type="hidden" name="_token" value="{{ csrf_token('evaluation_lifecycle_' ~ template.id) }}"><button class="ev-btn" type="submit"><i class="bi {{ action == 'dupliquer' ? 'bi-copy' : 'bi-archive' }}" aria-hidden="true"></i> {{ label }}</button></form>{% endif %}{% endfor %}
 {% endif %}

@@ -161,6 +161,21 @@ final class NotificationCenterTest extends \Symfony\Bundle\FrameworkBundle\Test\
         self::assertNotContains('Other tenant private',array_column($center->items($this->entite,$this->user,'admin'),'title'));
     }
 
+    public function testLearnerFeedWithAnEnrolledSession(): void
+    {
+        $inscription = (new Inscription())->setEntite($this->entite)->setCreateur($this->user)->setSession($this->session)->setStagiaire($this->user);
+        $this->session->addInscription($inscription);
+        $this->em->persist($inscription);
+        $this->em->flush();
+        $this->client->loginUser($this->user);
+        $this->client->request('GET', '/fr/notifications/'.$this->entite->getId().'/feed?space=stagiaire&page=1&limit=8');
+        self::assertResponseIsSuccessful();
+        $data = json_decode($this->client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('stagiaire', $data['space']);
+        self::assertNotEmpty($data['items']);
+        self::assertLessThanOrEqual(8, count($data['items']));
+    }
+
     public function testTrainerCanDeclareAndUndoAbsence(): void
     {
         $learner = (new Utilisateur())->setEmail('absent@example.test')->setPassword('unused')->setPrenom('Absent')->setNom('Test');

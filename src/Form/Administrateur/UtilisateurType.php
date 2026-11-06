@@ -122,7 +122,6 @@ final class UtilisateurType extends AbstractType
                     pattern: '/\A(?:0[1-9](?:[ .\-]?[0-9]){8}|(?:\+|00)[1-9](?:[ .\-]?[0-9]){7,14})\z/',
                     message: 'Saisissez un téléphone valide : 06 12 34 56 78 ou +33 6 12 34 56 78.',
                 )],
-                'help' => 'Format français à 10 chiffres ou international avec + ou 00.',
                 'attr' => ['class' => 'form-control', 'inputmode' => 'tel', 'autocomplete' => 'tel', 'maxlength' => 32, 'placeholder' => '06 12 34 56 78']
             ])
             ->add('adresse', TextType::class, [
