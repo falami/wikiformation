@@ -33,4 +33,19 @@ La migration a déjà été exécutée sur la base locale. Elle crée `notificat
 
 ## Vérifications
 
+### Réparation des bases initialisées par le schéma ORM
+
+Les anciennes initialisations de préproduction pouvaient marquer les migrations comme exécutées sans créer `notification_receipt`, qui n’était pas mappée dans Doctrine. Le flux des notifications renvoie alors une erreur 500 lors de la lecture des états personnels. Cette table dispose désormais d’un mapping ORM ; les tests d’intégration utilisent directement ce schéma.
+
+Après déploiement, la migration `Version20261107080000` crée uniquement la table manquante et ne modifie pas une table existante. Elle est incluse dans le déploiement habituel via `doctrine:migrations:migrate`. Pour appliquer uniquement cette réparation :
+
+```sh
+php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20261107080000' --up --no-interaction --env=prod
+php bin/console cache:clear --env=prod
+```
+
+Ne pas relancer l’initialisation de préproduction ni la migration initiale des notifications sur une base déjà utilisée. Si l’erreur persiste, consulter les journaux serveur pour identifier l’exception exacte.
+
+### Tests
+
 Tests d’intégration SQLite : journal transactionnel sans doublon de flush, confidentialité stagiaire/entreprise/organisme, contrats résiliés, présences annulées/finalisées, rendu du centre et flux JSON, CSRF, lecture/archivage/restauration, refus d’une clé inaccessible. Les tests de relances existants sont également exécutés. Vérification visuelle sur navigateur à effectuer après déploiement : le contrôle Chrome n’était pas autorisé dans l’environnement de développement.
