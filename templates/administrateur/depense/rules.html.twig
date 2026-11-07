@@ -18,7 +18,7 @@
 {% block body %}
 {% set values = submitted|default({}) %}
 <div class="container-fluid py-4">
-  <div class="p-4 mb-4 shadow-sm" style="background:linear-gradient(120deg,#233342,#435460);color:white;border-radius:22px;border-left:6px solid #ffc107">
+  <div class="p-4 mb-4 shadow-sm" style="background:linear-gradient(120deg,#233342,#435460);color:white;border-radius:22px;border-left:6px solid var(--theme-color-secondaire, #ffc107)">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3"><div><div class="small text-uppercase text-warning mb-2">Dépenses · Automatisation</div><h1 class="h3 fw-bold">Règles de classement à l’import</h1><p class="mb-0">Vos libellés deviennent des dépenses préclassées, prêtes à vérifier.</p></div><a class="btn btn-light rounded-pill" href="{{ path('app_administrateur_depense_import',{entite:entite.id}) }}">Retour à l’import</a></div>
   </div>
   {% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
@@ -47,7 +47,7 @@
 <div class="modal fade" id="choice-{{ kind }}" tabindex="-1" aria-labelledby="choice-title-{{ kind }}" aria-hidden="true">
 <div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow rounded-4 overflow-hidden">
 <form data-rule-choice data-target="rule-{{ kind }}" action="{{ path('app_expense_rule_choice_create',{entite:entite.id,kind:kind}) }}" method="post">
-<div class="modal-header p-4" style="background:#233342;color:white;border-bottom:3px solid #ffc107"><h2 class="modal-title fs-5" id="choice-title-{{ kind }}">{{ label }}</h2><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+<div class="modal-header p-4" style="background:#233342;color:white;border-bottom:3px solid var(--theme-color-secondaire, #ffc107)"><h2 class="modal-title fs-5" id="choice-title-{{ kind }}">{{ label }}</h2><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
 <div class="modal-body p-4"><p class="text-muted small">L’élément sera ajouté à votre organisme et sélectionné dans la règle en cours.</p><input type="hidden" name="_token" value="{{ csrf_token('expense_rules_' ~ entite.id) }}"><label class="form-label" for="choice-name-{{ kind }}">Nom {{ kind == 'category' ? 'de la catégorie' : 'du fournisseur' }}</label><input id="choice-name-{{ kind }}" name="name" class="form-control" maxlength="{{ kind == 'category' ? 120 : 160 }}" required autocomplete="off" placeholder="{{ kind == 'category' ? 'Ex. Autoroute' : 'Ex. Vinci' }}"><div class="alert alert-danger mt-3 d-none" data-choice-error role="alert"></div></div>
 <div class="modal-footer border-0 px-4 pb-4"><button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-warning rounded-pill">Créer et sélectionner</button></div>
 </form></div></div></div>

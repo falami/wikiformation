@@ -204,10 +204,11 @@ class AttestationController extends AbstractController
 
         $order   = $request->request->all('order');
 
-        // mapping colonnes DataTables -> champs DQL (0..7)
+        // mapping colonnes DataTables -> champs DQL
         $map = [
             0 => 'a.numero',
             1 => 'ins.id',
+            2 => 'formationLabel',
             3 => 'a.dureeHeures',
             4 => 'a.reussi',
             5 => 'a.dateDelivrance',
@@ -220,6 +221,7 @@ class AttestationController extends AbstractController
             ->leftJoin('ins.session', 'se')->addSelect('se')
             ->leftJoin('se.formation', 'f')->addSelect('f')
             ->leftJoin('ins.stagiaire', 'st')->addSelect('st')
+            ->addSelect("COALESCE(NULLIF(se.formationIntituleLibre, ''), f.titre) AS HIDDEN formationLabel")
             ->andWhere('a.entite = :entite')
             ->setParameter('entite', $entite);
 
@@ -242,6 +244,7 @@ class AttestationController extends AbstractController
             OR st.email LIKE :s
             OR se.code LIKE :s
             OR f.titre LIKE :s
+            OR se.formationIntituleLibre LIKE :s
         ')->setParameter('s', '%' . $searchV . '%');
         }
 
@@ -281,6 +284,7 @@ class AttestationController extends AbstractController
             return [
                 'numero'        => $a->getNumero() ?? '-',
                 'inscription'   => $inscriptionStr,
+                'formation'     => $ins?->getSession()?->getFormationLabel() ?? '—',
                 'dureeHeures'   => $a->getDureeHeures() ?? '-',
                 'reussi'        => $this->renderView('administrateur/attestation/_reussi_badge.html.twig', [
                     'a' => $a,

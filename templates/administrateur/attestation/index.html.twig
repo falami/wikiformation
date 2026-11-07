@@ -234,7 +234,7 @@
       box-shadow: 0 18px 46px rgba(0,0,0,.18);
       padding: .55rem;
       background:
-        radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%),
+        radial-gradient(900px 220px at 10% 0%, color-mix(in srgb, var(--theme-color-secondaire, #ffc107) 10%, transparent), transparent 55%),
         #fff;
       overflow: hidden;
     }
@@ -245,8 +245,8 @@
       border: 1px solid transparent;
     }
     .attestation-actions .attestation-menu .dropdown-item:hover{
-      background: rgba(255,193,7,.10);
-      border-color: rgba(255,193,7,.22);
+      background: color-mix(in srgb, var(--theme-color-secondaire, #ffc107) 10%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire, #ffc107) 22%, transparent);
     }
 
     /* fusion pill (main + split) */
@@ -299,7 +299,7 @@
 
   {# ✅ DataTables + Buttons (comme Sessions) #}
   <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
-  <link rel="stylesheet" href="{{ asset('dist/css/unified-lists.css') }}?v=4">
+  <link rel="stylesheet" href="{{ asset('dist/css/unified-lists.css') }}?v=20261107-accent-2">
 {% endblock %}
 
 {% block javascripts %}
@@ -379,6 +379,7 @@
         <tr>
           <th>Numéro</th>
           <th>Inscription</th>
+          <th>Formation</th>
           <th>Durée (h)</th>
           <th>Réussi</th>
           <th>Date de délivrance</th>
@@ -456,7 +457,7 @@ $(function(){
       + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
 
     buttons:['copy','csv','excel','pdf','print'],
-    lengthMenu:[[10,25,50,200],[10,25,50,200]],
+    lengthMenu:[[10,25,50,100,200],[10,25,50,100,200]],
     pageLength: 100,
     order:[[0,'desc']],
     language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
@@ -464,6 +465,7 @@ $(function(){
     columns:[
       {data:'numero'},
       {data:'inscription'},
+      {data:'formation', render: $.fn.dataTable.render.text()},
       {data:'dureeHeures'},
       {data:'reussi'},          // HTML badge
       {data:'dateDelivrance'},
@@ -471,8 +473,8 @@ $(function(){
     ],
 
     columnDefs:[
-      {targets:5, className:'action-column text-end', orderable:false, searchable:false},
-      {targets:3, orderable:false, searchable:false}, // badge HTML
+      {targets:6, className:'action-column text-end', orderable:false, searchable:false},
+      {targets:4, orderable:false, searchable:false}, // badge HTML
       {type:'num', targets:0}
     ],
 

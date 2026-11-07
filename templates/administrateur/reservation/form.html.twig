@@ -246,7 +246,7 @@
     
 
   </style>
-  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261106-entity">
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261107-padding">
   <link rel="stylesheet" href="{{ asset('dist/css/reservation-editor.css') }}?v=1">
 {% endblock %}
 
@@ -347,9 +347,8 @@
         </div>
         <div class="p-3 p-md-4">
           <div class="row g-3">
-            <div class="col-md-4">{{ form_row(form.dateReservation) }}</div>
-            <div class="col-md-4">{{ form_row(form.status) }}</div>
-            <div class="col-md-4">{{ form_row(form.paymentIntentId) }}</div>
+            <div class="col-md-6">{{ form_row(form.dateReservation) }}</div>
+            <div class="col-md-6">{{ form_row(form.status) }}</div>
           </div>
         </div>
       </div>
@@ -410,7 +409,7 @@
               <div class="fw-bold">Choix actuels</div>
               <span id="resume-valid-pill"
                     class="badge rounded-pill px-3 py-2"
-                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                    style="border:1px solid var(--stroke); background: color-mix(in srgb, var(--theme-color-secondaire, #ffc107) 15%, transparent); color: var(--ink);">
                 ⚠️ Incomplet
               </span>
             </div>
@@ -431,10 +430,6 @@
               <div class="d-flex justify-content-between gap-3 py-1">
                 <span class="text-muted">Statut</span>
                 <span class="fw-semibold text-end" id="resume-statut">—</span>
-              </div>
-              <div class="d-flex justify-content-between gap-3 py-1">
-                <span class="text-muted">Paiement (Intent)</span>
-                <span class="fw-semibold text-end" id="resume-intent">—</span>
               </div>
 
               <hr class="my-2" style="border-color: var(--stroke);">
@@ -488,7 +483,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const idUser       = '#{{ form.utilisateur.vars.id }}';
   const idStatus     = '#{{ form.status.vars.id }}';
   const idDate       = '#{{ form.dateReservation.vars.id }}';
-  const idIntent     = '#{{ form.paymentIntentId.vars.id }}';
   const idMontant    = '#{{ form.montantCents.vars.id }}';
   const idDevise     = '#{{ form.devise.vars.id }}';
 
@@ -562,7 +556,6 @@ document.addEventListener('DOMContentLoaded', function () {
     stagiaire: document.getElementById('resume-stagiaire'),
     date: document.getElementById('resume-date'),
     statut: document.getElementById('resume-statut'),
-    intent: document.getElementById('resume-intent'),
     montant: document.getElementById('resume-montant'),
     devise: document.getElementById('resume-devise'),
     pill: document.getElementById('resume-valid-pill')
@@ -590,14 +583,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const selDevise  = document.querySelector(idDevise);
 
     const dateVal    = (document.querySelector(idDate)?.value || '').trim();
-    const intentVal  = (document.querySelector(idIntent)?.value || '').trim();
     const montantVal = document.querySelector(idMontant)?.value || '';
 
     if ($resume.session)   $resume.session.textContent   = getSelectedText(selSession) || '—';
     if ($resume.stagiaire) $resume.stagiaire.textContent = getSelectedText(selUser) || '—';
     if ($resume.date)      $resume.date.textContent      = dateVal || '—';
     if ($resume.statut)    $resume.statut.textContent    = getSelectedText(selStatus) || '—';
-    if ($resume.intent)    $resume.intent.textContent    = intentVal || '—';
 
     const deviseTxt = getSelectedText(selDevise) || (selDevise?.value || '');
     if ($resume.devise) $resume.devise.textContent = deviseTxt || '—';
@@ -647,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const el = document.querySelector(sel);
     el && el.addEventListener('change', refreshResume);
   });
-  [idDate, idIntent, idMontant].forEach(sel => {
+  [idDate, idMontant].forEach(sel => {
     const el = document.querySelector(sel);
     el && el.addEventListener('input', refreshResume);
     el && el.addEventListener('change', refreshResume);

@@ -92,11 +92,6 @@ final class ReservationType extends AbstractType
                 'label' => 'Devise',
                 'attr' => ['class' => 'form-control', 'maxlength' => 3, 'placeholder' => 'EUR'],
             ])
-            ->add('paymentIntentId', TextType::class, [
-                'label' => 'Stripe PaymentIntent ID',
-                'required' => false,
-                'attr' => ['class' => 'form-control', 'placeholder' => 'pi_...'],
-            ])
         ;
 
         $b->get('dateReservation')->addModelTransformer($this->dateFr);
