@@ -240,6 +240,9 @@ final class CacesPortalsTest extends KernelTestCase
         if(!getenv('CACES_QA_OUTPUT')){self::assertTrue(true);return;}
         $this->client->loginUser($this->admin);$this->client->request('GET',$this->url('app_caces_index'));
         file_put_contents(getenv('CACES_QA_OUTPUT').'/index.html',str_replace(['href="/dist/','src="/dist/'],['href="http://localhost:8888/dist/','src="http://localhost:8888/dist/'],$this->client->getResponse()->getContent()));self::assertSame(200,$this->client->getResponse()->getStatusCode());
+        $this->client->loginUser($this->learner);$this->client->request('GET',$this->url('app_caces_learner'));
+        file_put_contents(getenv('CACES_QA_OUTPUT').'/qa-caces-learner-local.html',$this->client->getResponse()->getContent());
+        self::assertSame(200,$this->client->getResponse()->getStatusCode());
     }
     private function user(string $email, string $name): Utilisateur
     {

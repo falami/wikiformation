@@ -1,14 +1,51 @@
 {% extends 'caces/base.html.twig' %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/caces-learner.css') }}?v=20261111-1">{% endblock %}
 {% block caces %}
-<header class="entity-hero cx-hero"><div><h1>Mes tests théoriques CACES®</h1><p>Retrouvez les tests qui vous sont affectés par votre organisme.</p></div></header>
-<section class="cx-panel">
-{% for a in attempts %}
-<article class="cx-heading">
-<div><h2>{{ a.exam.session.code }}</h2><p>{{ a.submittedAt ? 'Test terminé' : 'Test à réaliser' }}</p></div>
-<a class="cx-btn primary" href="{{ path('app_caces_theory', {entite:entite.id,id:a.id}) }}">{{ a.submittedAt ? 'Consulter mon test' : 'Ouvrir mon test' }}</a>
-</article>
-{% else %}
-<div class="cx-empty"><h2>Aucun test théorique affecté</h2><p>Vos tests apparaîtront ici dès leur affectation par votre organisme.</p></div>
-{% endfor %}
-</section>
+{% set completed=0 %}{% set ongoing=0 %}
+{% for attempt in attempts %}{% if attempt.submittedAt %}{% set completed=completed+1 %}{% elseif attempt.startedAt %}{% set ongoing=ongoing+1 %}{% endif %}{% endfor %}
+<div class="cl-space">
+<header class="cl-hero">
+    <div class="cl-hero-copy">
+        <span class="cl-overline"><i class="bi bi-shield-check" aria-hidden="true"></i> MON ESPACE CACES®</span>
+        <h1>Votre prochaine étape<br>commence ici.</h1>
+        <p>Retrouvez vos tests théoriques et avancez dans votre parcours de certification, à votre rythme de formation.</p>
+        <div class="cl-hero-signature"><span class="cl-mark"><i class="bi bi-mortarboard" aria-hidden="true"></i></span><span>Votre organisme de formation<strong>{{ entite.nom }}</strong></span></div>
+    </div>
+    <div class="cl-hero-summary" aria-label="Votre progression">
+        <span class="cl-overline">VOTRE PARCOURS</span>
+        <div class="cl-progress-number">{{ completed }}<span> / {{ attempts|length }}</span></div>
+        <p>test{{ completed > 1 ? 's' : '' }} théorique{{ completed > 1 ? 's' : '' }} terminé{{ completed > 1 ? 's' : '' }}</p>
+        <div class="cl-progress-track" role="progressbar" aria-label="Tests terminés" aria-valuemin="0" aria-valuemax="{{ attempts|length ?: 1 }}" aria-valuenow="{{ completed }}"><span style="width:{{ attempts|length ? completed / (attempts|length) * 100 : 0 }}%"></span></div>
+        <div class="cl-progress-caption"><span class="cl-status-dot"></span>{{ attempts|length - completed }} test{{ attempts|length - completed > 1 ? 's' : '' }} à finaliser</div>
+    </div>
+</header>
+<div class="cl-layout">
+    <section class="cl-tests" aria-labelledby="cl-tests-title">
+        <div class="cl-section-heading"><div><span class="cl-kicker">VOS ÉPREUVES</span><h2 id="cl-tests-title">Mes tests théoriques <span class="cl-count">{{ attempts|length }}</span></h2></div><span class="cl-section-caption">{{ ongoing ? ongoing~' en cours' : 'Votre sélection personnelle' }}</span></div>
+        <div class="cl-test-list">
+        {% for a in attempts %}
+            {% set finished=a.submittedAt is not null %}
+            {% set started=a.startedAt is not null %}
+            {% set duration=a.exam.theorySnapshot.schema.durationMinutes|default(60) %}
+            <article class="cl-test-card {{ finished ? 'is-complete' : '' }}">
+                <div class="cl-card-top"><span class="cl-recommendation"><i class="bi bi-shield-check" aria-hidden="true"></i> R.{{ a.exam.recommendation }}</span><span class="cl-status {{ started and not finished ? 'is-active' : '' }}"><i class="bi {{ finished ? 'bi-check2-circle' : (started ? 'bi-hourglass-split' : 'bi-circle') }}" aria-hidden="true"></i>{{ finished ? 'Terminé' : (started ? 'À finaliser' : 'À réaliser') }}</span></div>
+                <h3>{{ families[a.exam.recommendation]|default('Test théorique CACES®') }}</h3>
+                <p class="cl-session"><span>Session</span> {{ a.exam.session.code }} <span class="cl-separator">·</span> Catégorie {{ a.exam.category }}</p>
+                <div class="cl-test-meta"><span><i class="bi bi-clock" aria-hidden="true"></i>{{ duration }} minutes</span><span><i class="bi bi-ui-checks" aria-hidden="true"></i>100 questions</span>{% if a.exam.session.dateDebut %}<span><i class="bi bi-calendar3" aria-hidden="true"></i>{{ a.exam.session.dateDebut|date('d/m/Y') }}</span>{% endif %}</div>
+                <div class="cl-card-bottom"><p>{% if finished %}<i class="bi bi-file-earmark-check" aria-hidden="true"></i> Votre test a été transmis.{% elseif started %}<i class="bi bi-arrow-repeat" aria-hidden="true"></i> Retrouvez votre test et son état d’avancement.{% else %}<i class="bi bi-info-circle" aria-hidden="true"></i> Consultez les consignes avant de commencer.{% endif %}</p><a class="cl-test-action {{ finished ? 'is-secondary' : '' }}" href="{{ path('app_caces_theory', {entite:entite.id,id:a.id}) }}">{{ finished ? 'Consulter mon test' : (started ? 'Reprendre mon test' : 'Ouvrir mon test') }}<i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
+            </article>
+        {% else %}
+            <div class="cl-empty"><span class="cl-empty-icon"><i class="bi bi-journal-check" aria-hidden="true"></i></span><h3>Votre parcours se prépare.</h3><p>Aucun test ne vous a encore été attribué. Vous le retrouverez ici dès sa mise à disposition par votre organisme.</p><span class="cl-empty-caption">Un espace dédié à vos prochaines étapes</span></div>
+        {% endfor %}
+        </div>
+    </section>
+    <aside class="cl-guide" aria-labelledby="cl-guide-title">
+        <span class="cl-guide-icon"><i class="bi bi-compass" aria-hidden="true"></i></span>
+        <span class="cl-kicker">BIEN SE PRÉPARER</span><h2 id="cl-guide-title">Abordez votre test<br>en toute sérénité.</h2>
+        <ol class="cl-steps"><li><span>01</span><div><h3>Installez-vous au calme</h3><p>Prévoyez une connexion stable et un environnement propice à la concentration.</p></div></li><li><span>02</span><div><h3>Prenez connaissance des consignes</h3><p>L’ouverture de la fiche vous permet de préparer votre passage.</p></div></li><li><span>03</span><div><h3>Gardez un œil sur le temps</h3><p>Une fois le test démarré, le compte à rebours vous accompagne jusqu’à la fin.</p></div></li></ol>
+        <div class="cl-help"><i class="bi bi-chat-square-text" aria-hidden="true"></i><div><strong>Une question avant de commencer ?</strong><p>Votre testeur ou votre organisme est là pour vous accompagner.</p></div></div>
+    </aside>
+</div>
+<div class="cl-footer-note"><i class="bi bi-lock" aria-hidden="true"></i> Votre espace personnel · {{ entite.nom }}</div>
+</div>
 {% endblock %}
