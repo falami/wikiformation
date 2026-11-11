@@ -181,14 +181,14 @@ final class SuperPdpClient
     }
 
     /** Public conversion endpoint: this operation does not issue or deliver an invoice. */
-    public function convertInvoice(#[\SensitiveParameter] array $enInvoice): string
+    public function convertInvoice(#[\SensitiveParameter] array $enInvoice, ?\Closure $onConversionError = null): string
     {
         if ($enInvoice === [] || array_is_list($enInvoice)) throw new \InvalidArgumentException('Facture structurée absente.');
         $result = $this->raw('POST', '/v1.beta/invoices/convert', null, [
             'query' => ['from' => 'en16931', 'to' => 'ubl'],
             'headers' => ['Accept' => 'application/xml', 'Content-Type' => 'application/json'],
             'body' => json_encode($enInvoice, JSON_THROW_ON_ERROR),
-        ]);
+        ], onConversionError: $onConversionError);
         $this->xmlResponse($result['content']);
 
         return $result['content'];
@@ -239,7 +239,7 @@ final class SuperPdpClient
     }
 
     /** @return array{content:string,contentType:string} */
-    private function raw(string $method, string $path, #[\SensitiveParameter] ?string $token, #[\SensitiveParameter] array $options = [], bool $mutation = false): array
+    private function raw(string $method, string $path, #[\SensitiveParameter] ?string $token, #[\SensitiveParameter] array $options = [], bool $mutation = false, ?\Closure $onConversionError = null): array
     {
         $headers = ['Accept' => 'application/json'];
         if ($token !== null) {
@@ -262,7 +262,9 @@ final class SuperPdpClient
             if ($status < 200 || $status >= 300) {
                 $diagnostic = '';
                 if ($status === 400 && $path === '/v1.beta/invoices/convert') {
-                    $diagnostic = self::conversionDiagnostic($response->getContent(false));
+                    $errorBody = $response->getContent(false);
+                    $diagnostic = self::conversionDiagnostic($errorBody);
+                    if ($onConversionError !== null) $onConversionError($errorBody);
                 }
                 $response->cancel();
                 $uncertain = $mutation && ($status >= 500 || $status === 408);

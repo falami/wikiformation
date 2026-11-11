@@ -54,6 +54,20 @@ final class SuperPdpClientTest extends TestCase
         }
     }
 
+    public function testExplicitConversionDiagnosticReceivesBodyWithoutExposingItInException(): void
+    {
+        $body = '{"message":"private conversion detail"}';
+        $captured = null;
+        $client = new SuperPdpClient(new MockHttpClient(new MockResponse($body, ['http_code' => 400])));
+        try {
+            $client->convertInvoice(['type_code' => 380], static function (string $value) use (&$captured): void { $captured = $value; });
+            self::fail('Expected rejection');
+        } catch (SuperPdpException $error) {
+            self::assertSame($body, $captured);
+            self::assertStringNotContainsString('private', $error->getMessage());
+        }
+    }
+
     public function testAuthorizationUrlUsesPkceAndAccountHintsWithoutCredentials(): void
     {
         $url = (new SuperPdpClient(new MockHttpClient()))->authorizationUrl('app-1', 'https://wiki.test/oauth/callback', str_repeat('a', 32), str_repeat('b', 43), '123456789', 'fr_siren', 'test@example.test');
