@@ -152,7 +152,17 @@ final class StripeBillingService
           || !is_string($config['id'] ?? null) || !str_starts_with($config['id'], 'bpc_')
           || ($config['metadata']['wikiformation_policy'] ?? null) !== 'internal-usage-payments-only-v1'
           || ($config['login_page']['enabled'] ?? true) !== false) {
-        throw new \DomainException('Le portail de paiement interne doit être vérifié avant son ouverture.');
+        $checks = [
+          'type de configuration inattendu' => ($config['object'] ?? null) === 'billing_portal.configuration',
+          'configuration inactive' => ($config['active'] ?? false) === true,
+          'configuration utilisée comme portail par défaut' => ($config['is_default'] ?? true) === false,
+          'mode réel non confirmé' => ($config['livemode'] ?? false) === true,
+          'identifiant de configuration invalide' => is_string($config['id'] ?? null) && str_starts_with($config['id'], 'bpc_'),
+          'identification du portail interne absente ou différente' => ($config['metadata']['wikiformation_policy'] ?? null) === 'internal-usage-payments-only-v1',
+          'page de connexion publique non désactivée' => ($config['login_page']['enabled'] ?? true) === false,
+        ];
+        $reasons = array_keys(array_filter($checks, static fn (bool $valid): bool => !$valid));
+        throw new \DomainException('Ouverture du portail interne bloquée : '.implode(' ; ', $reasons).'. Vérifiez la configuration Stripe du portail.');
       }
       foreach ($features as $feature => $expected) {
         if (($config['features'][$feature]['enabled'] ?? null) !== $expected['enabled']) {

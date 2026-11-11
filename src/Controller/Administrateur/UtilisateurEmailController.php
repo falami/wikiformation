@@ -246,7 +246,7 @@ final class UtilisateurEmailController extends AbstractController
   }
 
   #[Route('/log/{log}', name: 'log_show', methods: ['GET'], requirements: ['log' => '\d+'])]
-  public function logShow(Entite $entite, Utilisateur $u, EmailLog $log): Response
+  public function logShow(Entite $entite, Utilisateur $u, EmailLog $log, \App\Service\Email\ArchivedEmailPreview $preview): Response
   {
     $this->guardEntite($entite, $u);
     /** @var Utilisateur $user */
@@ -261,6 +261,7 @@ final class UtilisateurEmailController extends AbstractController
       'entite' => $entite,
       'u' => $u,
       'log' => $log,
+      'previewHtml' => $preview->render((string) $log->getBodyHtmlSnapshot(), $entite->getLogo()),
     ], new Response('', 200, ['Cache-Control' => 'private, no-store', 'X-Robots-Tag' => 'noindex, nofollow']));
   }
 }
