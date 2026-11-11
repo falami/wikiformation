@@ -259,6 +259,17 @@ final class CacesController extends AbstractController
                     } elseif($action==='theorySign') {
                         if($attempt->getExam()->getTheoryTester()->getId()!==$this->getUser()->getId() || !$attempt->getSubmittedAt()) throw $this->createAccessDeniedException();
                         $signatures=$attempt->getSignatures();if(isset($signatures['theoryTester']))throw new \InvalidArgumentException('La théorie est déjà signée.');
+                        $result=$attempt->getTheoryResult();
+                        $themes=[];
+                        foreach($r->request->all('remediationThemes') as $index) {
+                            if(!is_string($index) || !ctype_digit($index) || !isset($result['themes'][(int)$index]) || $result['themes'][(int)$index]['passed']) throw new \InvalidArgumentException('Seuls les thèmes théoriques dont le seuil n’est pas atteint peuvent être sélectionnés.');
+                            $themes[(int)$index]=$result['themes'][(int)$index]['title'];
+                        }
+                        $duration=$r->request->getString('remediationDuration','00:00:00');
+                        if(!preg_match('/^(\d{2}):([0-5]\d):([0-5]\d)$/D',$duration,$parts)) throw new \InvalidArgumentException('Saisissez la durée préconisée au format hh:mm:ss.');
+                        $result['remediationThemes']=array_values($themes);
+                        $result['remediationDurationSeconds']=(int)$parts[1]*3600+(int)$parts[2]*60+(int)$parts[3];
+                        $attempt->setTheoryResult($result);
                         $signatures['theoryTester']=['image'=>$this->signature($r,'signature'),'name'=>$this->fullName($this->getUser()),'at'=>(new \DateTimeImmutable())->format(DATE_ATOM)];$attempt->setSignatures($signatures);
                     } elseif($action==='reuse') {
                         $this->admin($entite);

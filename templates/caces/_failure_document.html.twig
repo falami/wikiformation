@@ -1,0 +1,74 @@
+{% set practice=dossier.practiceResult %}
+<article class="cx-failure">
+  <div class="cx-failure-masthead">
+    <div><span class="cx-failure-kicker">CERTIFICATION CACES®</span><strong>{{ entite.nom }}</strong></div>
+    <div class="cx-failure-reference"><span>DOCUMENT INTERNE</span><strong>Dossier n°{{ dossier.id }}</strong><small>{{ e.session.code }}</small></div>
+  </div>
+  <div class="cx-failure-title">
+    <span class="cx-failure-kicker">RELEVÉ D’ÉVALUATION</span>
+    <h1>Attestation d’échec<span>interne</span></h1>
+    <p>Résultats des épreuves et accompagnement préconisé.</p>
+  </div>
+  <section class="cx-failure-person">
+    <div><span class="cx-failure-label">Candidat</span><h2>{{ dossier.learner.prenom }} {{ dossier.learner.nom }}</h2><p>Né(e) le {{ dossier.profile.birthDate|default('') ? dossier.profile.birthDate|date('d/m/Y') : 'non renseigné' }} · {{ dossier.profile.birthPlace|default('Lieu de naissance non renseigné',true) }}</p>{% if dossier.profile.company|default('') %}<p>{{ dossier.profile.company }}</p>{% endif %}</div>
+    <div class="cx-failure-category"><span class="cx-failure-label">Recommandation</span><strong>R.{{ e.recommendation }}</strong><span>Catégorie {{ e.category }}</span></div>
+  </section>
+  <div class="cx-failure-location"><span class="cx-failure-label">Lieu d’évaluation</span> {{ e.location|default('Non renseigné',true) }}</div>
+  {% for kind,label in {theory:'Épreuve théorique',practice:'Épreuve pratique'} %}
+    {% set result=kind == 'theory' ? dossier.theoryResult : practice %}
+    {% set date=kind == 'theory' ? dossier.submittedAt : dossier.practiceAt %}
+    <section class="cx-failure-exam">
+      <div class="cx-failure-exam-heading">
+        <div><span class="cx-failure-section-number">0{{ loop.index }}</span><h2>{{ label }}</h2></div>
+        <span class="cx-failure-status {{ result ? (result.passed ? 'is-passed' : 'is-failed') : '' }}">{{ result ? (result.passed ? 'Reçu' : 'Ajourné') : 'Non passée' }}</span>
+      </div>
+      <div class="cx-failure-exam-meta"><div><span class="cx-failure-label">Testeur</span>{{ kind == 'theory' ? e.theoryTester.prenom~' '~e.theoryTester.nom : dossier.signatures.practiceTester.name|default(e.practiceTester.prenom~' '~e.practiceTester.nom) }}</div><div><span class="cx-failure-label">Date</span>{% if kind == 'theory' and result.externalEvidence|default(null) %}Dispense · CACES initial du {{ result.anchorAt|date('d/m/Y') }}{% else %}{{ date ? date|date('d/m/Y') : '—' }}{% endif %}</div>{% if result %}<div class="cx-failure-score"><span class="cx-failure-label">Note globale</span><strong>{{ result.score is null ? 'Dispense' : result.score }}{% if result.score is not null %}<small> / 100</small>{% endif %}</strong></div>{% endif %}</div>
+      {% if result %}
+        {% if result.assessments|default([])|length > 1 %}<p class="cx-failure-caption">Note globale : moyenne des engins. Chaque engin doit réussir séparément.</p>{% for assessment in result.assessments %}<p>{{ assessment.title }} : <strong>{{ assessment.score }}/{{ assessment.max }}</strong></p>{% endfor %}{% endif %}
+        {% if result.themes|length %}<table><thead><tr><th>Thème évalué</th><th>Note</th><th>Seuil du thème</th></tr></thead><tbody>{% for theme in result.themes %}<tr><td>{{ theme.title }}</td><td><strong>{{ theme.score }}</strong><span class="cx-failure-caption"> / {{ theme.max }}</span></td><td>{{ theme.passed ? 'Atteint' : 'Non atteint' }}{% if theme.threshold is defined %}<small>Minimum {{ theme.threshold }} pts</small>{% endif %}</td></tr>{% endfor %}</tbody></table>{% endif %}
+        {% if result.reasons|length %}<div class="cx-failure-reasons"><h3>Motifs d’ajournement</h3><ul>{% for reason in result.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></div>{% endif %}
+      {% endif %}
+    </section>
+  {% endfor %}
+  {% if practice %}
+    <div class="cx-failure-technical"><div><span class="cx-failure-label">Engin utilisé</span><strong>{{ practice.equipment|default('Non renseigné',true) }}</strong></div><div><span class="cx-failure-label">Durée de l’épreuve pratique</span>{% set duration=practice.durationSeconds|default(0) %}<strong>{{ '%02d:%02d:%02d'|format(duration // 3600, (duration // 60) % 60, duration % 60) }}</strong><small>heures · minutes · secondes</small></div></div>
+  {% endif %}
+  <section class="cx-failure-plan">
+    <div><span class="cx-failure-kicker">POUR POURSUIVRE LE PARCOURS</span><h2>Complément de formation préconisé</h2></div>
+    {% set failedThemes = [] %}
+    {% set failedPracticeTitles = [] %}
+    {% for kind, label in {theory: 'Théorie', practice: 'Pratique'} %}
+      {% set result = kind == 'theory' ? dossier.theoryResult : practice %}
+      {% for theme in result.themes|default([]) %}
+        {% if not theme.passed %}
+          {% set failedThemes = failedThemes|merge([{label: label, theme: theme}]) %}
+          {% if kind == 'practice' %}{% set failedPracticeTitles = failedPracticeTitles|merge([theme.title]) %}{% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+    <div class="cx-failure-plan-content">
+      <div>
+        {% if failedThemes|length or practice.remediationThemes|default([])|length %}
+          <ul>
+            {% for item in failedThemes %}
+              <li><strong>{{ item.label }} · {{ item.theme.title }}</strong><br>{{ item.theme.score }}/{{ item.theme.max }} · Seuil non atteint{% if item.theme.threshold is defined %} (minimum {{ item.theme.threshold }} points){% endif %}</li>
+            {% endfor %}
+            {% for theme in practice.remediationThemes|default([]) %}
+              {% if theme not in failedPracticeTitles %}<li>Pratique · {{ theme }}</li>{% endif %}
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% if not practice.remediationThemes|default([])|length and practice.remediation|default('') %}
+          <p class="cx-failure-preserve">{{ practice.remediation }}</p>
+        {% elseif not failedThemes|length and not practice.remediationThemes|default([])|length %}
+          <p>À compléter par le formateur.</p>
+        {% endif %}
+      </div>
+      <div>{% if dossier.theoryResult.remediationDurationSeconds is defined %}{% set theoryDuration=dossier.theoryResult.remediationDurationSeconds %}<span class="cx-failure-label">Durée préconisée · Théorie</span><strong>{{ '%02d:%02d:%02d'|format(theoryDuration // 3600, (theoryDuration // 60) % 60, theoryDuration % 60) }}</strong><small>heures · minutes · secondes</small>{% endif %}<span class="cx-failure-label">Durée préconisée · Pratique</span><strong>{{ practice.remediationHours|default(0) }} h</strong></div>
+    </div>
+  </section>
+  {% if dossier.signatures|length %}
+    <section class="cx-failure-signoff"><h2>Signatures enregistrées</h2><div class="cx-failure-signatures">{% for role,label in {theoryTester:'Testeur théorique',practiceTester:'Testeur pratique',learner:'Stagiaire'} %}{% if dossier.signatures[role]|default(null) %}<div><span class="cx-failure-label">{{ label }}</span><strong>{{ dossier.signatures[role].name }}</strong><small>{{ dossier.signatures[role].at|date('d/m/Y à H:i') }}</small><img src="{{ dossier.signatures[role].image }}" alt="Signature {{ label }}"></div>{% endif %}{% endfor %}</div></section>
+  {% endif %}
+  <div class="cx-failure-footer"><span>{{ entite.nom }}<small>Document interne de suivi des évaluations</small></span><span>Dossier n°{{ dossier.id }}<small>{{ e.session.code }}</small></span></div>
+</article>
