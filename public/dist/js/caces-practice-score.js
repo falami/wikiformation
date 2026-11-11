@@ -79,6 +79,16 @@
       }
       const value = theme.score + ' / ' + theme.max + ' · minimum ' + theme.threshold + (theme.complete ? (theme.score >= theme.threshold ? ' · Seuil atteint' : ' · Seuil non atteint') : ' · À compléter');
       form.querySelectorAll('[data-score-theme="' + index + '"] [data-theme-score]').forEach(output => { output.textContent = value; });
+      const card = form.querySelector('[data-score-theme="' + index + '"] [data-chapter-result]');
+      if (card) {
+        const reached = theme.score >= theme.threshold;
+        card.dataset.state = !theme.complete ? 'pending' : reached ? 'success' : 'danger';
+        card.querySelector('[data-chapter-points]').textContent = theme.score;
+        card.querySelector('[data-chapter-status]').textContent = !theme.complete ? 'À compléter' : reached ? 'Seuil atteint' : 'Seuil non atteint';
+        card.querySelector('[data-chapter-meter]').setAttribute('aria-valuenow', theme.score);
+        card.querySelector('[data-chapter-fill]').style.width = (theme.max ? theme.score / theme.max * 100 : 0) + '%';
+        card.querySelector('[data-chapter-message]').textContent = !theme.complete ? 'Notation en cours' : theme.remediationEligible && reached ? 'Critère à zéro · thème à revoir' : reached ? 'Minimum du chapitre atteint' : (theme.threshold - theme.score) + ' point(s) sous le minimum';
+      }
       const row = document.createElement('p');
       row.textContent = theme.title + ' — ' + value;
       detail.append(row);
