@@ -134,8 +134,11 @@ final class FactureCheckoutManager
             return $stripe->accounts->retrieve($account, [])->toArray();
         } catch (\Stripe\Exception\AuthenticationException) {
             throw new \App\Exception\StripeFeeConfigurationUnavailable('La clé API Stripe de la plateforme est invalide ou expirée. Vérifiez la configuration Stripe du serveur. Aucun nouveau paiement n’a été créé.');
-        } catch (\Stripe\Exception\PermissionException) {
-            throw new \App\Exception\StripeFeeConfigurationUnavailable('La plateforme n’a pas les droits pour consulter ce compte Stripe connecté. Vérifiez les autorisations de la clé API et le rattachement Stripe Connect. Aucun nouveau paiement n’a été créé.');
+        } catch (\Stripe\Exception\PermissionException $error) {
+            $requestId = $error->getRequestId();
+            $reference = is_string($requestId) && preg_match('/^req_[a-zA-Z0-9]+$/', $requestId)
+                ? ' Référence Stripe : '.$requestId.'.' : '';
+            throw new \App\Exception\StripeFeeConfigurationUnavailable('La plateforme n’a pas les droits pour consulter ce compte Stripe connecté. Vérifiez les autorisations de la clé API et le rattachement Stripe Connect. Aucun nouveau paiement n’a été créé.'.$reference, 0, $error);
         } catch (\Stripe\Exception\InvalidRequestException $error) {
             $message = $error->getStripeCode() === 'resource_missing'
                 ? 'Le compte Stripe connecté est introuvable avec cette configuration. Vérifiez son rattachement et la correspondance entre le mode test et le mode réel.'
