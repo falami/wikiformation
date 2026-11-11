@@ -239,29 +239,30 @@
                 <div class="col-lg-12 mb-3">
                     <label for="autocomplete" class="form-label">Adresse complète</label>
                     <input type="text" id="autocomplete" class="form-control" placeholder="Tapez votre adresse">
+              <p class="small text-muted mt-2" id="address-service-help" role="status">Sélectionnez une suggestion ou renseignez directement les champs ci-dessous.</p>
                 </div>
 
                 <div class="col-lg-12 mb-3">
                     
-                    {{ form_row(form.adresse, { attr: { readonly: true, id: 'adresse' } }) }}
+                    {{ form_row(form.adresse, { attr: { id: 'adresse' } }) }}
                 </div>
                 <div class="col-lg-12 mb-3">
-                    {{ form_row(form.complement, { attr: { readonly: true, id: 'complement' } }) }}
+                    {{ form_row(form.complement, { attr: { id: 'complement' } }) }}
                 </div>
                 <div class="col-md-4 mb-3">
-                    {{ form_row(form.codePostal, { attr: { readonly: true, id: 'codePostal' } }) }}
+                    {{ form_row(form.codePostal, { attr: { id: 'codePostal' } }) }}
                 </div>
                 <div class="col-md-4 mb-3">
-                    {{ form_row(form.ville, { attr: { readonly: true, id: 'ville' } }) }}
+                    {{ form_row(form.ville, { attr: { id: 'ville' } }) }}
                 </div>
                 <div class="col-md-6 mb-3">
-                    {{ form_row(form.departement, { attr: { readonly: true, id: 'departement' } }) }}
+                    {{ form_row(form.departement, { attr: { id: 'departement' } }) }}
                 </div>
                 <div class="col-md-6 mb-3">
-                    {{ form_row(form.region, { attr: { readonly: true, id: 'region' } }) }}
+                    {{ form_row(form.region, { attr: { id: 'region' } }) }}
                 </div>
                 <div class="col-lg-12 mb-3">
-                    {{ form_row(form.pays, { attr: { readonly: true, id: 'pays' } }) }}
+                    {{ form_row(form.pays, { attr: { id: 'pays' } }) }}
                 </div>
             </div>
         </div>
@@ -427,6 +428,12 @@
 
 <script>
   let autocomplete;
+  const previousMapsAuthFailure = window.gm_authFailure;
+  window.gm_authFailure = function () {
+    const help = document.getElementById('address-service-help');
+    if (help) help.textContent = 'La recherche Google est indisponible. Vous pouvez saisir votre adresse dans les champs ci-dessous.';
+    if (typeof previousMapsAuthFailure === 'function') previousMapsAuthFailure();
+  };
 
   function initAutocomplete() {
     const input = document.getElementById('autocomplete');

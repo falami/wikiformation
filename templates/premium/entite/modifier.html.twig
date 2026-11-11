@@ -1,7 +1,7 @@
 {# templates/premium/entite/modifier.html.twig #}
 {% extends 'base_admin.html.twig' %}
 
-{% block title %}Modification d'une entité{% endblock %}
+{% block title %}Modifier votre organisme de formation{% endblock %}
 
 {% block stylesheets %}
   {{ parent() }}
@@ -376,6 +376,9 @@
         rgba(17,24,39,.55);
     }
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261107-padding">
+  <link rel="stylesheet" href="{{ asset('dist/css/entity-editor.css') }}?v=20261111">
+
 {% endblock %}
 
 {% block javascripts %}
@@ -388,6 +391,7 @@
 
 {% block body %}
 
+<div class="session-editor entity-editor">
 {{ form_start(form, {'attr': {'novalidate': 'novalidate', 'id': 'premium-form'}}) }}
 {{ form_errors(form) }}
 
@@ -399,16 +403,17 @@
     <div class="flex-grow-1 w-100">
       <div class="d-flex align-items-start justify-content-between gap-3 w-100 flex-wrap">
         <div>
+          <div class="se-eyebrow">VOTRE ORGANISME · IDENTITÉ & PERSONNALISATION</div>
           <h2 class="m-0 fw-bold">
             <i class="fa-solid fa-pen-to-square text-theme-secondaire me-2"></i>
-            Modifier les informations du club
+            Modifier votre organisme de formation
           </h2>
           <div class="opacity-75 mt-1">
-            Mettez à jour l’identité, les coordonnées et le branding.
+            Une identité qui vous ressemble, sur votre espace et vos documents.
           </div>
 
           <div class="d-flex flex-wrap gap-2 mt-3">
-            <span class="chip"><i class="fa-solid fa-palette"></i> Branding</span>
+            <span class="chip"><i class="fa-solid fa-palette"></i> Identité visuelle</span>
             <span class="chip"><i class="fa-solid fa-location-dot"></i> Adresse</span>
             <span class="chip"><i class="fa-solid fa-image"></i> Logos</span>
           </div>
@@ -420,13 +425,21 @@
             <i class="fa-solid fa-arrow-left me-1"></i> Retour
           </a>
 
-          <button type="submit" class="btn btn-light btn-sm fw-semibold">
+          <button type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
             <i class="fa-solid fa-save me-1"></i> Enregistrer
           </button>
         </div>
       </div>
     </div>
   </div>
+
+  <nav class="se-nav" aria-label="Sections du formulaire">
+    <a href="#organisme-identite"><span>01</span> Identité & contact</a>
+    <a href="#organisme-adresse"><span>02</span> Adresse</a>
+    <a href="#organisme-presentation"><span>03</span> Présentation</a>
+    <a href="#organisme-couleurs"><span>04</span> Couleurs</a>
+    <a href="#organisme-logos"><span>05</span> Logos</a>
+  </nav>
 
   {# ================= GRID (comme l’exemple : gauche 8 / droite 4) ================= #}
   <div class="row g-4 align-items-start">
@@ -435,7 +448,7 @@
     <div class="col-lg-8">
 
       {# INFOS PRINCIPALES #}
-      <div class="cardx mb-3">
+      <div id="organisme-identite" class="cardx mb-3">
         <div class="cardx-h">
           <div>
             <h5 class="cardx-title"><i class="fa-solid fa-id-card text-theme-secondaire"></i> Informations principales</h5>
@@ -446,18 +459,18 @@
         <div class="p-3 p-md-4">
           <div class="row g-3">
             <div class="col-md-12">{{ form_row(form.nom) }}</div>
-            <div class="col-md-12">{{ form_row(form.email) }}</div>
-            <div class="col-md-12">{{ form_row(form.telephone) }}</div>
+            <div class="col-md-6">{{ form_row(form.email) }}</div>
+            <div class="col-md-6">{{ form_row(form.telephone) }}</div>
             <div class="col-md-12">{{ form_row(form.siteInternet) }}</div>
           </div>
         </div>
       </div>
       {# LOCALISATION #}
-      <div class="cardx mb-3">
+      <div id="organisme-adresse" class="cardx mb-3">
         <div class="cardx-h">
           <div>
-            <h5 class="cardx-title"><i class="bi bi-geo-alt-fill text-theme-secondaire"></i> Localisation de l'organisme de formation</h5>
-            <div class="cardx-sub">Autocomplétion Google Places → champs verrouillés</div>
+            <h5 class="cardx-title"><i class="bi bi-geo-alt-fill text-theme-secondaire"></i> Adresse de votre organisme</h5>
+            <div class="cardx-sub">Recherche d’adresse assistée · saisie manuelle disponible</div>
           </div>
         </div>
 
@@ -466,41 +479,42 @@
             <div class="col-12">
               <label for="autocomplete" class="form-label">Adresse complète</label>
               <input type="text" id="autocomplete" class="form-control" placeholder="Tapez votre adresse">
+              <p class="small text-muted mt-2" id="address-service-help" role="status">Sélectionnez une suggestion ou renseignez directement les champs ci-dessous.</p>
             </div>
 
             <div class="col-12">
-              {{ form_row(form.adresse, { attr: { readonly: true, id: 'adresse' } }) }}
+              {{ form_row(form.adresse, { attr: { id: 'adresse' } }) }}
             </div>
             <div class="col-12">
-              {{ form_row(form.complement, { attr: { readonly: true, id: 'complement' } }) }}
+              {{ form_row(form.complement, { attr: { id: 'complement' } }) }}
             </div>
 
             <div class="col-md-5">
-              {{ form_row(form.codePostal, { attr: { readonly: true, id: 'codePostal' } }) }}
+              {{ form_row(form.codePostal, { attr: { id: 'codePostal' } }) }}
             </div>
             <div class="col-md-7">
-              {{ form_row(form.ville, { attr: { readonly: true, id: 'ville' } }) }}
+              {{ form_row(form.ville, { attr: { id: 'ville' } }) }}
             </div>
 
             <div class="col-12">
-              {{ form_row(form.departement, { attr: { readonly: true, id: 'departement' } }) }}
+              {{ form_row(form.departement, { attr: { id: 'departement' } }) }}
             </div>
             <div class="col-12">
-              {{ form_row(form.region, { attr: { readonly: true, id: 'region' } }) }}
+              {{ form_row(form.region, { attr: { id: 'region' } }) }}
             </div>
 
             <div class="col-12">
-              {{ form_row(form.pays, { attr: { readonly: true, id: 'pays' } }) }}
+              {{ form_row(form.pays, { attr: { id: 'pays' } }) }}
             </div>
           </div>
         </div>
       </div>
 
       {# DESCRIPTION #}
-      <div class="cardx mb-4">
+      <div id="organisme-presentation" class="cardx mb-4">
         <div class="cardx-h">
           <div>
-            <h5 class="cardx-title"><i class="fa-solid fa-align-left text-theme-secondaire"></i> Description & Accueil</h5>
+            <h5 class="cardx-title"><i class="fa-solid fa-align-left text-theme-secondaire"></i> Présentation & accueil</h5>
             <div class="cardx-sub">Texte public de présentation</div>
           </div>
         </div>
@@ -517,12 +531,12 @@
     <div class="col-lg-4">
 
      {# CARD 2 : BRANDING COLORS #}
-      <div class="cardx mb-3">
+      <div id="organisme-couleurs" class="cardx mb-3">
         <div class="cardx-h">
           <div>
             <h5 class="cardx-title">
               <i class="fa-solid fa-palette text-theme-secondaire"></i>
-              Palette Chromatique
+              Votre identité visuelle
             </h5>
             <div class="cardx-sub">Couleurs de votre application</div>
           </div>
@@ -562,7 +576,7 @@
                 <div class="flex-grow-1">
                   {{ form_label(form.couleurSecondaire, null, { label_attr: { class: 'form-label d-block mb-0' } }) }}
                   {{ form_errors(form.couleurSecondaire) }}
-                  <small class="text-muted">Couleur des textes</small>
+                  <small class="text-muted">Accents et éléments mis en valeur</small>
                 </div>
               </div>
             </div>
@@ -608,11 +622,11 @@
       </div>
 
       {# LOGOS #}
-      <div class="cardx mb-3">
+      <div id="organisme-logos" class="cardx mb-3">
         <div class="cardx-h">
           <div>
             <h5 class="cardx-title"><i class="fa-solid fa-image text-theme-secondaire"></i> Logos</h5>
-            <div class="cardx-sub">Upload premium + preview temps réel</div>
+            <div class="cardx-sub">Deux formats pour une présence soignée</div>
           </div>
         </div>
 
@@ -636,15 +650,15 @@
                   <div class="upload-sub">Affiché sur les cartes. Idéal : carré sur fond blanc.</div>
                 </div>
 
-                <div class="dropzone-uploader"
+                <div class="dropzone-uploader" tabindex="0" role="group" aria-label="Importer ou modifier le logo"
                      data-input-id="{{ form.logo.vars.id }}"
                      data-preview-id="preview_logo"
                      data-remove-id="{{ form.removeLogo.vars.id }}">
                   <div class="dz-inner">
                     <div class="dz-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
                     <div>
-                      <div class="dz-title">Glisse-dépose ton image ici</div>
-                      <div class="dz-sub">ou <span class="dz-link">clique pour choisir</span></div>
+                      <div class="dz-title">Déposez votre logo ici</div>
+                      <div class="dz-sub">ou <span class="dz-link">parcourez vos fichiers</span></div>
                     </div>
                   </div>
 
@@ -683,15 +697,15 @@
                   <div class="upload-sub">Affiché sur téléphone. Idéal : horizontal.</div>
                 </div>
 
-                <div class="dropzone-uploader"
+                <div class="dropzone-uploader" tabindex="0" role="group" aria-label="Importer ou modifier le logo"
                      data-input-id="{{ form.logoMenu.vars.id }}"
                      data-preview-id="preview_logoMenu"
                      data-remove-id="{{ form.removeLogoMenu.vars.id }}">
                   <div class="dz-inner">
                     <div class="dz-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
                     <div>
-                      <div class="dz-title">Glisse-dépose ton image ici</div>
-                      <div class="dz-sub">ou <span class="dz-link">clique pour choisir</span></div>
+                      <div class="dz-title">Déposez votre logo ici</div>
+                      <div class="dz-sub">ou <span class="dz-link">parcourez vos fichiers</span></div>
                     </div>
                   </div>
 
@@ -723,7 +737,8 @@
   </div>
 
   {# CTA bas de page (comme l’exemple) #}
-  <div class="mt-4 d-flex justify-content-end">
+  <div class="entity-savebar">
+    <div><strong>Votre organisme, à votre image</strong><span>Enregistrez pour appliquer vos modifications.</span></div>
     <button type="submit" class="btn btn-gradient">
       <i class="fa-solid fa-save me-1"></i> Enregistrer
     </button>
@@ -731,6 +746,7 @@
 
 
 {{ form_end(form) }}
+</div>
 
 <div id="form-error-alert" class="d-none"></div>
 
@@ -739,6 +755,12 @@
 
 <script>
   let autocomplete;
+  const previousMapsAuthFailure = window.gm_authFailure;
+  window.gm_authFailure = function () {
+    const help = document.getElementById('address-service-help');
+    if (help) help.textContent = 'La recherche Google est indisponible. Vous pouvez saisir votre adresse dans les champs ci-dessous.';
+    if (typeof previousMapsAuthFailure === 'function') previousMapsAuthFailure();
+  };
 
   function initAutocomplete() {
     const input = document.getElementById('autocomplete');
@@ -913,6 +935,13 @@
       zone.addEventListener('click', (e) => {
         if (e.target.closest('.dz-btn')) return;
         input.click();
+      });
+
+      zone.addEventListener('keydown', (event) => {
+        if (event.target === zone && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          input.click();
+        }
       });
 
       input.addEventListener('change', () => {

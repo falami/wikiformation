@@ -436,7 +436,7 @@
                 </div>
                 <div class="tMeta mt-2">{{ mail.sentAt|date('d/m/Y H:i', 'Europe/Paris') }} · {{ mail.toEmail }} · {{ mail.actor ? mail.actor.prenom ~ ' ' ~ mail.actor.nom : 'Envoi automatique' }}</div>
                 {% if mail.bodyHtmlSnapshot %}
-                  <a class="btn btn-sm btn-outline-secondary mt-3" href="{{ path('app_administrateur_utilisateur_email_log_show', {entite: entite.id, id: u.id, log: mail.id}) }}"><i class="bi bi-envelope-open me-1" aria-hidden="true"></i> Consulter le mail</a>
+                  <button type="button" class="btn btn-sm btn-outline-secondary mt-3" data-email-view-url="{{ path('app_administrateur_utilisateur_email_log_show', {entite: entite.id, id: u.id, log: mail.id}) }}" onclick="openEmailLog(this)"><i class="bi bi-envelope-open me-1" aria-hidden="true"></i> Consulter le mail</button>
                 {% else %}<div class="small text-muted mt-2">Contenu non archivé pour cet envoi.</div>{% endif %}
               </div>
             {% else %}<p class="text-muted mb-0">Aucun mail enregistré pour ce contact.</p>{% endfor %}
@@ -908,15 +908,15 @@
 
 
 {# ===================== Modal EmailLog (iframe) ===================== #}
-<div class="modal fade" id="emailLogModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-centered">
+<div class="modal fade" id="emailLogModal" tabindex="-1" aria-labelledby="emailLogModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-sm-down">
     <div class="modal-content" style="border-radius:16px; overflow:hidden;">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-envelope"></i> Email envoyé</h5>
+        <h5 class="modal-title" id="emailLogModalTitle"><i class="bi bi-envelope" aria-hidden="true"></i> Email envoyé</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-0" style="height:75vh;">
-        <iframe id="emailLogFrame" style="border:0; width:100%; height:100%;"></iframe>
+        <iframe title="Copie archivée du mail envoyé" id="emailLogFrame" style="border:0; width:100%; height:100%;"></iframe>
       </div>
     </div>
   </div>
@@ -1140,12 +1140,15 @@
 
 <script>
 /* ===================== EmailLog iframe ===================== */
+document.getElementById('emailLogModal')?.addEventListener('hidden.bs.modal', () => {
+  document.getElementById('emailLogFrame').removeAttribute('src');
+});
 window.openEmailLog = function(btn){
   const url = btn.getAttribute('data-email-view-url');
   document.getElementById('emailLogFrame').src = url;
 
   if (window.bootstrap?.Modal) {
-    new bootstrap.Modal(document.getElementById('emailLogModal')).show();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('emailLogModal')).show();
   } else {
     // fallback
     window.open(url, '_blank');
@@ -1492,7 +1495,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (url){
         document.getElementById('emailLogFrame').src = url;
         if (hasBootstrapModal) {
-          new bootstrap.Modal(document.getElementById('emailLogModal')).show();
+          bootstrap.Modal.getOrCreateInstance(document.getElementById('emailLogModal')).show();
         } else {
           window.open(url, '_blank');
         }
@@ -1899,7 +1902,7 @@ async function __openUserDocEmailModal(url){
         setTimeout(() => {
           const frame = document.getElementById('emailLogFrame');
           if (frame) frame.src = viewUrl;
-          new bootstrap.Modal(document.getElementById('emailLogModal')).show();
+          bootstrap.Modal.getOrCreateInstance(document.getElementById('emailLogModal')).show();
         }, 700);
       } else {
         setTimeout(() => window.location.reload(), 900);
