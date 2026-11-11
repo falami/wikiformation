@@ -146,6 +146,16 @@ final class StripeBillingService
       ], ['idempotency_key' => 'wikiformation-internal-usage-portal-v1']);
       // Re-read even when Stripe replayed the create response: an operator may since have edited it.
       $configuration = $stripe->billingPortal->configurations->retrieve($configuration->id, []);
+      // Stripe may designate the first configuration as default. Leave it untouched
+      // and create a separate configuration, then apply every validation below.
+      if ($configuration->is_default === true) {
+        $configuration = $stripe->billingPortal->configurations->create([
+          'features' => $features,
+          'login_page' => ['enabled' => false],
+          'metadata' => ['wikiformation_policy' => 'internal-usage-payments-only-v1'],
+        ], ['idempotency_key' => 'wikiformation-internal-portal-dedicated-'.$configuration->id]);
+        $configuration = $stripe->billingPortal->configurations->retrieve($configuration->id, []);
+      }
       $config = $configuration->toArray();
       if (($config['object'] ?? null) !== 'billing_portal.configuration' || ($config['active'] ?? false) !== true
           || ($config['is_default'] ?? true) !== false || ($config['livemode'] ?? false) !== true

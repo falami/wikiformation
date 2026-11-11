@@ -19,7 +19,7 @@ final class DirectChargeFeePolicyTest extends TestCase
 
     public function testStandardProcessingFeesAreNotChargedTwiceOrAddedToClientPrice(): void
     {
-        foreach (['account', 'application_express', 'application_custom'] as $payer) {
+        foreach (['account'] as $payer) {
             $account = self::account();
             $account['controller']['fees']['payer'] = $payer;
             $snapshot = DirectChargeFeePolicy::snapshot($account, 'acct_organism', 42);
@@ -39,6 +39,8 @@ final class DirectChargeFeePolicyTest extends TestCase
 
     public static function invalidAccounts(): iterable
     {
+        yield 'legacy express' => [['controller' => ['fees' => ['payer' => 'application_express']]]];
+        yield 'legacy custom' => [['controller' => ['fees' => ['payer' => 'application_custom']]]];
         yield 'platform pays' => [['controller' => ['fees' => ['payer' => 'application']]]];
         yield 'unknown payer' => [['controller' => ['fees' => ['payer' => 'new_api_value']]]];
         yield 'missing payer' => [['controller' => []]];

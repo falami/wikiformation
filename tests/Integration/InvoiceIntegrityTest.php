@@ -647,7 +647,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
         self::assertSame(12000, $checkout->getAmountTotalCents());
     }
 
-    private function connectedAccountResponse(string $payer = 'application_express'): array
+    private function connectedAccountResponse(string $payer = 'account'): array
     {
         return [json_encode(['id' => 'acct_fixture', 'object' => 'account', 'charges_enabled' => true, 'details_submitted' => true,
             'metadata' => ['entite_id' => (string) $this->entite->getId()], 'controller' => ['fees' => ['payer' => $payer]]], JSON_THROW_ON_ERROR), 200, []];

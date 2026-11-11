@@ -20,10 +20,9 @@ final class DirectChargeFeePolicy
             throw new StripeFeeConfigurationUnavailable('Le compte Stripe de cet organisme ne permet pas encore les encaissements. Terminez sa configuration.');
         }
         $payer = $account['controller']['fees']['payer'] ?? null;
-        // Express/Custom legacy accounts pay standard processing fees themselves. Ancillary
-        // products and Interchange Plus can still be billed to the platform: do not promise otherwise.
-        if (!in_array($payer, ['account', 'application_express', 'application_custom'], true)) {
-            throw new StripeFeeConfigurationUnavailable('La prise en charge des frais d’encaissement par l’organisme doit être confirmée dans Stripe avant un nouveau paiement.');
+        // Only account-paid fees meet the platform policy, including ancillary products.
+        if ($payer !== 'account') {
+            throw new StripeFeeConfigurationUnavailable('Ce compte Stripe ne garantit pas la facturation des frais à l’organisme. Un compte avec les frais à la charge du compte connecté est requis avant tout nouveau paiement.');
         }
 
         return [

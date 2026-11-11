@@ -21,15 +21,25 @@ final class InternalUsagePortalTest extends TestCase
         $this->portal(true);
     }
 
-    private function portal(bool $unsafe): void
+    public function testDefaultConfigurationIsLeftUntouchedAndDedicatedPortalIsVerified(): void
+    {
+        $this->portal(false, true);
+    }
+
+    private function portal(bool $unsafe, bool $initialDefault = false): void
     {
         $config = ['id' => 'bpc_internal', 'object' => 'billing_portal.configuration', 'active' => true,
-            'is_default' => false, 'livemode' => true, 'metadata' => ['wikiformation_policy' => 'internal-usage-payments-only-v1'],
+            'is_default' => $initialDefault, 'livemode' => true, 'metadata' => ['wikiformation_policy' => 'internal-usage-payments-only-v1'],
             'login_page' => ['enabled' => false]];
         $http = $this->createMock(ClientInterface::class);
-        $http->expects(self::exactly($unsafe ? 2 : 3))->method('request')->willReturnCallback(function ($method, $url, $headers, $params) use (&$config, $unsafe): array {
+        $http->expects(self::exactly($initialDefault ? 5 : ($unsafe ? 2 : 3)))->method('request')->willReturnCallback(function ($method, $url, $headers, $params) use (&$config, $unsafe, $initialDefault): array {
             if (str_ends_with($url, '/billing_portal/configurations')) {
                 self::assertSame('post', strtolower($method));
+                if ($initialDefault && isset($config['features'])) {
+                    self::assertStringContainsString('wikiformation-internal-portal-dedicated-bpc_internal', implode(' ', $headers));
+                    $config['id'] = 'bpc_dedicated';
+                    $config['is_default'] = false;
+                }
                 self::assertSame('false', $params['features']['subscription_update']['enabled']);
                 self::assertSame('false', $params['features']['subscription_cancel']['enabled']);
                 self::assertSame('true', $params['features']['payment_method_update']['enabled']);
@@ -37,16 +47,16 @@ final class InternalUsagePortalTest extends TestCase
                 self::assertArrayNotHasKey('is_default', $params);
                 $config['features'] = array_map(static fn(array $feature) => ['enabled' => $feature['enabled'] === 'true'], $params['features']);
                 $result = $config;
-            } elseif (str_ends_with($url, '/billing_portal/configurations/bpc_internal')) {
+            } elseif (str_contains($url, '/billing_portal/configurations/bpc_')) {
                 self::assertSame('get', strtolower($method));
                 $result = $config;
                 if ($unsafe) $result['features']['subscription_update']['enabled'] = true;
             } else {
                 self::assertStringEndsWith('/billing_portal/sessions', $url);
-                self::assertSame('bpc_internal', $params['configuration']);
+                self::assertSame($initialDefault ? 'bpc_dedicated' : 'bpc_internal', $params['configuration']);
                 self::assertSame('cus_internal', $params['customer']);
                 $result = ['id' => 'bps_internal', 'object' => 'billing_portal.session', 'livemode' => true,
-                    'customer' => 'cus_internal', 'configuration' => 'bpc_internal', 'url' => 'https://billing.stripe.com/p/session/test'];
+                    'customer' => 'cus_internal', 'configuration' => $config['id'], 'url' => 'https://billing.stripe.com/p/session/test'];
             }
             return [json_encode($result, JSON_THROW_ON_ERROR), 200, []];
         });

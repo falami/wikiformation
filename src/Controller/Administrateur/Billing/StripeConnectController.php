@@ -49,11 +49,12 @@ final class StripeConnectController extends AbstractController
 
         $connect = $entite->getConnect() ?? (new EntiteConnect())->setEntite($entite);
 
+        try {
         $stripe = $this->stripeFactory->client();
 
         if (!$connect->getStripeAccountId()) {
             $account = $stripe->accounts->create([
-                'type' => 'express',
+                'type' => 'standard',
                 'country' => 'FR',
                 'email' => $entite->getEmail(),
                 'business_type' => 'company',
@@ -88,6 +89,9 @@ final class StripeConnectController extends AbstractController
         ]);
 
         return $this->redirect($link->url);
+        } catch (\Stripe\Exception\ApiErrorException $error) {
+            return $this->stripeFailure($entite, $error);
+        }
     }
 
     #[Route('/refresh', name: 'refresh', methods: ['GET'])]
@@ -99,6 +103,7 @@ final class StripeConnectController extends AbstractController
             return $this->redirectToRoute('app_administrateur_billing_connect_index', ['entite' => $entite->getId()]);
         }
 
+        try {
         $stripe = $this->stripeFactory->client();
         $account = $stripe->accounts->retrieve($connect->getStripeAccountId(), []);
 
@@ -109,10 +114,26 @@ final class StripeConnectController extends AbstractController
 
         $this->em->flush();
 
+        } catch (\Stripe\Exception\ApiErrorException $error) {
+            return $this->stripeFailure($entite, $error);
+        }
         $this->addFlash('success', 'Statut Stripe mis à jour.');
         return $this->redirectToRoute('app_administrateur_billing_connect_index', ['entite' => $entite->getId()]);
     }
     
+    private function stripeFailure(Entite $entite, \Stripe\Exception\ApiErrorException $error): Response
+    {
+        $message = $error instanceof \Stripe\Exception\PermissionException
+            ? 'Stripe refuse l’accès à ce compte connecté. Vérifiez son rattachement à la plateforme et les autorisations de la clé API.'
+            : 'Stripe n’a pas pu ouvrir ou actualiser la connexion. Vérifiez la configuration du compte et réessayez.';
+        $requestId = $error->getRequestId();
+        if (is_string($requestId) && preg_match('/^req_[a-zA-Z0-9]+$/', $requestId)) {
+            $message .= ' Référence Stripe : '.$requestId.'.';
+        }
+        $this->addFlash('warning', $message);
+        return $this->redirectToRoute('app_administrateur_billing_connect_index', ['entite' => $entite->getId()]);
+    }
+
     #[Route('/save', name: 'save', methods: ['POST'])]
     public function save(Entite $entite, Request $request): Response
     {
