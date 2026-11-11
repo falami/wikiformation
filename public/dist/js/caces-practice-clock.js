@@ -48,17 +48,23 @@
   const review = submitting => {
     submitAfterReview = submitting;
     pause();
-    proposed.value = state.retained !== null ? state.retained : Math.max(1, seconds());
+    proposed.setCustomValidity('');
+    proposed.value = format(Number(state.retained !== null ? state.retained : Math.max(1, seconds())));
     dialog.querySelector('[data-duration-measured]').textContent = 'Temps chronométré : ' + format(seconds());
     dialog.querySelector('[data-duration-accept]').textContent = submitting ? 'Valider et enregistrer le test' : 'Valider la durée';
     dialog.showModal();
     proposed.focus();
   };
+  proposed.addEventListener('input', () => proposed.setCustomValidity(''));
   finish.addEventListener('click', () => review(false));
   dialog.querySelector('[data-duration-cancel]').addEventListener('click', () => dialog.close());
   dialog.querySelector('[data-duration-accept]').addEventListener('click', () => {
+    const match = /^(\d{2}):([0-5]\d):([0-5]\d)$/.exec(proposed.value.trim());
+    const value = match ? Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]) : NaN;
+    proposed.setCustomValidity(!match ? 'Saisissez la durée au format hh:mm:ss, par exemple 00:20:00.' :
+      value < 1 || value > 86400 ? 'La durée doit être comprise entre 00:00:01 et 24:00:00.' : '');
     if (!proposed.reportValidity()) return;
-    state.retained = Number(proposed.value);
+    state.retained = value;
     duration.value = state.retained;
     persist(); dialog.close();
     if (submitAfterReview) {
