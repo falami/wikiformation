@@ -785,7 +785,10 @@ final class UtilisateurController extends AbstractController
     $emailHistory = $this->em->getRepository(\App\Entity\EmailLog::class)->createQueryBuilder('mail')
       ->leftJoin('mail.prospect', 'mailProspect')
       ->andWhere('mail.entite = :entite')->setParameter('entite', $entite)
-      ->andWhere('mail.toUser = :user OR mailProspect.linkedUser = :user')->setParameter('user', $utilisateur)
+      ->andWhere('mail.toUser = :user OR mailProspect.linkedUser = :user OR (:recipientEmail <> :emptyEmail AND LOWER(TRIM(mail.toEmail)) = :recipientEmail)')
+      ->setParameter('user', $utilisateur)
+      ->setParameter('recipientEmail', mb_strtolower(trim((string) $utilisateur->getEmail())))
+      ->setParameter('emptyEmail', '')
       ->orderBy('mail.sentAt', 'DESC')->setMaxResults(500)->getQuery()->getResult();
 
     $interaction = new ProspectInteraction();

@@ -56,7 +56,10 @@
     <li>
       <form method="post"
             action="{{ path('app_administrateur_facture_send', { entite: entite.id, id: f.id }) }}"
-            onsubmit="return confirm('Envoyer la facture {{ f.numero ?: ('#' ~ f.id) }} par email ?');">
+            data-invoice-send
+            data-number="{{ f.numero ?: ('#' ~ f.id) }}"
+            data-recipient="{{ f.entrepriseDestinataire ? (f.entrepriseDestinataire.emailFacturation ?: f.entrepriseDestinataire.email) : f.destinataire.email|default('') }}"
+            data-preview="{{ path('app_administrateur_facture_pdf', {entite: entite.id, id: f.id}) }}">
         <input type="hidden" name="_token" value="{{ csrf_token('facture_send_' ~ f.id) }}">
         <button class="dropdown-item d-flex align-items-center"
                 type="submit" {% if status == 'canceled' %}disabled{% endif %}>

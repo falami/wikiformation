@@ -670,6 +670,24 @@ final class InvoiceIntegrityTest extends KernelTestCase
         self::assertFalse($this->em->getConnection()->isTransactionActive());
     }
 
+    public function testStripeAuthenticationFailureHasAnActionableSafeMessage(): void
+    {
+        $this->enableCheckout();
+        $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
+        $http->expects(self::once())->method('request')->willThrowException(
+            \Stripe\Exception\AuthenticationException::factory('secret-provider-response', 401)
+        );
+        \Stripe\ApiRequestor::setHttpClient($http);
+        try {
+            self::getContainer()->get(\App\Service\Stripe\FactureCheckoutManager::class)->createCheckoutForFacture($this->invoice);
+            self::fail('Invalid credentials must block checkout.');
+        } catch (\App\Exception\StripeFeeConfigurationUnavailable $error) {
+            self::assertStringContainsString('clé API Stripe', $error->getMessage());
+            self::assertStringNotContainsString('secret-provider-response', $error->getMessage());
+        }
+        self::assertSame(0, $this->em->getRepository(\App\Entity\Billing\FactureCheckout::class)->count([]));
+    }
+
     public function testStripeConnectConfigurationRequiresBillingPermission(): void
     {
         $learner = (new Utilisateur())->setEmail('learner-connect@example.test')->setPassword('unused')->setNom('Learner')->setPrenom('Access');

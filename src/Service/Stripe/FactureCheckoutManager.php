@@ -132,6 +132,17 @@ final class FactureCheckoutManager
                 $http->setConnectTimeout($timeouts[1] > 0 ? min($timeouts[1], 3) : 3);
             }
             return $stripe->accounts->retrieve($account, [])->toArray();
+        } catch (\Stripe\Exception\AuthenticationException) {
+            throw new \App\Exception\StripeFeeConfigurationUnavailable('La clé API Stripe de la plateforme est invalide ou expirée. Vérifiez la configuration Stripe du serveur. Aucun nouveau paiement n’a été créé.');
+        } catch (\Stripe\Exception\PermissionException) {
+            throw new \App\Exception\StripeFeeConfigurationUnavailable('La plateforme n’a pas les droits pour consulter ce compte Stripe connecté. Vérifiez les autorisations de la clé API et le rattachement Stripe Connect. Aucun nouveau paiement n’a été créé.');
+        } catch (\Stripe\Exception\InvalidRequestException $error) {
+            $message = $error->getStripeCode() === 'resource_missing'
+                ? 'Le compte Stripe connecté est introuvable avec cette configuration. Vérifiez son rattachement et la correspondance entre le mode test et le mode réel.'
+                : 'Stripe refuse la consultation du compte connecté. Vérifiez sa configuration Stripe Connect.';
+            throw new \App\Exception\StripeFeeConfigurationUnavailable($message.' Aucun nouveau paiement n’a été créé.');
+        } catch (\Stripe\Exception\ApiConnectionException) {
+            throw new \App\Exception\StripeFeeConfigurationUnavailable('La connexion à Stripe a échoué ou a dépassé le délai autorisé. Réessayez dans quelques instants. Aucun nouveau paiement n’a été créé.');
         } catch (\Throwable) {
             throw new \App\Exception\StripeFeeConfigurationUnavailable('Impossible de vérifier les frais Stripe pour le moment. Aucun nouveau paiement n’a été créé.');
         } finally {

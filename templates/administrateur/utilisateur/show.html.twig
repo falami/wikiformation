@@ -53,11 +53,10 @@
   z-index: 1050;
 }
 
-/* ===================== Sticky Hero ===================== */
+/* Profile banner scrolls with the page; only the tabs remain sticky. */
 .stickyHero{
-  position: sticky;
-  top: calc(var(--profile-header-height, var(--wn-header-height, 76px)) + 12px);
-  z-index: 20;
+  position: relative;
+  z-index: 1;
   border-radius:24px;
   overflow:hidden;
   color:#fff;
@@ -115,10 +114,10 @@
   overflow: visible;
 }
 
-/* Keep the tabs below the complete profile banner, including wrapped content. */
+/* Pin navigation directly below the workspace header. */
 .tabsHead{
   position: sticky;
-  top: calc(var(--profile-header-height, var(--wn-header-height, 76px)) + 12px + var(--profile-hero-height, 112px) + 8px);
+  top: var(--profile-header-height, var(--wn-header-height, 76px));
   z-index: 15;
   padding: 10px 12px;
   background: rgba(255,255,255,.92);
@@ -1926,17 +1925,14 @@ async function __openUserDocEmailModal(url){
 <script>
 (() => {
   const page = document.querySelector('[data-user-profile]');
-  const hero = page?.querySelector('.stickyHero');
   const header = document.querySelector('.wn-topbar') || document.querySelector('.adminTopNav');
-  if (!page || !hero) return;
+  if (!page) return;
   const updateOffsets = () => {
     if (header) page.style.setProperty('--profile-header-height', header.getBoundingClientRect().height + 'px');
-    page.style.setProperty('--profile-hero-height', hero.getBoundingClientRect().height + 'px');
   };
   updateOffsets();
   if (window.ResizeObserver) {
     const observer = new ResizeObserver(updateOffsets);
-    observer.observe(hero);
     if (header) observer.observe(header);
   } else {
     window.addEventListener('resize', updateOffsets);

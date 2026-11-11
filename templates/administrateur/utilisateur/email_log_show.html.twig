@@ -1,176 +1,48 @@
-{# templates/administrateur/utilisateur/email_log_show.html.twig #}
 {% extends 'base.html.twig' %}
-
-{% block title %}Email #{{ log.id }} — {{ u.prenom }} {{ u.nom|upper }}{% endblock %}
-
+{% block title %}E-mail #{{ log.id }} — {{ u.prenom }} {{ u.nom|upper }}{% endblock %}
+{% block body_attributes %}class="mail-archive-page"{% endblock %}
 {% block stylesheets %}
   {{ parent() }}
-  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-  <style>
-    :root{
-      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
-      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
-      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
-      --line: rgba(15,35,54,.10);
-      --radius: 18px;
-      --shadow: 0 18px 50px rgba(0,0,0,.08);
-    }
-
-    /* Dans une modale (iframe), on évite le padding énorme du layout */
-    .pageWrap{
-      padding: 14px;
-    }
-
-    .content {
-        margin-left: 0px !important;
-    }
-
-    .cardX{
-      background: var(--bs-body-bg);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-    .cardX-h{
-      padding: 14px 16px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap: 10px;
-      border-bottom: 1px solid var(--line);
-      background: linear-gradient(135deg, rgba(35,51,66,.98), rgba(15,35,54,.86));
-      color: #fff;
-    }
-    .cardX-b{ padding: 16px; }
-
-    .metaGrid{
-      display:grid;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-    .metaBox{
-      grid-column: span 6;
-      padding: 10px 12px;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: rgba(255,255,255,.6);
-    }
-    .metaLabel{ font-size: 12px; opacity: .75; }
-    .metaValue{ font-weight: 800; }
-
-    @media (max-width: 992px){
-      .metaBox{ grid-column: span 12; }
-    }
-
-    .htmlFrame{
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      overflow: hidden;
-      background: #fff;
-      min-height: 70vh;
-    }
-
-    .badge-soft{
-      border: 1px solid rgba(255,255,255,.20);
-      background: rgba(255,255,255,.10);
-      color: #fff;
-      border-radius: 999px;
-      padding: 6px 10px;
-      font-weight: 800;
-      font-size: 12px;
-      white-space: nowrap;
-    }
-
-    .btn-ghost{
-      background: rgba(255,255,255,.10) !important;
-      border: 1px solid rgba(255,255,255,.18) !important;
-      color: #fff !important;
-      border-radius: 14px !important;
-      font-weight: 800;
-    }
-  </style>
+  <style>:root { --mail-primary: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }}; --mail-accent: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }}; }</style>
+  <link rel="stylesheet" href="{{ asset('dist/css/email-archive.css') }}">
 {% endblock %}
-
 {% block body %}
-  <div class="container-fluid pageWrap">
-
-    <div class="cardX mb-3">
-
-      <div class="cardX-b">
-
-        <div class="metaGrid">
-          <div class="metaBox">
-            <div class="metaLabel">Sujet</div>
-            <div class="metaValue">{{ log.subject|default('—') }}</div>
-          </div>
-
-          <div class="metaBox">
-            <div class="metaLabel">Template</div>
-            <div class="metaValue">
-              {% if log.template is defined and log.template %}
-                {{ log.template.name|default(log.template.code|default('—')) }}
-              {% else %}
-                —
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="metaBox">
-            <div class="metaLabel">Envoyé le</div>
-            <div class="metaValue">
-              {% if log.sentAt is defined and log.sentAt %}
-                {{ log.sentAt|date('d/m/Y H:i') }}
-              {% else %}
-                —
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="metaBox">
-            <div class="metaLabel">Clé idempotence</div>
-            <div class="metaValue">{{ log.idemKey|default('—') }}</div>
-          </div>
-
-          {% if log.errorMessage is defined and log.errorMessage %}
-            <div class="metaBox" style="grid-column: span 12; border-color: rgba(220,53,69,.35);">
-              <div class="metaLabel">Erreur</div>
-              <div class="metaValue" style="color: var(--bs-danger);">
-                {{ log.errorMessage }}
-              </div>
-            </div>
-          {% endif %}
-        </div>
-
-        <p class="small text-muted">Copie du contenu enregistré lors de l’envoi. Les pièces jointes et images intégrées ne sont pas archivées dans cet aperçu. Les contenus externes sont désactivés.</p>
-        {# Aperçu HTML #}
-        <div class="htmlFrame">
-          {% if log.bodyHtmlSnapshot is defined and log.bodyHtmlSnapshot %}
-            {# On affiche le HTML dans une iframe sandboxée via srcdoc #}
-            <iframe
-              style="width:100%; height:70vh; border:0;"
-              title="Copie du mail archivé"
-              sandbox=""
-              referrerpolicy="no-referrer"
-              srcdoc="{{ ('<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; img-src data:;">' ~ log.bodyHtmlSnapshot)|e('html_attr') }}"
-            ></iframe>
-          {% else %}
-            <div class="p-3 text-muted">Le contenu de cet envoi n’a pas été archivé. Il ne peut pas être reconstitué à partir du modèle actuel.</div>
-          {% endif %}
-        </div>
-
-        {# Optionnel : version texte #}
-        {% if log.bodyTextSnapshot is defined and log.bodyTextSnapshot %}
-          <details class="mt-3">
-            <summary class="fw-semibold">Voir la version texte</summary>
-            <pre class="mt-2 p-3" style="white-space:pre-wrap; border:1px solid var(--line); border-radius:14px; background: rgba(255,255,255,.6);">{{ log.bodyTextSnapshot }}</pre>
-          </details>
-        {% endif %}
-
-      </div>
+<main class="mail-archive">
+  <header class="mail-heading">
+    <div class="mail-heading-icon"><i class="bi bi-envelope-paper" aria-hidden="true"></i></div>
+    <div class="mail-heading-copy">
+      <p class="mail-eyebrow">Correspondance · {{ entite.nom }}</p>
+      <h1>{{ log.subject|default('E-mail sans objet', true) }}</h1>
+      <p class="mail-subtitle">Copie archivée de votre message</p>
     </div>
+    <span class="mail-reference">Archive #{{ log.id }}</span>
+  </header>
 
+  <section class="mail-metadata" aria-label="Informations de l’envoi">
+    <div class="mail-meta"><span class="mail-label"><i class="bi bi-person" aria-hidden="true"></i> Contact</span><strong>{{ u.prenom }} {{ u.nom }}</strong></div>
+    <div class="mail-meta"><span class="mail-label"><i class="bi bi-clock" aria-hidden="true"></i> Date d’envoi</span><strong>{{ log.sentAt is defined and log.sentAt ? log.sentAt|date('d/m/Y à H:i') : 'Non renseignée' }}</strong></div>
+    <div class="mail-meta"><span class="mail-label"><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Modèle</span><strong>{{ log.template is defined and log.template ? log.template.name|default(log.template.code|default('Non renseigné')) : 'Non renseigné' }}</strong></div>
+  </section>
+
+  {% if log.errorMessage is defined and log.errorMessage %}
+    <div class="mail-error" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div><strong>Une erreur a été enregistrée</strong><p>{{ log.errorMessage }}</p></div></div>
+  {% endif %}
+
+  <section class="mail-preview" aria-labelledby="mail-preview-title">
+    <div class="mail-preview-heading"><h2 id="mail-preview-title"><i class="bi bi-envelope-open" aria-hidden="true"></i> Aperçu du message</h2><span><i class="bi bi-shield-check" aria-hidden="true"></i> Lecture seule</span></div>
+    <div class="mail-notice"><i class="bi bi-info-circle" aria-hidden="true"></i><p>Contenu conservé lors de l’envoi. Les pièces jointes et les images intégrées ne sont pas archivées ici ; les contenus externes sont désactivés.</p></div>
+    {% if log.bodyHtmlSnapshot is defined and log.bodyHtmlSnapshot %}
+      <iframe class="mail-frame" title="Copie du mail archivé" sandbox="" referrerpolicy="no-referrer" srcdoc="{{ ('<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; img-src data:;">' ~ log.bodyHtmlSnapshot)|e('html_attr') }}"></iframe>
+    {% else %}
+      <div class="mail-empty"><i class="bi bi-envelope-slash" aria-hidden="true"></i><h3>Aucun aperçu disponible</h3><p>Le contenu de cet envoi n’a pas été archivé. Il ne peut pas être reconstitué à partir du modèle actuel.</p></div>
+    {% endif %}
+  </section>
+
+  <div class="mail-details">
+    {% if log.bodyTextSnapshot is defined and log.bodyTextSnapshot %}
+      <details><summary>Version texte du message</summary><pre>{{ log.bodyTextSnapshot }}</pre></details>
+    {% endif %}
+    <details><summary>Informations techniques de l’envoi</summary><dl><dt>Clé d’idempotence</dt><dd><code>{{ log.idemKey|default('Non renseignée', true) }}</code></dd></dl></details>
   </div>
+</main>
 {% endblock %}

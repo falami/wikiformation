@@ -876,20 +876,13 @@ class FactureController extends AbstractController
       $toEmail = $entreprise->getEmailFacturation() ?: $entreprise->getEmail();
       $toName  = (string)($entreprise->getRaisonSociale() ?: $toEmail);
 
-      // ✅ si entreprise -> tenter de retrouver l'utilisateur "personne morale"
-      // (ex: premier utilisateur de l'entreprise, sinon matching email)
-      if (!$toUser) {
-        if (method_exists($entreprise, 'getUtilisateurs')) {
-          $first = $entreprise->getUtilisateurs()->first();
-          if ($first) {
-            $toUser = $first;
-          }
-        }
-        if (!$toUser && $toEmail) {
-          // fallback : utilisateur portant cet email
-          $toUser = $em->getRepository(Utilisateur::class)->findOneBy(['email' => $toEmail]);
-        }
-      }
+      // Rattacher la trace au destinataire réel, pas au premier contact de la société.
+      $toUser = $toEmail
+        ? $em->getRepository(Utilisateur::class)->createQueryBuilder('recipient')
+          ->where('LOWER(TRIM(recipient.email)) = :email')
+          ->setParameter('email', mb_strtolower(trim($toEmail)))
+          ->setMaxResults(1)->getQuery()->getOneOrNullResult()
+        : null;
     } elseif ($toUser) {
       $toEmail = $toUser->getEmail();
       $toName  = trim(($toUser->getPrenom() ?? '') . ' ' . ($toUser->getNom() ?? '')) ?: $toEmail;
@@ -939,7 +932,12 @@ class FactureController extends AbstractController
     $existing = $em->getRepository(EmailLog::class)->findOneBy(['idemKey' => $idemKey]);
     if ($existing) {
       // déjà loggué (double click) → on évite les doublons
-      $this->addFlash('info', "Envoi déjà tracé (anti double-clic).");
+      $message = match ($existing->getStatus()) {
+        'SENT' => sprintf('La facture %s a déjà été transmise au service de messagerie le %s à %s.', $facture->getNumero(), $existing->getSentAt()?->format('d/m/Y H:i'), $existing->getToEmail()),
+        'FAILED' => sprintf('Le précédent envoi de la facture %s a échoué. Une trace existe, mais elle ne confirme pas un envoi réussi.', $facture->getNumero()),
+        default => sprintf('Un envoi de la facture %s est enregistré en attente, sans confirmation de transmission. Vérifiez son historique avant de relancer.', $facture->getNumero()),
+      };
+      $this->addFlash($existing->getStatus() === 'SENT' ? 'info' : 'warning', $message);
       return $this->redirectToRoute('app_administrateur_facture_index', ['entite' => $entite->getId()]);
     }
 
