@@ -37,21 +37,25 @@
     <div><span class="cx-failure-kicker">POUR POURSUIVRE LE PARCOURS</span><h2>Complément de formation préconisé</h2></div>
     {% set failedThemes = [] %}
     {% set failedPracticeTitles = [] %}
+    {% set failedTheoryTitles = [] %}
     {% for kind, label in {theory: 'Théorie', practice: 'Pratique'} %}
       {% set result = kind == 'theory' ? dossier.theoryResult : practice %}
       {% for theme in result.themes|default([]) %}
         {% if not theme.passed %}
           {% set failedThemes = failedThemes|merge([{label: label, theme: theme}]) %}
-          {% if kind == 'practice' %}{% set failedPracticeTitles = failedPracticeTitles|merge([theme.title]) %}{% endif %}
+          {% if kind == 'practice' %}{% set failedPracticeTitles = failedPracticeTitles|merge([theme.title]) %}{% else %}{% set failedTheoryTitles = failedTheoryTitles|merge([theme.title]) %}{% endif %}
         {% endif %}
       {% endfor %}
     {% endfor %}
     <div class="cx-failure-plan-content">
       <div>
-        {% if failedThemes|length or practice.remediationThemes|default([])|length %}
+        {% if failedThemes|length or practice.remediationThemes|default([])|length or dossier.theoryResult.remediationThemes|default([])|length %}
           <ul>
             {% for item in failedThemes %}
               <li><span class="cx-failure-theme-title">{{ item.label }} · {{ item.theme.title|lower|capitalize }}</span><span class="cx-failure-plan-detail">{{ item.theme.score }}/{{ item.theme.max }} · Seuil non atteint{% if item.theme.threshold is defined %} (minimum {{ item.theme.threshold }} points){% endif %}</span></li>
+            {% endfor %}
+            {% for theme in dossier.theoryResult.remediationThemes|default([]) %}
+              {% if theme not in failedTheoryTitles %}<li><span class="cx-failure-theme-title">Théorie · {{ theme|lower|capitalize }}</span></li>{% endif %}
             {% endfor %}
             {% for theme in practice.remediationThemes|default([]) %}
               {% if theme not in failedPracticeTitles %}<li>Pratique · {{ theme }}</li>{% endif %}
@@ -60,7 +64,7 @@
         {% endif %}
         {% if not practice.remediationThemes|default([])|length and practice.remediation|default('') %}
           <p class="cx-failure-preserve">{{ practice.remediation }}</p>
-        {% elseif not failedThemes|length and not practice.remediationThemes|default([])|length %}
+        {% elseif not failedThemes|length and not practice.remediationThemes|default([])|length and not dossier.theoryResult.remediationThemes|default([])|length %}
           <p>À compléter par le formateur.</p>
         {% endif %}
       </div>

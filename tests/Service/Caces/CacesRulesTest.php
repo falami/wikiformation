@@ -52,6 +52,18 @@ final class CacesRulesTest extends TestCase
         $answers[$driving]=11;$this->expectException(\InvalidArgumentException::class);
         (new CacesRules())->grade($schema,$answers,true,3600);
     }
+    public function testAllRemediationThemesAreSelectableBelowSeventy(): void
+    {
+        $schema=['durationMinutes'=>60,'themes'=>[
+            ['title'=>'Premier','questions'=>[['id'=>'a','label'=>'A','points'=>50]]],
+            ['title'=>'Second','questions'=>[['id'=>'b','label'=>'B','points'=>50]]],
+        ]];
+        $rules=new CacesRules();
+        self::assertSame(['Premier','Second'],$rules->remediationThemes($schema,['a'=>30,'b'=>39],['0','1']));
+        $this->expectException(\InvalidArgumentException::class);
+        $rules->remediationThemes($schema,['a'=>30,'b'=>40],['0','1']);
+    }
+
     public function testBothRequiredEnginesMustPassIndependently(): void
     {
         $t=array_values(array_filter($this->practicalCatalog(),fn($t)=>$t['recommendation']==='489' && $t['category']==='7'))[0];

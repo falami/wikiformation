@@ -262,7 +262,7 @@ final class CacesController extends AbstractController
                         $result=$attempt->getTheoryResult();
                         $themes=[];
                         foreach($r->request->all('remediationThemes') as $index) {
-                            if(!is_string($index) || !ctype_digit($index) || !isset($result['themes'][(int)$index]) || $result['themes'][(int)$index]['passed']) throw new \InvalidArgumentException('Seuls les thèmes théoriques dont le seuil n’est pas atteint peuvent être sélectionnés.');
+                            if(!is_string($index) || !ctype_digit($index) || !isset($result['themes'][(int)$index]) || (($result['score'] ?? 100) >= 70 && $result['themes'][(int)$index]['passed'])) throw new \InvalidArgumentException('Seuls les thèmes théoriques dont le seuil n’est pas atteint peuvent être sélectionnés.');
                             $themes[(int)$index]=$result['themes'][(int)$index]['title'];
                         }
                         $hours=str_replace(',', '.', $r->request->getString('remediationHours','0'));

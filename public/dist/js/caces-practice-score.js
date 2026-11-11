@@ -20,7 +20,7 @@
       engine.score += score;
       const threshold = Math.ceil(max / 2);
       if (complete && score < threshold) reasons.push('Seuil non atteint : ' + theme.title);
-      return {title: (theme.assessment ? engine.title + ' · ' : '') + theme.title, score, max, threshold, complete, remediationEligible: complete && (score < threshold || hasZero)};
+      return {title: (theme.assessment ? engine.title + ' · ' : '') + theme.title, score, max, threshold, complete, hasZero, remediationEligible: complete && (score < threshold || hasZero)};
     });
     const assessments = Object.values(engines);
     if (answered === count) assessments.forEach(e => {
@@ -28,8 +28,10 @@
     });
     if (Number(duration) > schema.durationMinutes * 60) reasons.push('Durée maximale dépassée');
     const complete = answered === count && Number(duration) >= 1 && Number.isInteger(Number(duration)) && Number(duration) <= 86400;
-    return {themes, assessments, answered, count, reasons, complete,
-      score: Math.round(assessments.reduce((sum, e) => sum + e.score, 0) / Math.max(1, assessments.length) * 100) / 100};
+    const score = Math.round(assessments.reduce((sum, e) => sum + e.score, 0) / Math.max(1, assessments.length) * 100) / 100;
+    const allThemesEligible = count > 0 && answered === count && score < 70;
+    if (allThemesEligible) themes.forEach(theme => { theme.remediationEligible = true; });
+    return {themes, assessments, answered, count, reasons, complete, score, allThemesEligible};
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = grade;
   if (typeof document === 'undefined') return;
@@ -75,7 +77,7 @@
       if (checkbox) {
         checkbox.disabled = !theme.remediationEligible;
         if (checkbox.disabled) checkbox.checked = false;
-        checkbox.closest('label').querySelector('[data-remediation-status]').textContent = !theme.complete ? 'Notation à compléter' : theme.remediationEligible ? 'Thème à retravailler · sélection possible' : 'Thème réussi';
+        checkbox.closest('label').querySelector('[data-remediation-status]').textContent = !theme.complete ? 'Notation à compléter' : result.allThemesEligible ? 'Note globale inférieure à 70/100 · sélection possible' : theme.remediationEligible ? 'Thème à retravailler · sélection possible' : 'Thème réussi';
       }
       const value = theme.score + ' / ' + theme.max + ' · minimum ' + theme.threshold + (theme.complete ? (theme.score >= theme.threshold ? ' · Seuil atteint' : ' · Seuil non atteint') : ' · À compléter');
       form.querySelectorAll('[data-score-theme="' + index + '"] [data-theme-score]').forEach(output => { output.textContent = value; });
@@ -87,7 +89,7 @@
         card.querySelector('[data-chapter-status]').textContent = !theme.complete ? 'À compléter' : reached ? 'Seuil atteint' : 'Seuil non atteint';
         card.querySelector('[data-chapter-meter]').setAttribute('aria-valuenow', theme.score);
         card.querySelector('[data-chapter-fill]').style.width = (theme.max ? theme.score / theme.max * 100 : 0) + '%';
-        card.querySelector('[data-chapter-message]').textContent = !theme.complete ? 'Notation en cours' : theme.remediationEligible && reached ? 'Critère à zéro · thème à revoir' : reached ? 'Minimum du chapitre atteint' : (theme.threshold - theme.score) + ' point(s) sous le minimum';
+        card.querySelector('[data-chapter-message]').textContent = !theme.complete ? 'Notation en cours' : theme.hasZero && reached ? 'Critère à zéro · thème à revoir' : reached ? 'Minimum du chapitre atteint' : (theme.threshold - theme.score) + ' point(s) sous le minimum';
       }
       const row = document.createElement('p');
       row.textContent = theme.title + ' — ' + value;

@@ -91,7 +91,7 @@ final class CacesRules
             foreach ($schema['themes'][$index]['questions'] as $question) {
                 if ((int)$scores[$question['id']] === 0) $hasZero = true;
             }
-            if ($result['themes'][$index]['passed'] && !$hasZero) {
+            if ($result['score'] >= 70 && $result['themes'][$index]['passed'] && !$hasZero) {
                 throw new \InvalidArgumentException('Seuls les thèmes non réussis peuvent être sélectionnés.');
             }
             $titles[$index] = $result['themes'][$index]['title'];
