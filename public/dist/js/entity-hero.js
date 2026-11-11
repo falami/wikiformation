@@ -8,6 +8,9 @@
   // Complete legacy headers without duplicating their existing section labels.
   function completeBadges() {
     const sections = {
+      qualite: ['Suivi qualité', 'bi-shield-check'],
+      bpf: ['Déclaration annuelle', 'bi-bar-chart'],
+      qcm: ['Questionnaires de niveau', 'bi-ui-checks-grid'],
       formation: ['Catalogue de formation', 'bi-mortarboard-fill'],
       session: ['Gestion des sessions', 'bi-calendar3'],
       inscription: ['Inscriptions', 'bi-person-check'],
@@ -34,7 +37,28 @@
     const route = location.pathname.split('/').filter(Boolean);
     const section = [...route].reverse().find(part => sections[part]);
     document.querySelectorAll('.entity-hero').forEach(hero => {
-      if (hero.querySelector('[class*="eyebrow"], [class*="kicker"], .entity-hero-label')) return;
+      const heroTitle = hero.querySelector('h1, h2, .hero-title');
+      if (heroTitle) {
+        let titleIcon = heroTitle.querySelector('i, svg, img');
+        if (!titleIcon) {
+          const badgeIcon = hero.querySelector('[class*="eyebrow"] i, [class*="kicker"] i, .entity-hero-label i');
+          titleIcon = document.createElement('i');
+          titleIcon.className = badgeIcon ? badgeIcon.className : 'bi ' + (sections[section]?.[1] || 'bi-grid');
+          titleIcon.setAttribute('aria-hidden', 'true');
+          heroTitle.prepend(titleIcon, document.createTextNode(' '));
+        }
+        titleIcon.classList.add('entity-hero-title-icon');
+      }
+      const existing = hero.querySelector('[class*="eyebrow"], [class*="kicker"], .entity-hero-label');
+      if (existing) {
+        if (!existing.querySelector('i, svg, img, .label')) {
+          const icon = document.createElement('i');
+          icon.className = 'bi ' + (sections[section]?.[1] || 'bi-grid');
+          icon.setAttribute('aria-hidden', 'true');
+          existing.prepend(icon, document.createTextNode(' '));
+        }
+        return;
+      }
       const title = hero.querySelector('h1, h2, .hero-title');
       if (!title) return;
       const label = document.createElement('div');
