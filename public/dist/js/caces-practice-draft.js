@@ -20,7 +20,14 @@
         const value = saved.values[identity(field)];
         if (field.type === 'checkbox') field.checked = value === true;
         else if (typeof value === 'string') {
-          if (field.tagName === 'SELECT' && ![...field.options].some(option => option.value === value)) return;
+          // Tom Select can remove unselected options from the native select.
+          // Its option catalogue remains the source of valid saved values.
+          if (field.tagName === 'SELECT') {
+            const exists = field.tomselect
+              ? Object.prototype.hasOwnProperty.call(field.tomselect.options, value)
+              : [...field.options].some(option => option.value === value);
+            if (value !== '' && !exists) return;
+          }
           if (field.tomselect) field.tomselect.setValue(value, true);
           else if (field._flatpickr) field._flatpickr.setDate(value, false);
           else field.value = value;
