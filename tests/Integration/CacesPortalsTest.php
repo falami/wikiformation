@@ -66,6 +66,44 @@ final class CacesPortalsTest extends KernelTestCase
         $this->client->disableReboot(); $this->client->catchExceptions(false);
     }
 
+    public function testPracticeScoresAutosaveWithoutSigningAndSurviveReload(): void
+    {
+        $this->client->loginUser($this->trainer);
+        $id = $this->caces->getId();
+        $q = $this->caces->getExam()->getPracticeSnapshot()['schema']['themes'][0]['questions'][0];
+        $page = $this->client->request('GET', $this->url('app_caces_show', ['id'=>$id]));
+        $token = $page->filter('[data-practice-clock] input[name="_token"]')->attr('value');
+        $url = $this->url('app_caces_practice_draft', ['id'=>$id]);
+        $payload = ['_token'=>$token, 'revision'=>0, 'scores'=>[$q['id']=>'0'], 'equipment'=>'Chariot test'];
+        $this->client->request('POST', $url, $payload);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $this->caces = $this->em->find(\App\Entity\CacesAttempt::class, $id);
+        $this->em->refresh($this->caces);
+        self::assertSame('0', $this->caces->getPracticeDraft()['values']['scores['.$q['id'].']']);
+        self::assertNull($this->caces->getPracticeAt());
+        self::assertSame([], $this->caces->getPracticeResult());
+        self::assertSame([], $this->caces->getSignatures());
+        $page = $this->client->request('GET', $this->url('app_caces_show', ['id'=>$id]));
+        $saved = json_decode($page->filter('[data-practice-saved]')->attr('data-practice-saved'), true);
+        self::assertSame('0', $saved['values']['scores['.$q['id'].']']);
+        $this->client->request('POST', $url, $payload);
+        self::assertSame(409, $this->client->getResponse()->getStatusCode());
+        $payload['revision']=1;
+        $payload['scores'][$q['id']]='999';
+        $this->client->request('POST', $url, $payload);
+        self::assertSame(422, $this->client->getResponse()->getStatusCode());
+        $payload['scores'][$q['id']]='';
+        $this->client->request('POST', $url, $payload);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $this->caces = $this->em->find(\App\Entity\CacesAttempt::class, $id);
+        $this->em->refresh($this->caces);
+        self::assertSame('', $this->caces->getPracticeDraft()['values']['scores['.$q['id'].']']);
+        $this->caces->setPracticeAt(new \DateTimeImmutable()); $this->em->flush();
+        $payload['revision']=2;
+        $this->client->request('POST', $url, $payload);
+        self::assertSame(409, $this->client->getResponse()->getStatusCode());
+    }
+
     protected function tearDown(): void
     {
         parent::tearDown();

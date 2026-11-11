@@ -233,6 +233,44 @@ final class CacesController extends AbstractController
         $view=['id'=>$attempt->getId(),'startedAt'=>$attempt->getStartedAt(),'submittedAt'=>$attempt->getSubmittedAt(),'answers'=>$attempt->getAnswers(),'result'=>$attempt->getTheoryResult(),'profile'=>$attempt->getProfile(),'signed'=>isset($attempt->getSignatures()['learner']),'deadline'=>$this->workflow->deadline($attempt)?->getTimestamp(),'serverNow'=>time(),'recommendation'=>$attempt->getExam()->getRecommendation(),'category'=>$attempt->getExam()->getCategory(),'schema'=>$schema];
         return $this->page('theory',$entite,['test'=>$view,'error'=>$error]);
     }
+    #[Route('/dossiers/{id}/pratique/brouillon', name: 'practice_draft', requirements: ['id'=>'\d+'], methods: ['POST'])]
+    public function practiceDraft(Entite $entite, CacesAttempt $attempt, Request $r): Response
+    {
+        $this->examiner($entite, $attempt);
+        $this->token($r, 'caces_dossier_'.$attempt->getId());
+        try {
+            $this->em->getConnection()->transactional(function () use ($attempt, $r) {
+                $this->em->refresh($attempt->getExam(), LockMode::PESSIMISTIC_WRITE);
+                $this->em->refresh($attempt, LockMode::PESSIMISTIC_WRITE);
+                if ($attempt->getExam()->getPracticeTester()->getId() !== $this->getUser()->getId()) throw $this->createAccessDeniedException();
+                if ($attempt->getPracticeAt() || $attempt->getCertificate()) throw new \DomainException('Cette évaluation est déjà validée.');
+                if ($r->request->getInt('revision') !== ($attempt->getPracticeDraft()['revision'] ?? 0)) throw new \DomainException('Le dossier a été modifié dans une autre page. Rechargez avant de poursuivre.');
+                $values = [];
+                $scores = $r->request->all('scores');
+                foreach ($attempt->getExam()->getPracticeSnapshot()['schema']['themes'] as $theme) {
+                    foreach ($theme['questions'] as $q) {
+                        $value = $scores[$q['id']] ?? '';
+                        if (!is_string($value) || ($value !== '' && (!ctype_digit($value) || (int)$value > $q['points']))) throw new \InvalidArgumentException('Note invalide.');
+                        $values['scores['.$q['id'].']'] = $value;
+                    }
+                }
+                foreach (['equipment'=>255, 'practiceDate'=>10, 'remediationHours'=>5] as $name=>$max) {
+                    $value = $r->request->getString($name);
+                    if (mb_strlen($value) > $max) throw new \InvalidArgumentException('Valeur trop longue.');
+                    $values[$name] = $value;
+                }
+                foreach ($r->request->all('remediationThemes') as $theme) {
+                    if (!is_string($theme) || strlen($theme)>100) throw new \InvalidArgumentException('Thème invalide.');
+                    $values['remediationThemes[]:'.$theme] = true;
+                }
+                $attempt->setPracticeDraft(['values'=>$values, 'at'=>(int)round(microtime(true)*1000), 'revision'=>($attempt->getPracticeDraft()['revision'] ?? 0)+1]);
+                $this->em->flush();
+            });
+            return $this->json(['saved'=>true, 'revision'=>$attempt->getPracticeDraft()['revision']], 200, ['Cache-Control'=>'no-store']);
+        } catch (\DomainException $e) { return $this->json(['error'=>$e->getMessage()], 409); }
+        catch (\InvalidArgumentException $e) { return $this->json(['error'=>$e->getMessage()], 422); }
+    }
+
     #[Route('/dossiers/{id}',name:'show',requirements:['id'=>'\d+'],methods:['GET','POST'])]
     public function show(Entite $entite,CacesAttempt $attempt,Request $r): Response
     {

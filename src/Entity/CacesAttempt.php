@@ -37,6 +37,10 @@ class CacesAttempt
     public function setTheoryResult(array $value): static { $this->theoryResult = $value; return $this; }
     #[ORM\Column(type: 'json')]
     private array $practiceResult = [];
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $practiceDraft = null;
+    public function getPracticeDraft(): array { return $this->practiceDraft ?? []; }
+    public function setPracticeDraft(?array $value): static { $this->practiceDraft = $value; return $this; }
     public function getPracticeResult(): array { return $this->practiceResult; }
     public function setPracticeResult(array $value): static { $this->practiceResult = $value; return $this; }
     #[ORM\Column(type: 'json')]
