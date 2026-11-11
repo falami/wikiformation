@@ -260,21 +260,23 @@ body.dark-mode{
   --shadow: 0 22px 70px rgba(0,0,0,.35);
 }
 </style>
+<link rel="stylesheet" href="{{ asset('dist/css/organisation-profile.css') }}?v=1>
 {% endblock %}
 
 {% block body %}
+<div class="organisation-profile">
 
 
   {# HERO #}
-  <div class="hero p-3 p-md-4 mb-4 d-flex gap-3">
+  <div class="entity-hero hero p-3 p-md-4 mb-4 d-flex gap-3">
     <div class="accent"></div>
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
-          <h2 class="m-0 fw-bold">
+          <div class="org-eyebrow">VOTRE ORGANISME · IDENTITÉ & PARAMÈTRES</div><h2 class="m-0 fw-bold">
             <i class="fa-solid fa-gear text-theme-secondaire me-2"></i>
-            Paramètres de votre organisme
+            {{ entite.nom }}
           </h2>
 
           <div class="opacity-75 mt-1">
@@ -291,11 +293,11 @@ body.dark-mode{
         <div class="d-flex gap-2 flex-wrap">
           <a class="btn btn-warning btn-sm fw-semibold"
              href="{{ path('app_administrateur_billing_connect_index', {entite: entite.id}) }}">
-            <i class="bi bi-link-45deg me-1"></i> Stripe connect
+            <i class="bi bi-link-45deg me-1"></i> Configurer les paiements
           </a>
           <a href="{{ path('app_premium_entite_modifier', {'id': entite.id, 'entite': entite.id }) }}"
              class="btn btn-light btn-sm fw-semibold">
-            <i class="fa-solid fa-pen me-1"></i> Modifier
+            <i class="fa-solid fa-pen me-1"></i> Modifier l’organisme
           </a>
         </div>
       </div>
@@ -379,11 +381,12 @@ body.dark-mode{
         </div>
 
         <div class="col-lg-5">
-          <div class="logo-frame text-center">
+          <div class="logo-frame text-center"><div class="org-eyebrow">SIGNATURE VISUELLE</div>
             {% if entite.logo %}
               <img class="logo-img"
                    src="{{ asset('uploads/photos/entite/logo/' ~ entite.logo) }}"
-                   alt="Logo de l’organisme">
+                   alt="Logo de {{ entite.nom }}">
+              <div class="org-logo-name">{{ entite.nom }}</div><p class="cardx-sub">Votre identité sur la plateforme</p>
             {% else %}
               <div class="py-4">
                 <div class="fw-bold mb-1">Aucun logo</div>
@@ -420,7 +423,7 @@ body.dark-mode{
           <div class="color-card">
             <div class="d-flex align-items-center justify-content-between mb-2">
               <div class="fw-bold">Principale</div>
-              <span class="badge-soft">Primary</span>
+              <span class="badge-soft">Navigation</span>
             </div>
             <div class="color-swatch mb-2" style="background: {{ entite.couleurPrincipal }}"></div>
             <div class="color-hex">{{ entite.couleurPrincipal }}</div>
@@ -453,7 +456,7 @@ body.dark-mode{
           <div class="color-card">
             <div class="d-flex align-items-center justify-content-between mb-2">
               <div class="fw-bold">Quaternaire</div>
-              <span class="badge-soft">Ink</span>
+              <span class="badge-soft">Texte</span>
             </div>
             <div class="color-swatch mb-2" style="background: {{ entite.couleurQuaternaire }}"></div>
             <div class="color-hex">{{ entite.couleurQuaternaire }}</div>
@@ -462,7 +465,7 @@ body.dark-mode{
       </div>
 
       <div class="mt-3 text-muted small">
-        Astuce : ces couleurs alimentent automatiquement tes <strong>heroes</strong>, tes <strong>chips</strong> et tes <strong>accents</strong> partout dans l’app.
+        Votre palette personnalise les menus, boutons et accents de votre espace. Modifiez-la depuis les paramètres de l’organisme.
       </div>
     </div>
   </div>
@@ -500,7 +503,7 @@ body.dark-mode{
         <div class="alert alert-info mb-0">
           <div class="fw-bold"><i class="fa-solid fa-circle-info me-1"></i> Vérification automatique</div>
           <div class="small">
-            Le statut est mis à jour via un appel AJAX. Si des éléments sont requis, ils apparaîtront ci-dessous.
+            Le statut de votre compte est actualisé automatiquement. Les informations à compléter apparaîtront ci-dessous.
           </div>
         </div>
 
@@ -512,6 +515,7 @@ body.dark-mode{
     </div>
   {% endif %}
 
+</div>
 {% endblock %}
 
 {% block javascripts %}

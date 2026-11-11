@@ -60,3 +60,13 @@ test('une position en haut est conservée et une position invalide utilise la ru
     assert.equal(scroll.scrollTop, expected);
   }
 });
+
+test('Documents et Documents des salariés sont distingués par leur ancre', () => {
+  const documents = new URL('https://example.test/fr/entreprise/1/documents');
+  const salaries = new URL(documents.href + '#pane-habilitations');
+  const conventions = new URL(documents.href + '#pane-conventions');
+  assert.ok(navigation.linkScore(documents, documents) > navigation.linkScore(salaries, documents));
+  assert.ok(navigation.linkScore(salaries, salaries) > navigation.linkScore(documents, salaries));
+  assert.ok(navigation.linkScore(documents, conventions) > navigation.linkScore(salaries, conventions));
+  assert.equal(navigation.linkScore(salaries, new URL(documents.href + '/habilitations')), -1);
+});

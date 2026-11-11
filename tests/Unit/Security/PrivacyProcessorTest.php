@@ -40,4 +40,17 @@ final class PrivacyProcessorTest extends TestCase
         $clean = (new PrivacyProcessor())($record);
         foreach (['password', 'secret', 'person@example', 'abcdef', 'sk_test_'] as $fragment) self::assertStringNotContainsString($fragment, $clean->message);
     }
+    public function testWrappedErrorsRetainCauseAndTemplateWithoutSensitiveMessage(): void
+    {
+        $cause = new \RuntimeException('password=private person@example.test');
+        $error = new \Twig\Error\RuntimeError('private template values', 42, new \Twig\Source('', 'example.html.twig'), $cause);
+        $record = new LogRecord(new \DateTimeImmutable(), 'request', Level::Error, 'Failure', ['exception' => $error]);
+        $clean = (new PrivacyProcessor())($record);
+        self::assertSame('example.html.twig', $clean->context['exception']['template']);
+        self::assertSame(42, $clean->context['exception']['template_line']);
+        self::assertSame(\RuntimeException::class, $clean->context['exception']['previous']['class']);
+        self::assertStringNotContainsString('private', json_encode($clean));
+        self::assertStringNotContainsString('person@example.test', json_encode($clean));
+    }
+
 }

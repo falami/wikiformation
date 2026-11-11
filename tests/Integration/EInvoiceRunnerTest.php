@@ -74,11 +74,12 @@ final class EInvoiceRunnerTest extends KernelTestCase
         $usage = new EInvoiceUsageBilling($this->em, $this->em->getRepository(EntiteSubscription::class), $lease, $stripe, $this->createMock(SubscriptionPaymentReadiness::class));
         return new EInvoiceRunner($this->em, $api, new ConnectionManager($this->configuration, $this->vault, $api, $this->em), $lease, new InvoicePayload(), $usage, new EInvoiceReadiness($this->em, $this->configuration, $usage));
     }
-    private function invoice(): Facture
+    private function invoice(bool $debours = false): Facture
     {
         $invoice = (new Facture())->setEntite($this->entity)->setCreateur($this->user)->setEntrepriseDestinataire($this->customer)
             ->setMeta(['invoice_terms' => ['serviceDate' => (new \DateTimeImmutable())->format('Y-m-d')]])
             ->addLigne((new LigneFacture())->setEntite($this->entity)->setCreateur($this->user)->setLabel('Formation test')->setQte(1)->setPuHtCents(10000)->setTva(20));
+        if ($debours) $invoice->addLigne((new LigneFacture())->setEntite($this->entity)->setCreateur($this->user)->setLabel('Débours')->setQte(1)->setPuHtCents(6000)->setTva(0)->setIsDebours(true));
         (new InvoiceIssuer($this->em, new FactureNumberGenerator(new SequenceNumberManager($this->em->getConnection())), $this->createMock(EInvoiceReadiness::class)))->persist($invoice);
         return $invoice;
     }
@@ -108,9 +109,12 @@ final class EInvoiceRunnerTest extends KernelTestCase
         self::assertSame(0, $this->em->getRepository(EInvoiceTransmission::class)->count([])); self::assertNull($this->connection->getDiscoveryCursor());
         self::assertSame($before, $this->connection->getCredentials());
     }
-    public function testSuccessfulSendIsDurableBeforePostAndRecordsExactlyOneUsageAndNeverResends(): void
+    public function testPreviouslyBlockedDeboursResumeDurablyWithExactlyOneUsageAndNeverResend(): void
     {
-        $invoice = $this->invoice(); $posts = 0;
+        $invoice = $this->invoice(true); $posts = 0;
+        $blocked = new EInvoiceTransmission($this->connection, $invoice);
+        $blocked->block(['Les débours et lignes sans TVA nécessitent un traitement fiscal spécifique.']);
+        $this->em->persist($blocked); $this->em->flush();
         $runner = $this->runner(function ($method, $url, $options) use (&$posts) {
             if ($method === 'POST' && parse_url($url, PHP_URL_PATH) === '/v1.beta/invoices') {
                 ++$posts;
@@ -147,7 +151,7 @@ final class EInvoiceRunnerTest extends KernelTestCase
     }
     public function testValidationFailureBlocksBeforeProviderPostAndBeforeBilling(): void
     {
-        $this->invoice();
+        $this->invoice(true);
         $runner = $this->runner(function ($method, $url, $options) {
             if (str_contains($url, '/validation_reports')) return $this->json(['data' => [['is_valid' => false]]]);
             if (parse_url($url, PHP_URL_PATH) === '/v1.beta/invoices' && $method === 'POST') self::fail('Invalid XML must not be sent.');

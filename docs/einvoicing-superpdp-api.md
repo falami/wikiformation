@@ -22,7 +22,7 @@ Le déploiement de la migration et la planification serveur de cette deuxième c
 
 Chaque organisme possède une connexion indépendante et un verrou partagé en base, renouvelé avant les appels. Les lots contiennent de 1 à 100 éléments, 25 par défaut. Chaque parcours paginé est limité à trois pages par exécution et reprend son curseur persistant au prochain passage. Les événements sont consultés par facture, en privilégiant celles dont le dernier contrôle est le plus ancien. Les factures reçues sont synchronisées même lorsque l’émission automatique est désactivée, tant que la connexion de production reste vérifiée.
 
-L’automatisme de production couvre initialement les **nouvelles factures EUR B2B domestiques françaises, à TVA standard**, munies d’un instantané d’émission intègre et créées à partir de la première activation. Il exclut l’historique antérieur. Une suspension suivie d’une réactivation reprend les factures créées après cette première activation. Les opérations exonérées, les débours, les opérations internationales, les particuliers, les avoirs, les acomptes et le e-reporting ne sont pas générés par ce parcours : les données concernées sont bloquées ou hors périmètre, jamais requalifiées automatiquement. Le bac à sable ne reçoit aucune facture réelle du portefeuille, même avec `--execute`.
+L’automatisme de production couvre initialement les **nouvelles factures EUR B2B domestiques françaises, à TVA standard**, munies d’un instantané d’émission intègre et créées à partir de la première activation. Il exclut l’historique antérieur. Une suspension suivie d’une réactivation reprend les factures créées après cette première activation. Les opérations exonérées hors débours explicitement identifiés, les opérations internationales, les particuliers, les avoirs, les acomptes et le e-reporting ne sont pas générés par ce parcours : les données concernées sont bloquées ou hors périmètre, jamais requalifiées automatiquement. Le bac à sable ne reçoit aucune facture réelle du portefeuille, même avec `--execute`.
 
 ## Envoi et rapprochement
 
@@ -92,3 +92,36 @@ désormais S1 et les trois notes codées à partir des mentions figées à l’�
 Les mentions restent également dans payment_terms. Le type_code est un entier.
 La même facture fictive corrigée a été convertie en UBL avec HTTP 200.
 Ce contrôle de conversion ne confirme pas le dépôt d’une facture de production.
+
+### Débours — correction du 11 novembre 2026
+
+Les lignes marquées `debours` dans l’instantané d’émission sont transmises en
+catégorie E à taux zéro, avec BT-121 `VATEX-EU-79-C` et un motif explicite dans
+la ventilation TVA. Ce traitement suit l’alternative documentée au cas 16 de
+[l’annexe A AFNOR XP Z12-014](https://fnfe-mpe.org/wp-content/uploads/2025/06/AFNOR-SG2-Cas-dusage-B2B-XP-Z12-014-ANNEXE-A.pdf).
+Les lignes standard restent S. Une ligne à zéro sans qualification de débours,
+ou un débours avec TVA, reste bloquée. Les montants et instantanés émis ne sont
+jamais modifiés ; les groupes de TVA sont construits à partir des lignes figées.
+La qualification fiscale d’un débours reste celle déclarée lors de l’émission.
+
+Après déploiement, la synchronisation habituelle reprend les transmissions
+bloquées dont `attemptedAt` est nul, y compris 0033/0034 si aucun autre contrôle
+ne bloque. Ne pas réinitialiser les transmissions déjà tentées, ni les curseurs,
+ni recréer les factures. Aucun changement de schéma de base n’est nécessaire.
+Le convertisseur puis le validateur distant doivent réussir avant le POST
+et la comptabilisation de l’usage. Une réponse incertaine ne provoque pas de réenvoi.
+
+Recette locale : montants 490 + 98 + 60 = 648 et 810 + 162 + 110 = 1082,
+reprise d’un blocage antérieur, absence de double envoi/frais et refus du validateur.
+Les appels des tests automatisés sont simulés : 135 tests et 673 assertions passent.
+
+Recette distante du 11 novembre 2026, autorisée avec des données entièrement
+fictives : conversion via `/v1.beta/invoices/convert?from=en16931&to=ubl`, puis
+validation via `/v1.beta/validation_reports`. La facture comprend 1 000 € HT de
+service, 200 € de TVA et 60 € de débours, soit 1 260 € TTC. Le XML conserve une
+ventilation S (1 000 / 200) et E (60 / 0), avec `VATEX-EU-79-C`.
+Résultat fournisseur : `is_valid: true`, sans message ni échec pour les trois
+validateurs UBL 2.1, EN16931 et BR-FR (respectivement 1, 70 et 74 contrôles).
+Aucun appel d’émission de facture n’a été effectué. Cette validation technique
+ne confirme ni la qualification fiscale des débours ni la transmission des
+factures réelles ; le correctif reste à déployer avant leur reprise.

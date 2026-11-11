@@ -60,6 +60,36 @@ final class InvoicePayloadTest extends TestCase
         InvoiceTotals::finalizeNewInvoice($invoice); InvoiceSnapshot::capture($invoice);
         self::assertStringContainsString('arrondi', implode(' ', (new InvoicePayload())->issues($invoice)));
     }
+    public function testDeboursKeepTheIssuedTotalsAndAreGroupedSeparately(): void
+    {
+        foreach ([[49000, 6000, '648.00'], [81000, 11000, '1082.00']] as [$service, $expenses, $total]) {
+            $invoice = $this->invoice();
+            $invoice->getLignes()->first()->setQte(1)->setPuHtCents($service);
+            $invoice->addLigne((new LigneFacture())->setLabel('Débours')->setQte(1)->setPuHtCents($expenses)->setTva(0)->setIsDebours(true));
+            InvoiceTotals::finalizeNewInvoice($invoice); InvoiceSnapshot::capture($invoice);
+            $before = $invoice->getMeta();
+            $data = (new InvoicePayload())->build($invoice, '0225:987654321');
+            self::assertSame($total, $data['totals']['total_with_vat']);
+            self::assertSame($total, $data['totals']['amount_due_for_payment']);
+            self::assertSame('S', $data['lines'][0]['vat_information']['invoiced_item_vat_category_code']);
+            self::assertSame('E', $data['lines'][1]['vat_information']['invoiced_item_vat_category_code']);
+            self::assertSame('VATEX-EU-79-C', $data['vat_break_down'][1]['vat_exemption_reason_code']);
+            self::assertSame(number_format($expenses / 100, 2, '.', ''), $data['vat_break_down'][1]['vat_category_taxable_amount']);
+            self::assertSame('0.00', $data['vat_break_down'][1]['vat_category_tax_amount']);
+            self::assertSame($before, $invoice->getMeta());
+        }
+    }
+
+    public function testZeroVatWithoutDeboursAndTaxedDeboursRemainBlocked(): void
+    {
+        foreach ([false, true] as $debours) {
+            $invoice = $this->invoice();
+            $invoice->getLignes()->first()->setIsDebours($debours)->setTva($debours ? 20 : 0);
+            InvoiceTotals::finalizeNewInvoice($invoice); InvoiceSnapshot::capture($invoice);
+            self::assertNotEmpty((new InvoicePayload())->issues($invoice));
+        }
+    }
+
     private function invoice(): Facture
     {
         $issuer = (new Entite())->setNom('Organisme')->setSiret('12345678900012')->setAdresse('10 rue de Paris')->setComplement('Bâtiment A')->setCodePostal('75001')->setVille('Paris')->setPays('France')->setNumeroTva('FR12345678901');

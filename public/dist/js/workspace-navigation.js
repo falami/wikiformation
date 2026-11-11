@@ -63,6 +63,15 @@
     };
   }
 
+  function linkScore(url, current) {
+    if (url.origin !== current.origin) return -1;
+    var path = url.pathname.replace(/\/+$/, '') || '/';
+    var currentPath = current.pathname.replace(/\/+$/, '') || '/';
+    if (url.hash && (path !== currentPath || url.hash !== current.hash)) return -1;
+    if (path === currentPath) return 100000 + path.length + (url.hash ? 1 : 0);
+    return path !== '/' && currentPath.indexOf(path + '/') === 0 ? path.length : -1;
+  }
+
   function init(doc, win) {
     var sidebar = doc.getElementById('workspaceSidebar');
     if (!sidebar || sidebar.dataset.navigationReady === 'true') return;
@@ -122,7 +131,7 @@
     });
 
     function markCurrentPage() {
-      var currentPath = win.location.pathname.replace(/\/+$/, '') || '/';
+
       var links = Array.from(tree.querySelectorAll('a[href]'));
       var best = null, score = -1;
       links.forEach(function (link) {
@@ -130,8 +139,7 @@
         var url;
         try { url = new URL(link.href, win.location.href); } catch (_) { return; }
         if (url.origin !== win.location.origin) return;
-        var path = url.pathname.replace(/\/+$/, '') || '/';
-        var match = path === currentPath ? 100000 + path.length : (path !== '/' && currentPath.indexOf(path + '/') === 0 ? path.length : -1);
+        var match = linkScore(url, win.location);
         if (match > score) { best = link; score = match; }
       });
       if (!best) best = links.find(function (link) { return link.classList.contains('text-theme-secondaire') || link.querySelector('.text-theme-secondaire'); }) || null;
@@ -156,6 +164,7 @@
       return best;
     }
     var activeLink = markCurrentPage();
+    listen(win, 'hashchange', function () { activeLink = markCurrentPage(); });
 
     var scrollState = scrollMemory(scroll,
       function () { return read('sessionStorage', 'scroll'); },
@@ -360,5 +369,5 @@
     return { applyContrast: applyContrast, filter: filterNavigation, close: closeDrawer };
   }
 
-  return { init: init, scrollMemory: scrollMemory, normalize: normalize, contrast: contrast, readableInk: readableInk, readableAccent: readableAccent };
+  return { init: init, linkScore: linkScore, scrollMemory: scrollMemory, normalize: normalize, contrast: contrast, readableInk: readableInk, readableAccent: readableAccent };
 });

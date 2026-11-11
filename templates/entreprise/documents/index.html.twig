@@ -24,7 +24,7 @@
 
 
     .pageWrap{width:100%;padding-top:0!important;color:var(--ink);padding-bottom:32px}
-    .pageWrap .stickyHero{position:static;margin:0 0 24px;border-radius:22px;color:#fff;background:linear-gradient(120deg,#1b3040,#2e4d5d);border:1px solid #ffffff18;box-shadow:0 12px 30px #152c4012;overflow:hidden}
+    .pageWrap .stickyHero{position:static;margin:0 0 24px;border-radius:22px;color:#fff;background:radial-gradient(900px 380px at 92% 0%,color-mix(in srgb,var(--theme-color-secondaire, #ffc107) 32%,transparent),transparent 60%),linear-gradient(135deg,color-mix(in srgb,var(--theme-color-principal, #233342) 92%,#000),color-mix(in srgb,var(--theme-color-principal, #233342) 70%,#fff));border:1px solid #ffffff18;box-shadow:0 12px 30px #152c4012;overflow:hidden}
     .pageWrap .stickyRow{display:flex;align-items:center;flex-wrap:wrap;gap:20px;padding:30px}
     .pageWrap .avatar{display:grid;place-items:center;flex:0 0 54px;height:54px;border-radius:16px;background:#ffffff10;border:1px solid #ffffff24;font-size:23px;font-weight:600;color:color-mix(in srgb, var(--theme-color-secondaire, #ffc107) 51%, white)}
     .pageWrap .hero-title{font-size:clamp(24px,2.2vw,34px);font-weight:700;letter-spacing:-.035em;margin:3px 0 12px}
@@ -95,7 +95,7 @@
   {% set rs = entreprise.raisonSociale|default('Entreprise') %}
   {% set initials = (rs|slice(0,1))|upper %}
 
-  <div class="stickyHero">
+  <div class="entity-hero stickyHero">
     <div class="stickyRow">
       <div class="avatar">{{ initials ?: 'E' }}</div>
 
@@ -966,14 +966,26 @@
       document.getElementById('tab-satis-form')?.addEventListener('shown.bs.tab', ()=>{ initSatisForm(); adjustReadyTable(DT.satisForm); });
       document.getElementById('tab-assiduite')?.addEventListener('shown.bs.tab', ()=>{ initAssiduite(); adjustReadyTable(DT.assiduite); });
 
-      // Direct access from the company dashboard; listeners above initialise the table.
-      if (location.hash === '#pane-conventions') {
-        $('#convSign').val('pending');
-        bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-conventions')).show();
+      // Synchronise les liens directs, les onglets et le menu latéral.
+      function showDocumentTab() {
+        const target = location.hash || '#pane-devis';
+        const tab = Array.from(document.querySelectorAll('[data-bs-toggle="pill"]'))
+          .find(button => button.getAttribute('data-bs-target') === target);
+        if (tab) bootstrap.Tab.getOrCreateInstance(tab).show();
       }
-      if (location.hash === '#pane-habilitations') {
-        bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-habilitations')).show();
-      }
+      if (location.hash === '#pane-conventions') $('#convSign').val('pending');
+      showDocumentTab();
+      window.addEventListener('hashchange', showDocumentTab);
+      document.querySelectorAll('[data-bs-toggle="pill"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', () => {
+          const target = tab.getAttribute('data-bs-target');
+          if (!target) return;
+          const hash = target === '#pane-devis' ? '' : target;
+          if (location.hash === hash) return;
+          history.replaceState(null, '', location.pathname + location.search + hash);
+          window.dispatchEvent(new Event('hashchange'));
+        });
+      });
 
       // reload global
       document.getElementById('btnGlobalReload')?.addEventListener('click', ()=>{

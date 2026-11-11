@@ -32,9 +32,19 @@
 	{% set canFormateur  = is_granted('ENTITE_FORMATEUR', entite) %}
 	{% set canStagiaire  = is_granted('ENTITE_STAGIAIRE', entite) %}
 	{% set canEntreprise = is_granted('ENTITE_ENTREPRISE', entite) %}
-	{% set canOF = is_granted('ENTITE_OF', entite) %}
-	{% set canOPCO = is_granted('ENTITE_OPCO', entite) %}
-	{% set canCommercial = is_granted('ENTITE_COMMERCIAL', entite) %}
+    {% set hasEntrepriseRole = false %}
+    {% set portalRoles = [] %}
+    {% for membership in app.user.utilisateurEntites %}
+      {% if membership.entite.id == entite.id and membership.active %}
+        {% set portalRoles = membership.roles %}
+      {% endif %}
+      {% if membership.entite.id == entite.id and membership.active and membership.hasRole('TENANT_ENTREPRISE') %}
+        {% set hasEntrepriseRole = true %}
+      {% endif %}
+    {% endfor %}
+	{% set canOF = 'TENANT_OF' in portalRoles and is_granted('ENTITE_OF', entite) %}
+	{% set canOPCO = 'TENANT_OPCO' in portalRoles and is_granted('ENTITE_OPCO', entite) %}
+	{% set canCommercial = 'TENANT_COMMERCIAL' in portalRoles and is_granted('ENTITE_COMMERCIAL', entite) %}
 
 	{% set charterRoute = app.request.attributes.get('_route') %}
 	{% set isAdminCharter = charterRoute in [
@@ -931,6 +941,7 @@
 
 
 
+            <li class="nav-item"><a href="{{ path('app_caces_index', {entite: entite.id}) }}"><span class="{{ app.request.attributes.get('_route') starts with 'app_caces_' ? 'text-theme-secondaire' : 'text-white' }}"><i class="bi bi-shield-check"></i> Certification CACES®</span></a></li>
             <li class="nav-item">
 				<a href="{{ path('app_administrateur_evaluation_index', {entite: entite.id}) }}">
 					<span class="{{ app.request.attributes.get('_route') starts with 'app_administrateur_evaluation_' ? 'text-theme-secondaire' : 'text-white' }}">
@@ -1111,7 +1122,8 @@
 					</span>
 				</a>
 			</li>
-			<li class="nav-item">
+			<li class="nav-item"><a href="{{ path('app_caces_index', {entite: entite.id}) }}"><span class="{{ app.request.attributes.get('_route') starts with 'app_caces_' ? 'text-theme-secondaire' : 'text-white' }}"><i class="bi bi-shield-check"></i> Certification CACES®</span></a></li>
+            <li class="nav-item">
 				<a href="{{ path('app_formateur_evaluation_index', {entite: entite.id}) }}">
 					<span class="{{ app.request.attributes.get('_route') starts with 'app_formateur_evaluation_' ? 'text-theme-secondaire' : 'text-white' }}">
 						<i class="bi bi-patch-check"></i> Évaluer mes stagiaires
@@ -1212,7 +1224,8 @@
 				</div>
 			</li>
 
-			<li class="nav-item">
+			<li class="nav-item"><a href="{{ path('app_caces_index', {entite: entite.id}) }}"><span class="{{ app.request.attributes.get('_route') starts with 'app_caces_' ? 'text-theme-secondaire' : 'text-white' }}"><i class="bi bi-shield-check"></i> Certification CACES®</span></a></li>
+            <li class="nav-item">
 				<a href="{{ path('app_stagiaire_evaluation_index', {entite: entite.id}) }}">
 					<span class="{{ app.request.attributes.get('_route') starts with 'app_stagiaire_evaluation_' ? 'text-theme-secondaire' : 'text-white' }}">
 						<i class="bi bi-patch-check"></i> Mes évaluations finales
@@ -1230,6 +1243,17 @@
 
 		{% endif %}
 
+        {% if hasEntrepriseRole and not canEntreprise %}
+          <li class="wn-section-label" role="presentation"><span>Espace entreprise</span></li>
+          <li class="nav-item">
+            {% if is_granted('UTILISATEUR_MANAGE', entite) %}
+              <a href="{{ path('app_administrateur_utilisateur_modifier', {entite: entite.id, id: app.user.id}) }}#user-company">
+                <span class="text-white"><i class="bi bi-building-add" aria-hidden="true"></i> Vérifier mon rattachement</span>
+              </a>
+            {% endif %}
+            <p class="small text-white px-3 py-2 mb-2">Votre rôle Entreprise est actif. Pour accéder à cet espace, {{ is_granted('UTILISATEUR_MANAGE', entite) ? 'désignez votre compte comme représentant dans la fiche de votre entreprise.' : 'demandez à votre organisme de vous désigner comme représentant de votre entreprise.' }}</p>
+          </li>
+        {% endif %}
 		{% if canEntreprise %}
 			<li class="wn-section-label" role="presentation"><span>Espace entreprise</span></li>
             {% set isCompanyHabilitation = app.request.attributes.get('_route') starts with 'app_entreprise_documents_habilitation_' or app.request.attributes.get('_route') == 'app_habilitation_company_title' %}

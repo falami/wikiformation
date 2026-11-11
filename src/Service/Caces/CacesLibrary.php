@@ -1,0 +1,37 @@
+<?php
+
+declare(strict_types=1);
+namespace App\Service\Caces;
+use App\Entity\{CacesTemplate,Entite};
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+
+final class CacesLibrary
+{
+    public function __construct(private EntityManagerInterface $em, #[Autowire('%kernel.project_dir%')] private string $root) {}
+    public function official(): array { return json_decode(file_get_contents($this->root.'/resources/caces/catalog.json'),true,512,JSON_THROW_ON_ERROR); }
+    public function catalog(Entite $entite): array
+    {
+        $items=$this->official();
+        foreach ($this->em->getRepository(CacesTemplate::class)->createQueryBuilder('t')->where('t.entite = :e OR t.entite IS NULL')->setParameter('e',$entite)->orderBy('t.id','DESC')->getQuery()->getResult() as $t) $items[]=$this->view($t);
+        // Central revisions retire their predecessor from future random draws only.
+        $retired=[];
+        foreach($items as $item) if(($item['global']??false) && ($item['status']??'active')!=='draft' && isset($item['schema']['supersedes'])) $retired[]=$item['schema']['supersedes'];
+        foreach($items as &$item) if(in_array($item['key'],$retired,true))$item['status']='archived';
+        unset($item);
+        return $items;
+    }
+    public function view(CacesTemplate $t): array { return ['key'=>'custom-'.$t->getId(),'global'=>$t->getEntite()===null,'title'=>$t->getTitle(),'recommendation'=>$t->getRecommendation(),'category'=>$t->getCategory(),'kind'=>$t->getKind(),'versionLabel'=>$t->getVersionLabel(),'status'=>$t->getStatus(),'schema'=>$t->getSchema()]; }
+    public function find(Entite $entite,string $key): array
+    {
+        foreach ($this->catalog($entite) as $item) if ($item['key']===$key) return $item;
+        throw new \InvalidArgumentException('Modèle introuvable.');
+    }
+    public function image(string $key,int $page): string
+    {
+        if (!preg_match('/^r(482|483|484|485|486|487|489|490)-v1-202412-g[1-5]$/D',$key) || $page<1 || $page>20) throw new \InvalidArgumentException('Page introuvable.');
+        $path=$this->root.'/resources/caces/'.$key.'/page-'.$page.'.png';
+        if (!is_file($path)) throw new \InvalidArgumentException('Page introuvable.');
+        return $path;
+    }
+}

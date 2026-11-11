@@ -17,6 +17,7 @@
   </style>
   {% include 'administrateur/planning/sessions/_styles.html.twig' %}
 
+  <link rel="stylesheet" href="{{ asset('dist/css/planning-theme.css') }}?v=1">
 {% endblock %}
 
 
@@ -456,8 +457,8 @@
             <div class="small text-muted mt-3">Tarif</div>
             <div class="fw-semibold">${money(s.montantCents || 0)}</div>
 
-            <div class="small text-muted mt-3">Pièces obligatoires</div>
-            <div class="d-flex flex-wrap gap-1">${pieces}</div>
+            ${Array.isArray(s.piecesObligatoires) && s.piecesObligatoires.length ? `<div class="small text-muted mt-3">Pièces obligatoires</div>
+            <div class="d-flex flex-wrap gap-1">${pieces}</div>` : ''}
           </div>
         </div>
 
@@ -492,17 +493,17 @@
             <div class="small text-muted mt-2">Créneau</div>
             <div class="fw-semibold">${esc(fmtDT(j.start))} → ${esc(fmtDT(j.end))}</div>
 
-            <div class="small text-muted mt-2">Formation</div>
-            <div class="fw-semibold">${esc(form.titre || '—')}</div>
+            ${form.titre?.trim() ? `<div class="small text-muted mt-2">Formation</div>
+            <div class="fw-semibold">${esc(form.titre || '—')}</div>` : ''}
 
-            <div class="small text-muted mt-2">Site</div>
-            <div class="fw-semibold">${esc(site.nom || '—')}</div>
+            ${site.nom?.trim() ? `<div class="small text-muted mt-2">Site</div>
+            <div class="fw-semibold">${esc(site.nom || '—')}</div>` : ''}
 
-            <div class="small text-muted mt-2">Formateur</div>
-            <div class="fw-semibold">${fo ? esc((fo.nom||'') + ' ' + (fo.prenom||'')) : '—'}</div>
+            ${fo && ((fo.nom || '') + (fo.prenom || '')).trim() ? `<div class="small text-muted mt-2">Formateur</div>
+            <div class="fw-semibold">${fo ? esc((fo.nom||'') + ' ' + (fo.prenom||'')) : '—'}</div>` : ''}
 
-            <div class="small text-muted mt-2">Engin</div>
-            <div class="fw-semibold">${en ? esc(en.nom || '—') : '—'}</div>
+            ${en?.nom?.trim() ? `<div class="small text-muted mt-2">Engin</div>
+            <div class="fw-semibold">${en ? esc(en.nom || '—') : '—'}</div>` : ''}
           </div>
         </div>
 
@@ -523,8 +524,8 @@
               <div class="small text-muted mt-3">Tarif</div>
               <div class="fw-semibold">${money(s.montantCents || 0)}</div>
 
-              <div class="small text-muted mt-3">Pièces obligatoires</div>
-              <div class="d-flex flex-wrap gap-1">${pieces}</div>
+              ${Array.isArray(s.piecesObligatoires) && s.piecesObligatoires.length ? `<div class="small text-muted mt-3">Pièces obligatoires</div>
+              <div class="d-flex flex-wrap gap-1">${pieces}</div>` : ''}
             </div>
 
             <!-- Équipements : JUSTE EN DESSOUS, même colonne -->

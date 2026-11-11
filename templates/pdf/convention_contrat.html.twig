@@ -418,7 +418,7 @@
           {% if entreprise %}
             {{ entreprise.raisonSociale|default('Entreprise') }},
             {% if entreprise.adresse is defined and entreprise.adresse %}
-              dont le siège est situé {{ entreprise.adresse }}
+              situé {{ entreprise.adresse }}
               {{ entreprise.codePostal|default('') }} {{ entreprise.ville|default('') }},
             {% endif %}
             {% if entreprise.siret %}SIRET {{ entreprise.siret }},{% endif %}
@@ -492,32 +492,7 @@
               <div class="info-content">{{ session.tauxDistanciel|number_format(2, ',', ' ') }} % de la durée totale des enseignements</div>
             </div>
             {% endif %}
-            {% if convention and convention.montantHtCents is not null %}
-              <div class="info-block mb-0">
-                <span class="info-label">Montant de la convention</span>
-                <div class="info-content">
-                  HT : {{ (convention.montantHtCents / 100)|number_format(2, ',', ' ') }} {{ devis ? devis.devise : 'EUR' }}<br>
-                  TVA ({{ convention.tauxTva }} %) : {{ (convention.montantTvaCents / 100)|number_format(2, ',', ' ') }} {{ devis ? devis.devise : 'EUR' }}<br>
-                  TTC : {{ (convention.montantTtcCents / 100)|number_format(2, ',', ' ') }} {{ devis ? devis.devise : 'EUR' }}
-                </div>
-              </div>
-            {% elseif devis %}
-              <div class="info-block mb-0">
-                <span class="info-label">Total du devis {{ devis.numero }}</span>
-                <div class="info-content">
-                  HT : {{ (devis.montantHtCents / 100)|number_format(2, ',', ' ') }} {{ devis.devise }}<br>
-                  TVA : {{ (devis.montantTvaCents / 100)|number_format(2, ',', ' ') }} {{ devis.devise }}<br>
-                  TTC : {{ (devis.montantTtcCents / 100)|number_format(2, ',', ' ') }} {{ devis.devise }}
-                </div>
-              </div>
-            {% elseif formation and formation.prixBaseCents is defined and formation.prixBaseCents %}
-              <div class="info-block mb-0">
-                <span class="info-label">Tarif catalogue HT</span>
-                <div class="info-content text-nowrap">
-                  {{ (formation.prixBaseCents / 100)|number_format(2, ',', ' ') }} €
-                </div>
-              </div>
-            {% endif %}
+            {% include 'pdf/_convention_amount.html.twig' %}
 
           </td>
 

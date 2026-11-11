@@ -1,5 +1,6 @@
 {# templates/administrateur/devis/form.html.twig #}
 {% extends 'base_admin.html.twig' %}
+{% form_theme form 'administrateur/devis/_form/money_theme.html.twig' %}
 {% block title %}{{ title }}{% endblock %}
 
 {% block stylesheets %}
@@ -9,6 +10,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
+  <link rel="stylesheet" href="{{ asset('dist/css/quote-billing.css') }}">
   <style>
     :root{
       --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
@@ -216,7 +218,7 @@
 {% block body %}
 
   {# ===== HERO (style Sessions / site/index) ===== #}
-  <div class="hero p-3 mb-4 d-flex gap-3">
+  <div class="entity-hero hero p-3 mb-4 d-flex gap-3">
     <div class="accent"></div>
 
     <div class="flex-grow-1">
@@ -281,6 +283,10 @@
   {{ form_start(form, { attr: { id: form.vars.id, novalidate:'novalidate', name:'devis_form' } }) }}
   {{ form_errors(form) }}
 
+  <nav class="quote-steps mb-4" aria-label="Étapes du devis">
+    <span><b>1</b> Définir le devis</span><span><b>2</b> Vérifier les montants</span>
+    <a href="#quote-billing"><b>3</b> Préparer la facturation <i class="bi bi-arrow-down-right" aria-hidden="true"></i></a>
+  </nav>
   <div class="row g-4">
 
     {# ===== COL LEFT ===== #}
@@ -410,10 +416,7 @@
 
                       <div class="col-md-3">
                         {{ form_label(ligneForm.remiseMontantCents) }}
-                        <div class="input-group input-euro">
-                          {{ form_widget(ligneForm.remiseMontantCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
-                          <span class="input-group-text euro-suffix">€</span>
-                        </div>
+                        {{ form_widget(ligneForm.remiseMontantCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
                         {{ form_errors(ligneForm.remiseMontantCents) }}
                       </div>
 
@@ -449,18 +452,12 @@
 
             <div class="col-md-6">
               {{ form_label(form.montantHtCents) }}
-              <div class="input-group input-euro">
-                {{ form_widget(form.montantHtCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
-                <span class="input-group-text euro-suffix">€</span>
-              </div>
+              {{ form_widget(form.montantHtCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
             </div>
 
             <div class="col-md-6">
               {{ form_label(form.montantTvaCents) }}
-              <div class="input-group input-euro">
-                {{ form_widget(form.montantTvaCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
-                <span class="input-group-text euro-suffix">€</span>
-              </div>
+              {{ form_widget(form.montantTvaCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
             </div>
 
             <div class="col-md-6">
@@ -469,40 +466,71 @@
                 {{ form_widget(form.remiseGlobalePourcent, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
                 <span class="input-group-text euro-suffix">%</span>
               </div>
-              <div class="form-text">Soit % soit € (si tu mets l’un, l’autre est vidé).</div>
+              <div class="form-text">Choisissez une remise en pourcentage ou en euros. L’autre valeur sera automatiquement effacée.</div>
             </div>
 
             <div class="col-md-6">
               {{ form_label(form.remiseGlobaleMontantCents) }}
-              <div class="input-group input-euro">
-                {{ form_widget(form.remiseGlobaleMontantCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
-                <span class="input-group-text euro-suffix">€</span>
-              </div>
+              {{ form_widget(form.remiseGlobaleMontantCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
             </div>
 
             <div class="col-md-12">
               {{ form_label(form.montantTtcCents) }}
-              <div class="input-group input-euro">
-                {{ form_widget(form.montantTtcCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
-                <span class="input-group-text euro-suffix">€</span>
-              </div>
+              {{ form_widget(form.montantTtcCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
             </div>
 
           </div>
 
           <div class="form-text mt-2">
-            Calcul : remise par ligne → sous-total HT net → remise globale (prorata lignes) → TVA par ligne → TTC.
+            Les totaux sont calculés automatiquement à partir des lignes, après application des remises et de la TVA.
           </div>
         </div>
       </div>
 
-      <details class="cardx mb-4">
-        <summary class="cardx-h fw-semibold">Préparer la facturation de ce devis</summary>
-        <div class="cardx-b p-3">
-          <p class="text-muted">Les conditions de votre organisme sont reprises automatiquement. Complétez la date de prestation et les éventuelles conditions particulières avant de convertir ce devis en facture. Les informations manquantes bloquent uniquement l’émission de la facture.</p>
-          <div class="row g-3">{% for field in form.invoiceTerms %}<div class="col-md-6">{{ form_row(field) }}</div>{% endfor %}</div>
+      <section class="quote-billing mb-4" id="quote-billing" aria-labelledby="quote-billing-title">
+        <header class="quote-billing-header">
+          <div class="quote-billing-icon"><i class="bi bi-receipt" aria-hidden="true"></i></div>
+          <div>
+            <span class="quote-billing-eyebrow">Étape 3 · Anticiper la suite</span>
+            <h2 id="quote-billing-title">Préparer la facturation</h2>
+            <p>Les bonnes informations aujourd’hui, une facture plus simple à préparer demain.</p>
+          </div>
+          <span class="quote-billing-badge">À compléter avant facturation</span>
+        </header>
+        <div class="quote-billing-body">
+          <div class="quote-billing-note"><i class="bi bi-info-circle" aria-hidden="true"></i><div><strong>Vous pouvez enregistrer votre devis dès maintenant.</strong><br>Ces informations seront reprises lors de sa conversion en facture. Vérifiez les valeurs préremplies de votre organisme et complétez les informations manquantes avant l’émission.</div></div>
+          <fieldset class="quote-billing-group">
+            <legend><span>01</span> Dates et règlement</legend>
+            <p class="quote-billing-description">Indiquez quand la prestation est réalisée et comment le client doit régler.</p>
+            <div class="row g-4">
+              <div class="col-md-6">{{ form_row(form.invoiceTerms.serviceDate, {help: 'Date de réalisation de la prestation à reprendre sur la facture.'}) }}</div>
+              <div class="col-md-6">{{ form_row(form.invoiceTerms.dueDate, {help: 'Date limite de paiement prévue pour le client.'}) }}</div>
+              <div class="col-md-6">{{ form_row(form.invoiceTerms.paymentMeans, {help: 'Choisissez le moyen de paiement convenu avec le client.'}) }}</div>
+              <div class="col-md-6">{{ form_row(form.invoiceTerms.purchaseOrderReference, {label: 'Référence du bon de commande', help: 'Facultatif : à renseigner si votre client vous a transmis un bon de commande.', attr: {class: 'form-control', placeholder: 'Ex. : BC-2026-0042'}}) }}</div>
+            </div>
+          </fieldset>
+          <fieldset class="quote-billing-group">
+            <legend><span>02</span> Conditions de paiement</legend>
+            <p class="quote-billing-description">Vérifiez les conditions reprises de votre organisme et adaptez-les à ce devis si nécessaire.</p>
+            <div class="row g-4">
+              <div class="col-md-6">{{ form_row(form.invoiceTerms.earlyPaymentDiscount, {help: 'Précisez les conditions applicables en cas de paiement anticipé.'}) }}</div>
+              <div class="col-md-6">{{ form_row(form.invoiceTerms.recoveryCompensationCents, {label: 'Indemnité de recouvrement B2B', help: 'Montant en euros applicable aux clients professionnels. Vérifiez la valeur prévue par vos conditions.'}) }}</div>
+              <div class="col-12">{{ form_row(form.invoiceTerms.latePaymentPenalty, {help: 'Indiquez les conditions et le taux de pénalités prévus en cas de retard de paiement.', attr: {class: 'form-control', rows: 3}}) }}</div>
+            </div>
+          </fieldset>
+          <fieldset class="quote-billing-group">
+            <legend><span>03</span> TVA et identité de l’organisme</legend>
+            <p class="quote-billing-description">Confirmez les mentions correspondant à votre organisme et à la prestation facturée.</p>
+            <div class="row g-4">
+              <div class="col-md-6">{{ form_row(form.invoiceTerms.vatCategory) }}</div>
+              <div class="col-md-6">{{ form_row(form.invoiceTerms.vatOnDebits) }}</div>
+              <div class="col-12">{{ form_row(form.invoiceTerms.vatExemptionReason) }}</div>
+              <div class="col-12">{{ form_row(form.invoiceTerms.legalIdentity) }}</div>
+            </div>
+          </fieldset>
+          <div class="quote-billing-footer"><i class="bi bi-check2-circle" aria-hidden="true"></i> L’enregistrement conserve ces informations avec le devis. Il n’émet pas de facture.</div>
         </div>
-      </details>
+      </section>
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-gradient">
           <i class="fa fa-check"></i> Enregistrer
@@ -521,7 +549,7 @@
         </div>
 
         <div class="p-3 p-md-4">
-          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+          <div class="small text-muted mb-3">Vérifiez votre devis avant de l’enregistrer.</div>
 
           <div class="summary-box mb-3">
             <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">

@@ -22,6 +22,7 @@ final class PlanningFormateursController extends AbstractController
 {
   public function __construct(
     private UtilisateurEntiteManager $utilisateurEntiteManager,
+    private \Symfony\Component\Asset\Packages $assets,
   ) {}
 
   #[Route('', name: 'index', methods: ['GET'])]
@@ -223,6 +224,9 @@ final class PlanningFormateursController extends AbstractController
         'id' => (string)$fo->getId(),
         'title' => trim((string)($u->getNom() ?? '') . ' ' . (string)($u->getPrenom() ?? '')),
         'email' => (string)($u->getEmail() ?? ''),
+        'photoUrl' => $fo->getPhoto()
+          ? $this->assets->getUrl('uploads/photos/formateur/' . $fo->getPhoto())
+          : ($u->getPhoto() ? $this->assets->getUrl('uploads/photos/utilisateur/' . $u->getPhoto()) : null),
         'specialties' => array_values(array_unique(array_filter(array_map('trim', preg_split('/[\r\n,;|]+/', $fo->getCertifications() ?? '') ?: []), static fn (string $label): bool => $label !== '' && $label !== '—'))),
         'sites' => (string)($fo->getSitePreferes()?->count() ?? 0),
       ];

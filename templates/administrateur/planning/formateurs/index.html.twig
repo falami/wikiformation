@@ -33,7 +33,8 @@
 
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/trainee-planning.css') }}">
-  <link rel="stylesheet" href="{{ asset('dist/css/trainer-planning.css') }}?v=3">
+  <link rel="stylesheet" href="{{ asset('dist/css/trainer-planning.css') }}?v=4">
+  <link rel="stylesheet" href="{{ asset('dist/css/planning-theme.css') }}?v=1">
 {% endblock %}
 
 {% block javascripts %}
@@ -56,7 +57,7 @@
 
 
   {# ✅ HERO (unifié Sessions-like) #}
-  <div class="hero p-3 mb-4 d-flex gap-3">
+  <div class="entity-hero hero p-3 mb-4 d-flex gap-3">
     <div class="accent"></div>
 
     <div class="flex-grow-1">
@@ -537,14 +538,14 @@
             <div class="small text-muted mt-2">Créneau</div>
             <div class="fw-semibold">${esc(fmtDT(j.start))} → ${esc(fmtDT(j.end))}</div>
 
-            <div class="small text-muted mt-2">Formation</div>
-            <div class="fw-semibold">${esc(form.titre || '—')}</div>
+            ${form.titre?.trim() ? `<div class="small text-muted mt-2">Formation</div>
+            <div class="fw-semibold">${esc(form.titre || '—')}</div>` : ''}
 
-            <div class="small text-muted mt-2">Site</div>
-            <div class="fw-semibold">${esc(site.nom || '—')}</div>
+            ${site.nom?.trim() ? `<div class="small text-muted mt-2">Site</div>
+            <div class="fw-semibold">${esc(site.nom || '—')}</div>` : ''}
 
-            <div class="small text-muted mt-2">Engin</div>
-            <div class="fw-semibold">${s.engin ? esc(s.engin.nom || '—') : '—'}</div>
+            ${s.engin?.nom?.trim() ? `<div class="small text-muted mt-2">Engin</div>
+            <div class="fw-semibold">${s.engin ? esc(s.engin.nom || '—') : '—'}</div>` : ''}
           </div>
         </div>
 
@@ -564,8 +565,8 @@
               <div class="small text-muted mt-3">Tarif</div>
               <div class="fw-semibold">${money(s.montantCents || 0)}</div>
 
-              <div class="small text-muted mt-3">Pièces obligatoires</div>
-              ${pieces}
+              ${Array.isArray(s.piecesObligatoires) && s.piecesObligatoires.length ? `<div class="small text-muted mt-3">Pièces obligatoires</div>
+              ${pieces}` : ''}
             </div>
 
           </div>
@@ -605,6 +606,14 @@
       avatar.className = 'trainer-avatar';
       avatar.setAttribute('aria-hidden', 'true');
       avatar.textContent = resource.title.split(/\s+/).filter(Boolean).slice(0,2).map(part => part[0]).join('').toUpperCase();
+      if (resource.extendedProps.photoUrl) {
+        const photo = document.createElement('img');
+        photo.alt = '';
+        photo.loading = 'lazy';
+        photo.addEventListener('error', () => photo.remove(), {once: true});
+        photo.src = resource.extendedProps.photoUrl;
+        avatar.append(photo);
+      }
       const details = document.createElement('div');
       const name = document.createElement('strong');
       name.textContent = resource.title;

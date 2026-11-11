@@ -31,8 +31,7 @@ final class PrivacyProcessor implements ProcessorInterface
                 $data[$key] = '[redacted]';
             } elseif ($value instanceof \Throwable) {
                 // Exception messages can contain SQL parameters, credentials and PII.
-                $data[$key] = ['class' => $value::class, 'file' => $value->getFile(), 'line' => $value->getLine(),
-                    'trace' => array_map(static fn(array $frame): array => array_intersect_key($frame, array_flip(['file', 'line', 'class', 'function'])), array_slice($value->getTrace(), 0, 20))];
+                $data[$key] = $this->exceptionDetails($value);
             } elseif (is_array($value)) {
                 $data[$key] = $this->clean($value, $depth + 1);
             } elseif (is_string($value)) {
@@ -42,6 +41,26 @@ final class PrivacyProcessor implements ProcessorInterface
             }
         }
         return $data;
+    }
+
+    private function exceptionDetails(\Throwable $error, int $depth = 0): array
+    {
+        $details = [
+            'class' => $error::class, 'file' => $error->getFile(), 'line' => $error->getLine(),
+            'trace' => array_map(static fn(array $frame): array => array_intersect_key($frame, array_flip(['file', 'line', 'class', 'function'])), array_slice($error->getTrace(), 0, 20)),
+        ];
+        if ($error instanceof \Twig\Error\Error) {
+            $details['template'] = $error->getSourceContext()?->getName();
+            $details['template_line'] = $error->getTemplateLine();
+        }
+        if ($error instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+            $details['status'] = $error->getStatusCode();
+        }
+        // Preserve the cause/location of wrapped errors, never their messages or arguments.
+        if ($depth < 3 && $error->getPrevious()) {
+            $details['previous'] = $this->exceptionDetails($error->getPrevious(), $depth + 1);
+        }
+        return $details;
     }
 
     private function text(string $value): string

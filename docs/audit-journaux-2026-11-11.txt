@@ -1,0 +1,18 @@
+Audit des journaux fournis — 11 novembre 2026
+
+Périmètre : 25 fichiers, error_report du 29/10 au 11/11, prod du 02/11 au 11/11 et prod.log.
+Les canaux prod et error_report se recoupent : leurs compteurs ne doivent pas être additionnés.
+
+Dans error_report : 1730 incidents, dont 1705 réponses 404, 24 réponses 403 et 1 réponse 405. Aucun statut 500 enregistré dans cette série.
+1697 réponses 404 n'ont pas de route reconnue. Les URL ont été supprimées du diagnostic : impossible de distinguer précisément anciens liens, robots et fautes de saisie.
+8 réponses 404 avec route : 6 ressources recrutement, 2 liens de signature de charte. Fichiers et jetons d'origine non identifiables dans ces journaux.
+403 : 12 préparation facture depuis devis, 3 double authentification, 3 PDF émargement formateur, 2 habilitation, 2 fenêtre facture utilisateur, 2 notifications. Les exceptions sont enveloppées et la cause n'est pas conservée : impossible d'attribuer tous ces refus à un défaut. Ne pas retirer les contrôles d'accès.
+
+Autres diagnostics prod :
+- 6 avertissements Array to string conversion dans l'index utilisateurs, lors du rendu d'un fragment Twig. La notification billing_limit_modal est maintenant exclue du rendu textuel dans flagMessage.html.twig ; test de régression existant exécuté.
+- 1 échec de commande de migration : evaluation_template existe déjà. Ne pas rejouer aveuglément doctrine:migrations:execute --up et ne pas supprimer les tables. Vérifier en production doctrine:migrations:status et doctrine:migrations:list, puis comparer le schéma avant toute régularisation de l'historique. L'état réel de la base de production n'est pas fourni.
+- 1 commande app:evaluations:creer-travail-hauteur introuvable. La commande est présente dans le code local actuel. Déployer le fichier et reconstruire le cache de production.
+
+Modification de cet audit : PrivacyProcessor conserve désormais la chaîne des causes (limitée), le nom et la ligne du template Twig et le statut HTTP, sans message d'exception ni arguments contenant potentiellement des données personnelles.
+
+Limites : aucune modification sur le serveur ou la base de production, aucun effacement de données, aucun envoi d'e-mail. Les erreurs historiques dont l'URL, le message ou la cause ont été supprimés ne peuvent pas être reconstituées à partir de ces fichiers seuls. Les corrections locales déjà présentes doivent être déployées ; les prochains incidents bénéficieront du diagnostic enrichi.

@@ -22,11 +22,21 @@ final class InvoicePayload
         }
         if ($snapshot['terms']['vatCategory'] !== 'S') $issues[] = 'Régime fiscal à traiter sur la plateforme : aucune obligation d’émission n’est présumée pour une opération exonérée.';
         foreach ($snapshot['lines'] as $line) {
-            if ($line['debours'] || $line['tva'] <= 0) $issues[] = 'Les débours et lignes sans TVA nécessitent un traitement fiscal spécifique.';
+            if ($line['debours']) {
+                if ((float) $line['tva'] !== 0.0 || $line['tvaCents'] !== 0) $issues[] = 'Un débours comporte de la TVA : son traitement doit être vérifié avant transmission.';
+            } elseif ($line['tva'] <= 0) {
+                $issues[] = 'Une ligne sans TVA non identifiée comme débours nécessite un motif fiscal spécifique.';
+            }
             if ((float) $line['qte'] <= 0 || (int) $line['puHtCents'] < 0 || trim((string) $line['label']) === '') $issues[] = 'Une prestation comporte une quantité, un prix ou une désignation invalide.';
         }
         foreach ($snapshot['totals']['rates'] as $rate => $amounts) {
             if ((int) round($amounts['htCents'] * (float) $rate / 100) !== $amounts['tvaCents']) $issues[] = 'L’arrondi TVA par taux doit être rapproché avant transmission électronique.';
+        }
+        // Reconcile the immutable line amounts, never repair an issued invoice silently.
+        $ht = array_sum(array_column($snapshot['lines'], 'htCents'));
+        $vat = array_sum(array_column($snapshot['lines'], 'tvaCents'));
+        if ($ht !== $snapshot['totals']['htCents'] || $vat !== $snapshot['totals']['tvaCents'] || $ht + $vat !== $snapshot['totals']['ttcCents']) {
+            $issues[] = 'Les montants des lignes ne correspondent pas aux totaux figés de la facture.';
         }
         return array_values(array_unique($issues));
     }
@@ -41,7 +51,7 @@ final class InvoicePayload
             $gross = (int) round((float) $line['qte'] * $line['puHtCents']);
             $row = ['identifier' => (string) ($i + 1), 'invoiced_quantity' => (string) $line['qte'], 'invoiced_quantity_code' => 'C62',
                 'net_amount' => self::money($line['htCents']), 'price_details' => ['item_net_price' => self::money($line['puHtCents']), 'item_price_base_quantity' => '1'],
-                'item_information' => ['name' => $line['label']], 'vat_information' => ['invoiced_item_vat_category_code' => 'S', 'invoiced_item_vat_rate' => (string) $line['tva']],
+                'item_information' => ['name' => $line['label']], 'vat_information' => ['invoiced_item_vat_category_code' => $line['debours'] ? 'E' : 'S', 'invoiced_item_vat_rate' => (string) $line['tva']],
                 'real_delivery_date' => $terms['serviceDate']];
             if ($gross > $line['htCents']) $row['allowances'] = [['amount' => self::money($gross - $line['htCents']), 'reason' => 'Remise commerciale']];
             $lines[] = $row;
@@ -59,7 +69,26 @@ final class InvoicePayload
             'payment_terms' => sprintf("Règlement : %s. Escompte : %s. Retard : %s. Indemnité forfaitaire de recouvrement : %s EUR.", $terms['paymentMeans'], $terms['earlyPaymentDiscount'], $terms['latePaymentPenalty'], self::money((int) $terms['recoveryCompensationCents'])),
             'totals' => ['sum_invoice_lines_amount' => self::money($t['htCents']), 'total_without_vat' => self::money($t['htCents']), 'total_with_vat' => self::money($t['ttcCents']), 'total_vat_amount' => ['value' => self::money($t['tvaCents']), 'currency_code' => 'EUR'], 'amount_due_for_payment' => self::money($t['ttcCents'])],
             'vat_break_down' => [], 'lines' => $lines];
-        foreach ($t['rates'] as $rate => $values) $data['vat_break_down'][] = ['vat_category_code' => 'S', 'vat_category_rate' => (string) $rate, 'vat_category_taxable_amount' => self::money($values['htCents']), 'vat_category_tax_amount' => self::money($values['tvaCents'])];
+        // EN16931 cannot mix O and S. The French use case 16 explicitly permits
+        // E + VATEX-EU-79-C for reimbursements; only the frozen debours flag opts in.
+        $groups = [];
+        foreach ($s['lines'] as $line) {
+            $category = $line['debours'] ? 'E' : 'S';
+            $rate = number_format((float) $line['tva'], 2, '.', '');
+            $key = $category.':'.$rate;
+            $groups[$key] ??= ['vat_category_code' => $category, 'vat_category_rate' => $rate, 'ht' => 0, 'vat' => 0];
+            $groups[$key]['ht'] += $line['htCents'];
+            $groups[$key]['vat'] += $line['tvaCents'];
+        }
+        foreach ($groups as $group) {
+            $row = ['vat_category_code' => $group['vat_category_code'], 'vat_category_rate' => $group['vat_category_rate'],
+                'vat_category_taxable_amount' => self::money($group['ht']), 'vat_category_tax_amount' => self::money($group['vat'])];
+            if ($group['vat_category_code'] === 'E') {
+                $row['vat_exemption_reason_code'] = 'VATEX-EU-79-C';
+                $row['vat_exemption_reason'] = 'Débours : remboursement de dépenses engagées au nom et pour le compte du client.';
+            }
+            $data['vat_break_down'][] = $row;
+        }
         if ($terms['purchaseOrderReference']) $data['purchase_order_reference'] = $terms['purchaseOrderReference'];
         if ($terms['vatOnDebits'] === true) $data['vat_point_date_code'] = '3';
         elseif ($terms['vatOnDebits'] === false) $data['vat_point_date_code'] = '432';

@@ -21,7 +21,7 @@
 {% block body %}
 <div class="paper-workspace">
 <a class="btn btn-outline-secondary mb-3" href="{{ path('app_formateur_session_show', {entite:entite.id,id:session.id}) }}">← Retour à la session</a>
-<header class="paper-hero"><div class="small mb-2">{{ session.code }} · SUIVI DES PRÉSENCES</div><h1 class="h3 fw-bold">Émargements papier</h1><p class="mb-0">Déposez la feuille signée, puis renseignez les présences de chaque participant.</p></header>
+<header class="entity-hero paper-hero"><div class="small mb-2">{{ session.code }} · SUIVI DES PRÉSENCES</div><h1 class="h3 fw-bold">Émargements papier</h1><p class="mb-0">Déposez la feuille signée, puis renseignez les présences de chaque participant.</p></header>
 {% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
 <section class="paper-attendance mb-4"><div class="panel-hd"><h2 class="h5 mb-0">01 · Les feuilles justificatives</h2></div><div class="panel-bd">
 <form method="post" enctype="multipart/form-data" class="row g-3 align-items-end"><input type="hidden" name="_token" value="{{ csrf_token('trainer_paper_' ~ session.id) }}"><input type="hidden" name="action" value="upload"><div class="col-md-8"><label for="paper-file">Feuille signée · PDF, JPG ou PNG · 15 Mo maximum</label><input id="paper-file" type="file" name="file" required accept="application/pdf,image/jpeg,image/png" class="form-control"></div><div class="col-md-4"><button class="btn btn-primary">Déposer la feuille</button></div></form>
