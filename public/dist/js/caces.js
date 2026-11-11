@@ -100,7 +100,9 @@ function enhanceCacesSelect(select) {
   const excluded = [...select.options].filter(option => option.hidden || option.disabled).map(option => option.value);
   const options = [...select.options].filter(option => !option.hidden && !option.disabled)
     .map(option => ({value: option.value, text: option.textContent}));
+  const isScore = select.name.startsWith('scores[');
   new TomSelect(select, {
+    ...(isScore ? {controlInput: null} : {}),
     create: false, maxOptions: null, options,
     placeholder: select.options[0]?.value === '' ? select.options[0].textContent : 'Rechercher…',
     searchField: ['text'], allowEmptyOption: false,
@@ -108,6 +110,7 @@ function enhanceCacesSelect(select) {
     onInitialize() {
       excluded.forEach(value => this.removeOption(value, true));
       this.wrapper.classList.add('cx-select');
+      if (isScore) this.wrapper.classList.add('cx-score-select');
       this.control_input.setAttribute('aria-label', label?.textContent.trim() || select.name);
     }
   });

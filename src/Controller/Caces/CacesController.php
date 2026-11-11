@@ -265,10 +265,10 @@ final class CacesController extends AbstractController
                             if(!is_string($index) || !ctype_digit($index) || !isset($result['themes'][(int)$index]) || $result['themes'][(int)$index]['passed']) throw new \InvalidArgumentException('Seuls les thèmes théoriques dont le seuil n’est pas atteint peuvent être sélectionnés.');
                             $themes[(int)$index]=$result['themes'][(int)$index]['title'];
                         }
-                        $duration=$r->request->getString('remediationDuration','00:00:00');
-                        if(!preg_match('/^(\d{2}):([0-5]\d):([0-5]\d)$/D',$duration,$parts)) throw new \InvalidArgumentException('Saisissez la durée préconisée au format hh:mm:ss.');
+                        $hours=str_replace(',', '.', $r->request->getString('remediationHours','0'));
+                        if(!is_numeric($hours) || (float)$hours<0 || (float)$hours>500 || fmod((float)$hours,0.5)!==0.0) throw new \InvalidArgumentException('Saisissez une durée entre 0 et 500 heures, par demi-heure.');
                         $result['remediationThemes']=array_values($themes);
-                        $result['remediationDurationSeconds']=(int)$parts[1]*3600+(int)$parts[2]*60+(int)$parts[3];
+                        $result['remediationDurationSeconds']=(int)round((float)$hours*3600);
                         $attempt->setTheoryResult($result);
                         $signatures['theoryTester']=['image'=>$this->signature($r,'signature'),'name'=>$this->fullName($this->getUser()),'at'=>(new \DateTimeImmutable())->format(DATE_ATOM)];$attempt->setSignatures($signatures);
                     } elseif($action==='reuse') {
