@@ -7,7 +7,7 @@ use App\Entity\{ConventionContrat, Facture, FactureBrouillon, LigneFacture, Util
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 
-/** One working document per standalone convention. Never persists an invoice. */
+/** One working document per convention. Never persists an invoice. */
 final class ConventionInvoiceDraft
 {
     public function __construct(
@@ -22,7 +22,19 @@ final class ConventionInvoiceDraft
             $this->em->refresh($convention, LockMode::PESSIMISTIC_WRITE);
             $existing = $this->em->getRepository(FactureBrouillon::class)->findOneBy(['sourceConvention' => $convention]);
             if ($existing) return $existing;
-            if ($convention->getDevis()) throw new \DomainException('Cette convention est liée à un devis. Utilisez son brouillon de facture.');
+            $quoteDraft = null;
+            $quote = $convention->getDevis();
+            if ($quote) {
+                $this->em->refresh($quote, LockMode::PESSIMISTIC_WRITE);
+                if ($quote->getEntite()?->getId() !== $convention->getEntite()?->getId()) throw new \DomainException('Le devis appartient à un autre organisme.');
+                if ($quote->getFactureCreee()) throw new \DomainException('Le devis lié possède déjà une facture émise. Consultez cette facture avant de poursuivre.');
+                $quoteDraft = $this->em->getRepository(FactureBrouillon::class)->findOneBy(['sourceDevis' => $quote]);
+                if ($quoteDraft) {
+                    $this->em->refresh($quoteDraft, LockMode::PESSIMISTIC_WRITE);
+                    $quoteDraft->assertEditable();
+                    if ($quoteDraft->getSourceConvention()) throw new \DomainException('Le brouillon du devis est déjà rattaché à une autre convention. Vérifiez la facturation existante.');
+                }
+            }
             $entity = $convention->getEntite();
             if (!$entity || !$convention->getSession() || $convention->getSession()->getEntite()?->getId() !== $entity->getId()) {
                 throw new \DomainException('La session de cette convention doit appartenir au même organisme.');
@@ -54,8 +66,13 @@ final class ConventionInvoiceDraft
             $payload = $this->forms->payloadFromForm($this->forms->build($entity, $actor, invoice: $invoice));
             // Unknown prices must be completed explicitly, never silently invoiced at zero.
             if ($convention->getMontantHtCents() === null) $payload['lignes'][0]['puHtCents'] = '';
-            $draft = (new FactureBrouillon($entity, $actor))->setSourceConvention($convention);
-            $this->drafts->save($draft, $payload, 1, $actor, $this->forms->summary($this->forms->build($entity, $actor, $payload, false)));
+            // Keep entered invoice terms, but replace pricing and recipient with the convention.
+            if ($quoteDraft) $payload['invoiceTerms'] = $quoteDraft->getPayload()['invoiceTerms'] ?? $payload['invoiceTerms'] ?? [];
+            $draft = $quoteDraft ?? new FactureBrouillon($entity, $actor);
+            $this->drafts->save($draft, $payload, $draft->getVersion(), $actor, $this->forms->summary($this->forms->build($entity, $actor, $payload, false)));
+            if ($quote && !$draft->getSourceDevis()) $draft->setSourceDevis($quote);
+            $draft->setSourceConvention($convention);
+            $this->em->flush();
             return $draft;
         });
     }

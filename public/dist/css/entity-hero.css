@@ -8,7 +8,7 @@
   border: 0 !important;
   border-top: 3px solid var(--theme-color-secondaire, #ffc107) !important;
   border-radius: 22px !important;
-  padding: clamp(24px, 3vw, 40px) !important;
+  padding: 20px !important;
   box-shadow: 0 8px 28px rgb(15 23 42 / 5%) !important;
   gap: 24px;
   min-width: 0;
@@ -36,13 +36,31 @@
   line-height: 1.65;
   text-shadow: none !important;
 }
-:root .entity-hero :is(.rp-eyebrow, .eh-eyebrow, .ar-eyebrow, .hero-eyebrow, .hero-kicker, .finance-hero__eyebrow, .of-hero__eyebrow) {
+/* Shared section badge, matching the dashboard's “Pilotage” label.
+   The public homepage eyebrow is a container of multiple chips, not a badge. */
+:root .entity-hero :is([class*="eyebrow"], [class*="kicker"], .entity-hero-label):not(:has(.label)) {
+  display: inline-flex !important;
+  align-items: center;
+  gap: .5rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: .34rem .7rem !important;
+  border-radius: 999px !important;
+  background: color-mix(in srgb, var(--hero-ink) 11%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--hero-ink) 16%, transparent) !important;
   color: var(--wf-hero-accent, var(--theme-color-secondaire, #ffc107)) !important;
-  font-size: .72rem;
-  font-weight: 750;
-  letter-spacing: .14em;
-  line-height: 1.6;
+  font-size: .72rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .14em !important;
+  line-height: 1.6 !important;
   text-transform: uppercase;
+  opacity: 1 !important;
+  white-space: normal;
+  margin-bottom: .75rem;
+}
+:root .entity-hero :is([class*="eyebrow"], [class*="kicker"], .entity-hero-label):not(:has(.label)) i {
+  color: inherit !important;
+  flex-shrink: 0;
 }
 :root .entity-hero :is(.hero-actions, .hero-ctas, .finance-hero__actions, .attendance-hero-actions) {
   display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
@@ -132,3 +150,7 @@
     flex-wrap: wrap;
   }
 }
+
+/* Legacy heading wrapper: badge and title remain one item in flex headers. */
+:root .entity-hero .entity-hero-heading { min-width: 0; flex: 1 1 auto; }
+:root .entity-hero .entity-hero-heading > .entity-hero-label { display: flex !important; }

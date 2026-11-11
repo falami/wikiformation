@@ -318,9 +318,20 @@ final class InvoiceDraftWorkflowTest extends KernelTestCase
         $this->assertNoInvoice();
     }
 
-    public function testConventionCreatesOneDraftAndOnlyIssuesAfterExplicitReview(): void
+    public static function conventionSources(): array { return [[false], [true]]; }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('conventionSources')]
+    public function testConventionCreatesOneDraftAndOnlyIssuesAfterExplicitReview(bool $linked): void
     {
         $convention = $this->convention();
+        if ($linked) {
+            $quote = (new \App\Entity\Devis())->setEntite($this->entite)->setCreateur($this->admin)->setNumero('DEV-ISSUE-CONVENTION')
+                ->setStatus(\App\Enum\DevisStatus::ACCEPTED)->setEntrepriseDestinataire($this->customer)
+                ->setMontantHtCents(22400)->setMontantTvaCents(4480)->setMontantTtcCents(26880);
+            $this->em->persist($quote);
+            $convention->setDevis($quote);
+            $this->em->flush();
+        }
         $this->openConventionDraft($convention);
         $draft = $this->lastDraft();
         self::assertSame($convention->getId(), $draft->getSourceConvention()->getId());
@@ -353,6 +364,14 @@ final class InvoiceDraftWorkflowTest extends KernelTestCase
         $this->openConventionDraft($convention);
         self::assertStringContainsString('/facture/'.$invoice->getId(), $this->client->getResponse()->headers->get('Location'));
         self::assertSame(1, $this->em->getRepository(Facture::class)->count([]));
+        $this->client->request('POST', '/fr/administrateur/'.$this->entite->getId().'/conventions/ajax', ['search' => ['value' => $invoice->getNumero()]]);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $listing = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertCount(1, $listing['data']);
+        self::assertStringContainsString('Facture '.$invoice->getNumero(), $listing['data'][0]['numero']);
+        self::assertStringContainsString('/facture/'.$invoice->getId(), $listing['data'][0]['numero']);
+        if ($linked) self::assertStringContainsString('Devis DEV-ISSUE-CONVENTION', $listing['data'][0]['numero']);
+        else self::assertStringNotContainsString('Devis ', $listing['data'][0]['numero']);
     }
 
     public function testConventionWithoutPriceRequiresCompletionAndArchivedDraftIsReused(): void
@@ -414,25 +433,62 @@ final class InvoiceDraftWorkflowTest extends KernelTestCase
         self::assertSame(1, $this->em->getRepository(FactureBrouillon::class)->count([]));
     }
 
-    public function testConventionWithQuoteReusesTheQuoteDraft(): void
+    #[\PHPUnit\Framework\Attributes\DataProvider('conventionSources')]
+    public function testConventionWithQuoteUsesConventionPriceAndReusesOneDraft(bool $existing): void
     {
         $convention = $this->convention();
+        $convention->setMontantHtCents(8800);
         $quote = (new \App\Entity\Devis())->setEntite($this->entite)->setCreateur($this->admin)->setNumero('DEV-CONVENTION')
             ->setStatus(\App\Enum\DevisStatus::ACCEPTED)->setEntrepriseDestinataire($this->customer)
-            ->setMontantHtCents(10000)->setMontantTvaCents(2000)->setMontantTtcCents(12000);
+            ->setMontantHtCents(22400)->setMontantTvaCents(4480)->setMontantTtcCents(26880);
         $this->em->persist($quote);
         $convention->setDevis($quote);
         $this->em->flush();
+        if ($existing) {
+            $oldDraft = (new FactureBrouillon($this->entite, $this->admin))->setSourceDevis($quote);
+            $oldPayload = $this->payload();
+            $oldPayload['lignes'][0]['puHtCents'] = '224.00';
+            self::getContainer()->get(\App\Service\Billing\InvoiceDraftManager::class)->save($oldDraft, $oldPayload, 1, $this->admin);
+        }
         $this->openConventionDraft($convention);
-        self::assertStringContainsString('/devis/'.$quote->getId().'/facture-brouillon', $this->client->getResponse()->headers->get('Location'));
-        $this->client->followRedirect();
         $this->assertRedirect();
         $draft = $this->lastDraft();
+        if ($existing) self::assertSame($oldDraft->getId(), $draft->getId());
         self::assertSame($quote->getId(), $draft->getSourceDevis()->getId());
+        self::assertSame($convention->getId(), $draft->getSourceConvention()->getId());
+        self::assertSame(10560, $draft->getSummary()['totalTtcCents']);
         $this->openConventionDraft($convention);
         $this->client->followRedirect();
         self::assertSame(1, $this->em->getRepository(FactureBrouillon::class)->count([]));
         $this->assertNoInvoice();
+    }
+
+    public function testConventionWithCanceledQuoteOpensDraftWithoutQuoteRouteOrIssuing(): void
+    {
+        $convention = $this->convention();
+        $quote = (new \App\Entity\Devis())->setEntite($this->entite)->setCreateur($this->admin)
+            ->setNumero('DEV-CONVENTION-CANCELED')->setStatus(\App\Enum\DevisStatus::CANCELED)
+            ->setEntrepriseDestinataire($this->customer);
+        $this->em->persist($quote);
+        $convention->setDevis($quote);
+        $this->em->flush();
+
+        $this->client->request('GET', self::getContainer()->get('router')->generate('app_administrateur_devis_invoice_draft', [
+            'entite' => $this->entite->getId(), 'id' => $quote->getId(),
+        ]));
+        self::assertSame(303, $this->client->getResponse()->getStatusCode());
+        self::assertSame(0, $this->em->getRepository(FactureBrouillon::class)->count([]));
+
+        $this->openConventionDraft($convention);
+        $draft = $this->lastDraft();
+        self::assertStringContainsString('/facture/', $this->client->getResponse()->headers->get('Location'));
+        $this->client->followRedirect();
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame($convention->getId(), $draft->getSourceConvention()->getId());
+        self::assertSame(\App\Enum\DevisStatus::CANCELED, $quote->getStatus());
+        $this->assertNoInvoice();
+        $this->openConventionDraft($convention);
+        self::assertSame(1, $this->em->getRepository(FactureBrouillon::class)->count([]));
     }
 
     private function convention(): \App\Entity\ConventionContrat

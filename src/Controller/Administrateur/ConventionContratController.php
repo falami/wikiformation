@@ -40,11 +40,6 @@ final class ConventionContratController extends AbstractController
             throw $this->createAccessDeniedException('Jeton invalide.');
         }
         $existing = $em->getRepository(\App\Entity\FactureBrouillon::class)->findOneBy(['sourceConvention' => $c, 'entite' => $entite]);
-        if (!$existing && $c->getDevis()) {
-            if ($c->getDevis()->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
-            $this->addFlash('info', 'Cette convention est liée à un devis : reprise de sa facture ou de son brouillon, avec les prestations et montants du devis, pour éviter une double facturation.');
-            return $this->redirectToRoute('app_administrateur_devis_invoice_draft', ['entite' => $entite->getId(), 'id' => $c->getDevis()->getId()], 303);
-        }
         try {
             $draft = $existing ?? $builder->prepare($c, $this->getUser());
         } catch (\DomainException $error) {
@@ -56,7 +51,7 @@ final class ConventionContratController extends AbstractController
             $this->addFlash('info', 'Le brouillon de cette convention est archivé. Restaurez-le depuis les brouillons archivés pour le reprendre.');
             return $this->redirectToRoute('app_administrateur_facture_draft_index', ['entite' => $entite->getId(), 'archived' => 1], 303);
         }
-        $this->addFlash('info', 'Vérifiez et complétez le brouillon. Aucune facture n’est émise avant votre relecture et votre confirmation définitive.');
+        $this->addFlash('info', 'Ce brouillon est rattaché à la convention, dont le montant et la TVA sont prioritaires sur le devis lors de sa préparation. Vérifiez-le avant de confirmer l’émission.');
         return $this->redirectToRoute('app_administrateur_facture_draft_edit', ['entite' => $entite->getId(), 'draftId' => $draft->getId()], 303);
     }
 
@@ -137,6 +132,10 @@ final class ConventionContratController extends AbstractController
             ->leftJoin('se.formation', 'f')->addSelect('f')
             ->leftJoin('c.entreprise', 'e')->addSelect('e')
             ->leftJoin('c.stagiaire', 'u')->addSelect('u')
+            ->leftJoin('c.devis', 'quote', 'WITH', 'quote.entite = :entite')->addSelect('quote')
+            ->leftJoin('quote.factureCreee', 'quoteInvoice', 'WITH', 'quoteInvoice.entite = :entite')->addSelect('quoteInvoice')
+            ->leftJoin(\App\Entity\FactureBrouillon::class, 'conventionDraft', 'WITH', 'conventionDraft.sourceConvention = c AND conventionDraft.entite = :entite')
+            ->leftJoin('conventionDraft.factureEmise', 'conventionInvoice', 'WITH', 'conventionInvoice.entite = :entite')
             ->andWhere('c.entite = :entite')
             ->setParameter('entite', $entite);
 
@@ -149,7 +148,7 @@ final class ConventionContratController extends AbstractController
 
         if ($searchV !== '') {
             $search = $qb->expr()->orX(
-                'c.numero LIKE :s', 'e.raisonSociale LIKE :s',
+                'c.numero LIKE :s', 'quote.numero LIKE :s', 'quoteInvoice.numero LIKE :s', 'conventionInvoice.numero LIKE :s', 'e.raisonSociale LIKE :s',
                 'u.nom LIKE :s', 'u.prenom LIKE :s', 'f.titre LIKE :s', 'c.intituleFormation LIKE :s', 'se.code LIKE :s'
             );
             if (ctype_digit($searchV)) {
@@ -176,13 +175,27 @@ final class ConventionContratController extends AbstractController
             ->setMaxResults($length)
             ->getQuery()->getResult();
 
+        $invoicesByConvention = [];
+        if ($rows) {
+            $drafts = $em->getRepository(\App\Entity\FactureBrouillon::class)->createQueryBuilder('draft')
+                ->innerJoin('draft.factureEmise', 'invoice')->addSelect('invoice')
+                ->where('draft.sourceConvention IN (:conventions) AND draft.entite = :entite AND invoice.entite = :entite')
+                ->setParameter('conventions', $rows)->setParameter('entite', $entite)->getQuery()->getResult();
+            foreach ($drafts as $draft) $invoicesByConvention[$draft->getSourceConvention()->getId()] = $draft->getFactureEmise();
+        }
         $paperByConvention = $paperDeposits->forConventions($rows);
-        $data = array_map(function (ConventionContrat $c) use ($entite, $paperByConvention) {
+        $data = array_map(function (ConventionContrat $c) use ($entite, $paperByConvention, $invoicesByConvention) {
             $sess = $c->getSession();
+            $quote = $c->getDevis();
+            if ($quote?->getEntite()?->getId() !== $entite->getId()) $quote = null;
+            $invoice = $invoicesByConvention[$c->getId()] ?? $quote?->getFactureCreee();
+            if ($invoice?->getEntite()?->getId() !== $entite->getId()) $invoice = null;
 
             return [
                 'id'        => $c->getId(),
-                'numero'    => $c->getNumero() ?: '—',
+                'numero'    => $this->renderView('administrateur/convention/_listing_references.html.twig', [
+                    'c' => $c, 'entite' => $entite, 'quote' => $quote, 'invoice' => $invoice,
+                ]),
                 'entreprise' => $c->getDestinataireLabel(),
                 'formation' => $c->getIntituleFormationEffectif() ?: '—',
                 'session'   => $sess?->getCode() ?? '—',

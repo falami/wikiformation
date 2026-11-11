@@ -177,7 +177,7 @@ final class CacesPortalsTest extends KernelTestCase
         $session=(new Session())->setEntite($this->tenant)->setCreateur($this->admin)->setCode('CACES-OTHER')->setFormation($base->getFormation())->setSite($base->getSite())->setFormateur($base->getFormateur());
         $registration=(new Inscription())->setSession($session)->setStagiaire($this->learner)->setEntite($this->tenant)->setCreateur($this->admin);$this->em->persist($session);$this->em->persist($registration);$this->em->flush();
         $this->client->loginUser($this->admin);$url=$this->url('app_caces_assign');$page=$this->client->request('GET',$url);$token=$page->filter('input[name="_token"]')->attr('value');
-        $this->client->request('POST',$url,['_token'=>$token,'session'=>$session->getId(),'recommendation'=>'489','category'=>'3','location'=>'Centre test','theoryTester'=>$this->trainer->getId(),'practiceTester'=>$this->outsider->getId(),'pool'=>'official','practice'=>'r489-cat3-pratique-202607']);
+        $this->client->request('POST',$url,['_token'=>$token,'session'=>$session->getId(),'recommendation'=>'489','category'=>'3','location'=>'Centre test','theoryTester'=>$this->trainer->getId(),'practiceTester'=>$this->outsider->getId(),'pool'=>'official','practice'=>'r489-cat3-pratique-202607-referentiel']);
         self::assertSame(302,$this->client->getResponse()->getStatusCode());$exam=$this->em->getRepository(\App\Entity\CacesExam::class)->findOneBy(['session'=>$session]);self::assertNotNull($exam);self::assertSame($this->outsider->getId(),$exam->getPracticeTester()->getId());self::assertNotSame($base->getFormateur()->getUtilisateur()->getId(),$exam->getPracticeTester()->getId());
     }
     public function testExternalExtensionRecordsEvidenceWithoutInventingScore(): void
@@ -205,6 +205,34 @@ final class CacesPortalsTest extends KernelTestCase
         self::assertSame($oldId,$attempt->getPracticeResult()['testerId']);
         self::assertSame('Testeur initial',$attempt->getPracticeResult()['testerName']);
         self::assertCount(1,$attempt->getExam()->getPracticeSnapshot()['testerChanges']);
+    }
+
+    public function testPracticalLibraryIsAvailableAndTesterCanScoreOutOfTen(): void
+    {
+        $library=self::getContainer()->get(\App\Service\Caces\CacesLibrary::class);
+        $template=$library->find($this->tenant,'r489-cat1a-pratique-202607');
+        $id=$this->caces->getId();$this->caces->getExam()->setCategory('1A')->setPracticeSnapshot($template);$this->em->flush();
+        $this->client->loginUser($this->trainer);
+        $page=$this->client->request('GET',$this->url('app_caces_show',['id'=>$id]));
+        self::assertSame(200,$this->client->getResponse()->getStatusCode());
+        self::assertCount(2,$page->filter('select[name^="scores"] option[value="10"]'));
+        self::assertStringContainsString('Circuler à vide',$page->text());
+        $this->client->loginUser($this->admin);
+        $page=$this->client->request('GET',$this->url('app_caces_assign'));
+        self::assertCount(37,$page->filter('#practice option[data-rec]'));
+        $page=$this->client->request('GET',$this->url('app_caces_model'),['copy'=>$template['key']]);
+        self::assertSame(200,$this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('R489A-juillet2026.pdf',$page->text());
+        $this->client->request('GET',$this->url('app_caces_model_source',['key'=>$template['key'],'page'=>34]));
+        self::assertSame(200,$this->client->getResponse()->getStatusCode());
+        self::assertSame('image/png',$this->client->getResponse()->headers->get('Content-Type'));
+        if(getenv('CACES_QA_OUTPUT')) {
+            $this->client->request('GET',$this->url('app_caces_model'),['copy'=>$template['key']]);
+            file_put_contents(getenv('CACES_QA_OUTPUT').'/qa-caces-practice-local.html',$this->client->getResponse()->getContent());
+            $this->client->loginUser($this->trainer);$this->client->request('GET',$this->url('app_caces_show',['id'=>$id]));
+            file_put_contents(getenv('CACES_QA_OUTPUT').'/qa-caces-score-local.html',$this->client->getResponse()->getContent());
+        }
+
     }
 
     public function testOptionalRenderedQaFixture(): void

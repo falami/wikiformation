@@ -76,7 +76,7 @@ class FactureBrouillon
         if ($convention->getEntite()?->getId() !== $this->entite->getId()) {
             throw new \DomainException('La convention appartient à un autre organisme.');
         }
-        if ($this->sourceDevis || $convention->getDevis()) {
+        if ($this->sourceDevis !== $convention->getDevis()) {
             throw new \DomainException('Utilisez le brouillon du devis lié à cette convention.');
         }
         $this->sourceConvention = $convention;

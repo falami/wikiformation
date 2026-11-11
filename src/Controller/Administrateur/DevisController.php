@@ -211,7 +211,10 @@ class DevisController extends AbstractController
     if ($devis->getStatus() === DevisStatus::DRAFT) {
       return $this->render('administrateur/devis/pdf_confirmation.html.twig', ['entite' => $entite, 'd' => $devis, 'prepareInvoice' => true]);
     }
-    if (!$devis->getStatus()->canBeInvoiced()) throw $this->createAccessDeniedException('Ce devis ne peut pas être facturé.');
+    if (!$devis->getStatus()->canBeInvoiced()) {
+      $this->addFlash('warning', 'Impossible de préparer la facture : le devis doit être envoyé ou accepté. Vérifiez son statut et les factures déjà liées.');
+      return $this->redirectToRoute('app_administrateur_devis_show', ['entite' => $entite->getId(), 'id' => $devis->getId()], 303);
+    }
     /** @var Utilisateur $user */
     $user = $this->getUser();
     // One working document per quote, including legacy saved values. The old POST
@@ -219,7 +222,7 @@ class DevisController extends AbstractController
     $draft = $em->getConnection()->transactional(function () use ($em, $devis, $entite, $user, $draftForms, $drafts) {
       $em->refresh($devis, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
       if ($devis->getFactureCreee()) return $devis->getFactureCreee();
-      if (!$devis->getStatus()->canBeInvoiced()) throw $this->createAccessDeniedException('Ce devis ne peut plus être facturé.');
+      if (!$devis->getStatus()->canBeInvoiced()) return null;
       $existing = $em->getRepository(\App\Entity\FactureBrouillon::class)->findOneBy(['sourceDevis' => $devis, 'entite' => $entite]);
       if ($existing) return $existing;
 
@@ -295,6 +298,10 @@ class DevisController extends AbstractController
       $drafts->save($draft, $payload, 1, $user, $draftForms->summary($restored));
       return $draft;
     });
+    if ($draft === null) {
+      $this->addFlash('warning', 'Le statut du devis a changé pendant la préparation. Vérifiez-le avant de préparer une facture.');
+      return $this->redirectToRoute('app_administrateur_devis_show', ['entite' => $entite->getId(), 'id' => $devis->getId()], 303);
+    }
     if ($draft instanceof Facture) return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $draft->getId()]);
     if ($draft->isArchived()) {
       $this->addFlash('info', 'Le brouillon de ce devis est archivé. Restaurez-le pour reprendre la préparation de la facture.');

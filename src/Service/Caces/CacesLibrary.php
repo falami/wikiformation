@@ -9,7 +9,14 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 final class CacesLibrary
 {
     public function __construct(private EntityManagerInterface $em, #[Autowire('%kernel.project_dir%')] private string $root) {}
-    public function official(): array { return json_decode(file_get_contents($this->root.'/resources/caces/catalog.json'),true,512,JSON_THROW_ON_ERROR); }
+    public function official(): array
+    {
+        $items=json_decode(file_get_contents($this->root.'/resources/caces/catalog.json'),true,512,JSON_THROW_ON_ERROR);
+        // Keep the original key readable for existing snapshots and copied models.
+        foreach($items as &$item) if($item['key']==='r489-cat3-pratique-202607') $item['status']='archived';
+        unset($item);
+        return array_merge($items,json_decode(file_get_contents($this->root.'/resources/caces/practice-2026.json'),true,512,JSON_THROW_ON_ERROR));
+    }
     public function catalog(Entite $entite): array
     {
         $items=$this->official();
@@ -44,6 +51,14 @@ final class CacesLibrary
 
     public function image(string $key,int $page): string
     {
+        foreach($this->official() as $item) {
+            if($item['key']!==$key || $item['kind']!=='practice' || !isset($item['schema']['reference'])) continue;
+            $reference=$item['schema']['reference'];
+            if(!in_array($page,$reference['pages'],true)) throw new \InvalidArgumentException('Page introuvable.');
+            $path=$this->root.'/resources/caces/reference-'.pathinfo($reference['file'],PATHINFO_FILENAME).'/page-'.$page.'.png';
+            if(!is_file($path)) throw new \InvalidArgumentException('Page introuvable.');
+            return $path;
+        }
         if (!preg_match('/^r(482|483|484|485|486|487|489|490)-v1-202412-g[1-5]$/D',$key) || $page<1 || $page>20) throw new \InvalidArgumentException('Page introuvable.');
         $path=$this->root.'/resources/caces/'.$key.'/page-'.$page.'.png';
         if (!is_file($path)) throw new \InvalidArgumentException('Page introuvable.');

@@ -54,3 +54,12 @@ Contrôle visuel du tableau de bord et de la bibliothèque avec des données fic
 
 ### Parcours pratique
 La création dédiée (`modeles/nouveau?kind=practice`) accepte des critères notés de 1 à 8 points. La session filtre les grilles publiées par recommandation et catégorie et propose la création contextuelle en cas d’absence. Le testeur affecté renseigne chaque note dans son espace CACES. Un administrateur peut changer le testeur pour toute la session depuis un dossier ; les évaluations signées conservent leur signataire dans les documents et le registre. Les changements sont tracés dans le snapshot pratique.
+
+
+### Bibliothèque pratique 2026
+
+`resources/caces/practice-2026.json` contient 37 grilles couvrant les 33 catégories des huit recommandations fournies. Les variantes R482 A, B2 et C1 sont distinctes ; les catégories R482 A/G et R489 7 comportent les deux évaluations d’engins requises. Chaque engin est noté sur 100 et doit réussir séparément ; le score global affiché est alors leur moyenne. Les critères communs des PEMP R486 sont comptés une seule fois.
+
+Les barèmes ne sont plus plafonnés à 8 : la saisie accepte notamment 10, 15, 20 et 30 points conformément aux tableaux. Les modèles personnalisés autorisent de 1 à 100 points par critère, avec exactement 100 points par épreuve. Les options complémentaires sur 50 points ne font pas partie de cette bibliothèque par catégorie. La durée de 60 minutes reste une valeur proposée à adapter dans une copie du modèle à la procédure de l’organisme ; elle n’est pas extraite des unités de test.
+
+Import reproductible avec PyMuPDF : `python scripts/caces/import_practice.py /chemin/vers/les/referentiels`. L’import utilise la géométrie des tableaux et vérifie les totaux ; il conserve les consignes de chaque point d’évaluation, les pages sources et leur empreinte SHA-256. Les pages PNG privées sont consultables par les administrateurs depuis le modèle. L’ancien modèle R489 catégorie 3 reste accessible sous sa clé d’origine, archivé pour les nouvelles affectations ; les snapshots des sessions existantes ne sont pas modifiés.
