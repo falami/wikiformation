@@ -134,9 +134,56 @@ const compactExam=window.matchMedia('(max-width: 767.98px)');
 document.querySelectorAll('.cx-reference').forEach(reference=>{reference.open=!compactExam.matches;});
 const exam=document.querySelector('[data-caces-exam]');
 if(exam){const status=exam.querySelector('[data-save-status]'),timer=exam.querySelector('[data-timer]');let deadline=Number(exam.dataset.deadline),serverBase=Number(exam.dataset.serverNow),started=performance.now(),pending=Promise.resolve(),closed=false;const now=()=>serverBase+(performance.now()-started)/1000;
-const progress=()=>{const count=exam.querySelectorAll('input[type=radio]:checked').length;exam.querySelector('[data-count]').textContent=count+' réponses sur 100';exam.querySelector('[data-progress]').style.width=count+'%';};
+const questions=[...exam.querySelectorAll('.cx-answer')];
+const missing=()=>questions.filter(question=>!question.querySelector('input[type=radio]:checked'));
+const dialog=document.querySelector('[data-exam-confirm]');
+const revealQuestion=question=>{
+ const section=question.closest('[data-exam-page]');
+ if(section){const button=[...exam.querySelectorAll('[data-page-target]')].find(b=>b.dataset.pageTarget===section.dataset.examPage);button?.click();}
+ question.tabIndex=-1;
+ question.focus({preventScroll:true});
+ question.scrollIntoView({behavior:'auto',block:'center'});
+ question.classList.add('cx-answer-highlight');
+ setTimeout(()=>question.classList.remove('cx-answer-highlight'),2200);
+};
+const progress=()=>{
+ const unanswered=missing(),count=questions.length-unanswered.length;
+ exam.querySelector('[data-count]').textContent=count+' réponses renseignées sur '+questions.length;
+ exam.querySelector('[data-progress]').style.width=(questions.length?count/questions.length*100:0)+'%';
+ exam.querySelector('[data-missing-count]').textContent=unanswered.length;
+ const links=exam.querySelector('[data-missing-links]');links.replaceChildren();
+ unanswered.forEach(question=>{
+  const button=document.createElement('button');button.type='button';button.className='cx-btn';
+  const number=questions.indexOf(question)+1;
+  button.textContent='Question '+number;
+  button.setAttribute('aria-label','Aller à la question '+number+', sans réponse');
+  button.onclick=()=>revealQuestion(question);links.append(button);
+ });
+ if(!unanswered.length)links.textContent='Toutes les questions ont une réponse.';
+ for(const button of exam.querySelectorAll('[data-page-target]')){
+  const section=[...exam.querySelectorAll('[data-exam-page]')].find(p=>p.dataset.examPage===button.dataset.pageTarget);
+  const remaining=section?[...section.querySelectorAll('.cx-answer')].filter(q=>!q.querySelector('input:checked')).length:0;
+  button.textContent='Page '+button.dataset.pageTarget;
+  const badge=document.createElement('span');badge.className='cx-page-count';badge.textContent=remaining?' '+remaining:' ✓';
+  badge.setAttribute('aria-hidden','true');button.append(badge);
+  button.setAttribute('aria-label','Page '+button.dataset.pageTarget+' : '+remaining+' question(s) sans réponse');
+ }
+ if(dialog){dialog.querySelector('[data-confirm-answered]').textContent=count;dialog.querySelector('[data-confirm-missing]').textContent=unanswered.length;dialog.querySelector('[data-confirm-review]').hidden=!unanswered.length;dialog.querySelector('[data-confirm-notice]').textContent=unanswered.length?'Il reste '+unanswered.length+' question(s) sans réponse. Elles vaudront 0 point si vous transmettez maintenant.':'Vous avez répondu à toutes les questions. Vous pouvez encore les relire avant de transmettre.';}
+};
 const save=(submit=false)=>{if(closed)return pending;const data=new FormData(exam);data.set('action',submit?'submit':'save');status.textContent='Enregistrement…';pending=pending.catch(()=>{}).then(async()=>{const r=await fetch(location.href,{method:'POST',body:data,headers:{'X-Requested-With':'XMLHttpRequest'},credentials:'same-origin'});if(!r.ok)throw new Error('Votre enregistrement a échoué.');const json=await r.json();if(json.error)throw new Error(json.error);if(json.serverNow){serverBase=json.serverNow;started=performance.now();}status.textContent='Toutes vos réponses sont enregistrées';if(json.submitted){closed=true;location.reload();}return json;}).catch(e=>{status.textContent='Connexion interrompue — réponses non enregistrées. Réessayez avant la fin du temps imparti.';status.style.color='#ad3f32';if(submit)throw e;});return pending;};
-let debounce;exam.addEventListener('change',()=>{progress();clearTimeout(debounce);debounce=setTimeout(()=>save(),350);});exam.querySelector('[data-save-now]').onclick=()=>save();exam.addEventListener('submit',async e=>{e.preventDefault();if(!confirm('Transmettre définitivement votre test ? Les réponses non renseignées valent 0 point.'))return;clearTimeout(debounce);try{await save(true);}catch{}});
+let debounce;exam.addEventListener('change',()=>{progress();clearTimeout(debounce);debounce=setTimeout(()=>save(),350);});exam.querySelector('[data-save-now]').onclick=()=>save();exam.addEventListener('submit',e=>{e.preventDefault();if(closed)return;progress();dialog.querySelector('[data-confirm-error]').hidden=true;dialog.showModal();});
+dialog.querySelectorAll('[data-confirm-close]').forEach(button=>button.onclick=()=>dialog.close());
+dialog.querySelector('[data-confirm-review]').onclick=()=>{dialog.close();const question=missing()[0];if(question)revealQuestion(question);};
+let transmitting=false;
+dialog.addEventListener('cancel',event=>{if(transmitting)event.preventDefault();});
+dialog.querySelector('[data-confirm-send]').onclick=async()=>{
+ if(transmitting||closed)return;
+ transmitting=true;clearTimeout(debounce);
+ const buttons=[...dialog.querySelectorAll('button')];buttons.forEach(button=>button.disabled=true);
+ const send=dialog.querySelector('[data-confirm-send]');send.textContent='Transmission en cours…';
+ try{await save(true);}catch{const error=dialog.querySelector('[data-confirm-error]');error.hidden=false;error.textContent='La transmission a échoué. Vérifiez votre connexion puis réessayez.';}
+ finally{if(!closed){transmitting=false;buttons.forEach(button=>button.disabled=false);send.textContent='Transmettre définitivement';}}
+};
 for(const b of exam.querySelectorAll('[data-page-target]'))b.onclick=()=>{for(const section of exam.querySelectorAll('[data-exam-page]'))section.hidden=section.dataset.examPage!==b.dataset.pageTarget;for(const other of exam.querySelectorAll('[data-page-target]')){const active=other===b;other.classList.toggle('active',active);other.setAttribute('aria-current',active?'page':'false');}const page=[...exam.querySelectorAll('[data-exam-page]')].find(section=>!section.hidden);page?.focus({preventScroll:true});page?.scrollIntoView({behavior:'auto',block:'start'});};
 const tick=()=>{const left=Math.max(0,Math.ceil(deadline-now()));timer.textContent=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0');if(left<300)timer.style.color='#ba5427';if(left===0&&!closed){closed=true;for(const input of exam.querySelectorAll('input[type=radio]'))input.disabled=true;status.textContent='Temps écoulé. Finalisation du test…';fetch(location.href,{method:'POST',body:new URLSearchParams({_token:exam.querySelector('[name=_token]').value,action:'save'}),headers:{'X-Requested-With':'XMLHttpRequest'}}).then(()=>location.reload()).catch(()=>{status.textContent='Temps écoulé. Reconnectez-vous pour consulter le résultat des réponses enregistrées.';});}};
 progress();tick();setInterval(tick,1000);setInterval(()=>{if(!closed)save();},15000);window.addEventListener('online',()=>{if(closed)location.reload();else save();});}
