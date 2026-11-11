@@ -1,0 +1,39 @@
+<article class="cx-document-sheet cx-synthesis">
+    <header class="syn-header">
+        <div class="syn-masthead"><strong>{{ entite.nom }}</strong><span>CACES® · Dossier {{ '%04d'|format(dossier.id) }}</span></div>
+        <div class="syn-title"><div><span class="syn-label">Évaluation des compétences</span><h1>Feuille de synthèse</h1><p>Résultats des épreuves théorique et pratique</p></div><div class="syn-category"><strong>R.{{ e.recommendation }}</strong><span>Catégorie {{ e.category }}</span></div></div>
+        <div class="syn-session"><span>Session <strong>{{ e.session.code }}</strong></span><span>Lieu <strong>{{ e.location|default('Non renseigné') }}</strong></span></div>
+    </header>
+    <section class="syn-candidate">
+        <span class="syn-label">Le candidat</span><h2>{{ dossier.learner.prenom }} {{ dossier.learner.nom }}</h2>
+        <dl class="syn-details">
+            <div><dt>Date et lieu de naissance</dt><dd>{{ dossier.profile.birthDate|default('') ? dossier.profile.birthDate|date('d/m/Y') : 'Non renseignée' }} · {{ dossier.profile.birthPlace|default('Non renseigné') }}</dd></div>
+            <div><dt>Entreprise</dt><dd>{{ dossier.profile.company|default('Non renseignée') }}</dd></div>
+            <div><dt>Adresse</dt><dd>{{ dossier.profile.address|default('Non renseignée') }}</dd></div>
+            <div><dt>Téléphone</dt><dd>{{ dossier.profile.phone|default('Non renseigné') }}</dd></div>
+        </dl>
+    </section>
+    <div class="syn-background">
+        <section><span class="syn-label">Parcours · Conduite</span><h3>Expérience de conduite</h3><p>{{ dossier.profile.drivingExperience|default('Non renseignée') }}</p></section>
+        <section><span class="syn-label">Parcours · Formation</span><h3>Formation antérieure</h3><p>{{ dossier.profile.trainingExperience|default('Non renseignée') }}</p></section>
+    </div>
+    {% for kind,label in {theory:'Épreuve théorique',practice:'Épreuve pratique'} %}
+        {% set result = kind == 'theory' ? dossier.theoryResult : dossier.practiceResult %}
+        {% set date = kind == 'theory' ? dossier.submittedAt : dossier.practiceAt %}
+        <section class="syn-exam">
+            <header class="syn-exam-heading"><div><span class="syn-number">0{{ loop.index }}</span><h2>{{ label }}</h2></div><span class="syn-status {{ result ? (result.passed ? 'is-success' : 'is-failure') : '' }}">{{ result ? (result.passed ? 'Reçu' : 'Ajourné') : 'Non passé' }}</span></header>
+            <div class="syn-exam-summary">
+                <div><span class="syn-label">{{ result and result.score is null ? 'Validation' : 'Résultat' }}</span><div class="syn-score">{% if result %}{% if result.score is null %}<span class="syn-exemption">Dispense théorique</span>{% else %}{{ result.score }}<small> / 100</small>{% endif %}{% else %}—{% endif %}</div></div>
+                <dl><div><dt>Testeur</dt><dd>{{ kind == 'theory' ? e.theoryTester.prenom~' '~e.theoryTester.nom : dossier.signatures.practiceTester.name|default(e.practiceTester.prenom~' '~e.practiceTester.nom) }}</dd></div><div><dt>{{ kind == 'theory' and result.externalEvidence|default(null) ? 'CACES initial' : 'Date de passage' }}</dt><dd>{% if kind == 'theory' and result.externalEvidence|default(null) %}{{ result.anchorAt|date('d/m/Y') }}{% else %}{{ date ? date|date('d/m/Y') : 'Non renseignée' }}{% endif %}</dd></div></dl>
+            </div>
+            {% if result %}
+                {% if result.assessments|default([])|length > 1 %}<div class="syn-assessments"><p>Score global : moyenne des engins. La réussite est exigée pour chacun.</p>{% for assessment in result.assessments %}<div><span>{{ assessment.title }}</span><strong>{{ assessment.score }}/{{ assessment.max }}</strong></div>{% endfor %}</div>{% endif %}
+                {% if result.themes|default([])|length %}<table class="syn-table"><thead><tr><th scope="col">Compétences évaluées</th><th scope="col">Note</th><th scope="col">Seuil du thème</th></tr></thead><tbody>{% for theme in result.themes %}<tr><th scope="row">{{ theme.title }}</th><td class="syn-mark">{{ theme.score }}<span> / {{ theme.max }}</span></td><td><span class="syn-theme-status {{ theme.passed ? 'is-success' : 'is-failure' }}">{{ theme.passed ? 'Atteint' : 'Non atteint' }}</span></td></tr>{% endfor %}</tbody></table>{% endif %}
+                {% if result.reasons|default([])|length %}<div class="syn-reasons"><strong>Observations sur le résultat</strong><ul>{% for reason in result.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></div>{% endif %}
+            {% else %}<p class="syn-empty">Les résultats de cette épreuve ne sont pas encore renseignés.</p>{% endif %}
+            {% if kind == 'practice' %}<dl class="syn-technical"><div><dt>Engin utilisé</dt><dd>{{ result.equipment|default('Non renseigné') }}</dd></div><div><dt>Durée de l’épreuve</dt><dd>{% set duration = result.durationSeconds|default(0) %}{{ duration > 0 ? '%02d:%02d:%02d'|format(duration // 3600, (duration // 60) % 60, duration % 60) : 'Non renseignée' }}{% if duration > 0 %} <small>(hh:mm:ss)</small>{% endif %}</dd></div></dl>{% endif %}
+        </section>
+    {% endfor %}
+    <section class="syn-signoff"><span class="syn-label">Validation & traçabilité</span><h2>Signatures</h2><div class="syn-signatures">{% for role,label in {theoryTester:'Testeur théorique',practiceTester:'Testeur pratique',learner:'Stagiaire'} %}{% set signature = dossier.signatures[role]|default(null) %}<div><h3>{{ label }}</h3>{% if signature %}<strong>{{ signature.name }}</strong><p>Signé le {{ signature.at|date('d/m/Y à H:i') }}</p><img src="{{ signature.image }}" alt="Signature du {{ label|lower }}">{% else %}<p class="syn-pending">Signature non enregistrée</p>{% endif %}</div>{% endfor %}</div></section>
+    <footer class="syn-footer"><strong>{{ entite.nom }}</strong><span>Feuille de synthèse · Dossier n°{{ dossier.id }}<br>{{ e.session.code }}</span></footer>
+</article>
