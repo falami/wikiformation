@@ -294,6 +294,11 @@ final class SuperPdpClient
         $data = json_decode($body, true);
         $message = is_array($data) ? ($data['message'] ?? null) : null;
         if (!is_string($message)) return '';
+        if (str_contains($message, '[BR-CO-09]')) {
+            $party = str_contains($message, 'AccountingCustomerParty') ? 'du client' : (str_contains($message, 'AccountingSupplierParty') ? 'de votre organisme' : 'd’une des parties');
+            return ' Le numéro de TVA '.$party.' est invalide : préfixe pays absent ou incorrect (FR pour la France). Un SIRET ne remplace pas un numéro de TVA. Vérifiez la fiche entreprise et les données figées de la facture. Référence : BR-CO-09.';
+        }
+
         $fields = ['number', 'issue_date', 'type_code', 'currency_code', 'process_control',
             'specification_identifier', 'business_process_type', 'seller', 'buyer', 'name',
             'electronic_address', 'scheme', 'value', 'legal_registration_identifier',

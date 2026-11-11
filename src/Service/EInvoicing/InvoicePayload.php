@@ -20,6 +20,12 @@ final class InvoicePayload
             if (!in_array(mb_strtoupper(trim((string) $snapshot[$party]['pays'])), ['FR', 'FRANCE'], true)) $issues[] = 'Les opérations internationales nécessitent un traitement spécifique sur la plateforme agréée.';
             if (!preg_match('/^\d{9}$/', (string) $snapshot[$party]['siren'])) $issues[] = 'Le SIREN de chaque partie est nécessaire à l’adressage.';
         }
+        foreach (['issuer' => 'de votre organisme', 'customer' => 'du client'] as $party => $label) {
+            $vatNumber = \App\Service\Company\CompanyIdentifiers::normalize($snapshot[$party]['numeroTva'] ?? null);
+            if ($vatNumber !== '' && !preg_match('/^FR[A-HJ-NP-Z0-9]{2}[0-9]{9}$/D', $vatNumber)) {
+                $issues[] = 'Le numéro de TVA '.$label.' figé dans cette facture est invalide. Pour la France : FR, une clé de 2 caractères et le SIREN de 9 chiffres. Corriger la fiche entreprise ne modifie pas une facture déjà émise ; vérifiez son instantané avant toute transmission.';
+            }
+        }
         if ($snapshot['terms']['vatCategory'] !== 'S') $issues[] = 'Régime fiscal à traiter sur la plateforme : aucune obligation d’émission n’est présumée pour une opération exonérée.';
         foreach ($snapshot['lines'] as $line) {
             if ($line['debours']) {

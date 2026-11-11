@@ -45,6 +45,7 @@ final class EntrepriseType extends AbstractType
             ])
             ->add('siret', TextType::class, [
                 'label' => 'SIRET',
+                'help' => '14 chiffres. Les espaces sont acceptés ; la clé de contrôle est vérifiée.',
                 'required' => false,
                 'attr' => [
                     'class' => 'form-control',
@@ -53,6 +54,7 @@ final class EntrepriseType extends AbstractType
             ])
             ->add('numeroTVA', TextType::class, [
                 'label' => 'N° TVA intracommunautaire',
+                'help' => 'Un identifiant différent du SIRET : préfixe pays, clé et identifiant fiscal. Laissez vide si non applicable.',
                 'required' => false,
                 'attr' => [
                     'class' => 'form-control',

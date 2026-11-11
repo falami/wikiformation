@@ -81,6 +81,12 @@ final class EntrepriseInlineType extends AbstractType
         'required' => false,
         'attr' => ['class' => 'form-control', 'placeholder' => 'Ex : France'],
       ]);
+    $builder->addEventListener(\Symfony\Component\Form\FormEvents::POST_SUBMIT, static function (\Symfony\Component\Form\FormEvent $event): void {
+      $form = $event->getForm();
+      foreach (\App\Service\Company\CompanyIdentifiers::errors($form->get('siret')->getData(), $form->get('numeroTVA')->getData()) as $field => $message) {
+        $form->get($field)->addError(new \Symfony\Component\Form\FormError($message));
+      }
+    });
   }
   public function configureOptions(OptionsResolver $resolver): void
   {

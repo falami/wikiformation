@@ -152,6 +152,14 @@ class Entreprise
         return $this;
     }
 
+    #[\Symfony\Component\Validator\Constraints\Callback]
+    public function validateIdentifiers(\Symfony\Component\Validator\Context\ExecutionContextInterface $context): void
+    {
+        foreach (\App\Service\Company\CompanyIdentifiers::errors($this->siret, $this->numeroTVA) as $field => $message) {
+            $context->buildViolation($message)->atPath($field)->addViolation();
+        }
+    }
+
     public function getSiret(): ?string
     {
         return $this->siret;
@@ -159,7 +167,7 @@ class Entreprise
 
     public function setSiret(?string $siret): static
     {
-        $siret = $siret ? preg_replace('/\s+/', '', $siret) : null;
+        $siret = \App\Service\Company\CompanyIdentifiers::normalize($siret);
         $this->siret = $siret ?: null;
         return $this;
     }
@@ -437,7 +445,7 @@ class Entreprise
 
     public function setNumeroTVA(?string $numeroTVA): static
     {
-        $this->numeroTVA = $numeroTVA;
+        $this->numeroTVA = \App\Service\Company\CompanyIdentifiers::normalize($numeroTVA) ?: null;
 
         return $this;
     }

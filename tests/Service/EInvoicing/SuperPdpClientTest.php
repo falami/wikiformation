@@ -68,6 +68,19 @@ final class SuperPdpClientTest extends TestCase
         }
     }
 
+    public function testVatRejectionIdentifiesBuyerInFrenchWithoutRawDetails(): void
+    {
+        $client = new SuperPdpClient(new MockHttpClient(new MockResponse(json_encode(['message' => '[BR-CO-09] private-value AccountingCustomerParty']), ['http_code' => 400])));
+        try {
+            $client->convertInvoice(['type_code' => 380]);
+            self::fail('Expected rejection');
+        } catch (SuperPdpException $error) {
+            self::assertStringContainsString('TVA du client', $error->getMessage());
+            self::assertStringContainsString('BR-CO-09', $error->getMessage());
+            self::assertStringNotContainsString('private-value', $error->getMessage());
+        }
+    }
+
     public function testAuthorizationUrlUsesPkceAndAccountHintsWithoutCredentials(): void
     {
         $url = (new SuperPdpClient(new MockHttpClient()))->authorizationUrl('app-1', 'https://wiki.test/oauth/callback', str_repeat('a', 32), str_repeat('b', 43), '123456789', 'fr_siren', 'test@example.test');
