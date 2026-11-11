@@ -6,7 +6,7 @@
     const themes = schema.themes.map(theme => {
       const id = theme.assessment || 'main';
       const engine = engines[id] ||= {title: theme.assessmentLabel || id, score: 0};
-      let score = 0, max = 0, complete = true;
+      let score = 0, max = 0, complete = true, hasZero = false;
       theme.questions.forEach(q => {
         count++; max += q.points;
         const raw = answers[q.id];
@@ -15,12 +15,12 @@
         }
         const value = Number(raw);
         answered++; score += value;
-        if (value === 0) reasons.push('Critère à zéro : ' + q.label);
+        if (value === 0) { hasZero = true; reasons.push('Critère à zéro : ' + q.label); }
       });
       engine.score += score;
       const threshold = Math.ceil(max / 2);
       if (complete && score < threshold) reasons.push('Seuil non atteint : ' + theme.title);
-      return {title: (theme.assessment ? engine.title + ' · ' : '') + theme.title, score, max, threshold, complete};
+      return {title: (theme.assessment ? engine.title + ' · ' : '') + theme.title, score, max, threshold, complete, remediationEligible: complete && (score < threshold || hasZero)};
     });
     const assessments = Object.values(engines);
     if (answered === count) assessments.forEach(e => {
@@ -38,6 +38,22 @@
   const schema = JSON.parse(form.dataset.practiceSchema);
   const panel = form.querySelector('.cx-live-score');
   const detail = form.querySelector('[data-live-details]');
+  // Follow the actual visible header, including layouts where it scrolls away.
+  const header = document.querySelector('.wn-topbar');
+  let positionFrame = 0;
+  function positionScore() {
+    positionFrame = 0;
+    const rect = header ? header.getBoundingClientRect() : null;
+    const top = rect && rect.top <= 1 ? Math.max(0, rect.bottom) : 0;
+    panel.style.setProperty('--cx-score-top', top + 'px');
+  }
+  function schedulePosition() {
+    if (!positionFrame) positionFrame = requestAnimationFrame(positionScore);
+  }
+  window.addEventListener('scroll', schedulePosition, {passive: true});
+  window.addEventListener('resize', schedulePosition, {passive: true});
+  if (header && typeof ResizeObserver !== 'undefined') new ResizeObserver(schedulePosition).observe(header);
+  positionScore();
   let previous = '';
   function update() {
     const answers = {};
@@ -55,8 +71,14 @@
     panel.dataset.state = result.reasons.length ? 'danger' : result.complete ? 'success' : 'pending';
     detail.replaceChildren();
     result.themes.forEach((theme, index) => {
+      const checkbox = form.querySelector('[data-remediation-theme="' + index + '"]');
+      if (checkbox) {
+        checkbox.disabled = !theme.remediationEligible;
+        if (checkbox.disabled) checkbox.checked = false;
+        checkbox.closest('label').querySelector('[data-remediation-status]').textContent = !theme.complete ? 'Notation à compléter' : theme.remediationEligible ? 'Thème à retravailler · sélection possible' : 'Thème réussi';
+      }
       const value = theme.score + ' / ' + theme.max + ' · minimum ' + theme.threshold + (theme.complete ? (theme.score >= theme.threshold ? ' · Seuil atteint' : ' · Seuil non atteint') : ' · À compléter');
-      form.querySelector('[data-score-theme="' + index + '"] [data-theme-score]').textContent = value;
+      form.querySelectorAll('[data-score-theme="' + index + '"] [data-theme-score]').forEach(output => { output.textContent = value; });
       const row = document.createElement('p');
       row.textContent = theme.title + ' — ' + value;
       detail.append(row);

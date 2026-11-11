@@ -252,7 +252,8 @@ final class CacesController extends AbstractController
                         $equipment=trim($r->request->getString('equipment'));if(!$equipment || mb_strlen($equipment)>255) throw new \InvalidArgumentException('Précisez la marque et le modèle de l’engin.');
                         $date=\DateTimeImmutable::createFromFormat('!Y-m-d',$r->request->getString('practiceDate'));if(!$date || $date->format('Y-m-d')!==$r->request->getString('practiceDate') || $date>new \DateTimeImmutable('today')) throw new \InvalidArgumentException('Date de pratique invalide.');
                         $scores=$r->request->all('scores');$result=$this->rules->grade($attempt->getExam()->getPracticeSnapshot()['schema'],$scores,true,$duration);
-                        $result+=['testerId'=>$this->getUser()->getId(),'testerName'=>$this->fullName($this->getUser()),'scores'=>$scores,'equipment'=>$equipment,'remediation'=>mb_substr($r->request->getString('remediation'),0,4000),'remediationHours'=>max(0,min(500,$r->request->getInt('remediationHours')))];
+                        $remediationThemes=$this->rules->remediationThemes($attempt->getExam()->getPracticeSnapshot()['schema'],$scores,$r->request->all('remediationThemes'));
+                        $result+=['testerId'=>$this->getUser()->getId(),'testerName'=>$this->fullName($this->getUser()),'scores'=>$scores,'equipment'=>$equipment,'remediationThemes'=>$remediationThemes,'remediation'=>implode("\n",$remediationThemes),'remediationHours'=>max(0,min(500,$r->request->getInt('remediationHours')))];
                         $sig=$this->signature($r,'signature');$signatures=$attempt->getSignatures();$signatures['practiceTester']=['image'=>$sig,'name'=>$this->fullName($this->getUser()),'at'=>(new \DateTimeImmutable())->format(DATE_ATOM)];
                         $attempt->setPracticeResult($result)->setPracticeAt($date)->setSignatures($signatures);
                     } elseif($action==='theorySign') {

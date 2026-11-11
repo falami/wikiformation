@@ -77,6 +77,28 @@ final class CacesRules
         return ['score'=>$total,'passed'=>!$reasons,'themes'=>$results,'reasons'=>$reasons,'durationSeconds'=>$durationSeconds,'assessments'=>array_values($assessments)];
     }
 
+    /** Resolve selected snapshot themes; never trust submitted titles or eligibility. */
+    public function remediationThemes(array $schema, array $scores, array $selected): array
+    {
+        $result = $this->grade($schema, $scores, true);
+        $titles = [];
+        foreach ($selected as $index) {
+            if (!(is_int($index) || (is_string($index) && ctype_digit($index))) || !isset($result['themes'][(int)$index])) {
+                throw new \InvalidArgumentException('Thème à revoir invalide.');
+            }
+            $index = (int)$index;
+            $hasZero = false;
+            foreach ($schema['themes'][$index]['questions'] as $question) {
+                if ((int)$scores[$question['id']] === 0) $hasZero = true;
+            }
+            if ($result['themes'][$index]['passed'] && !$hasZero) {
+                throw new \InvalidArgumentException('Seuls les thèmes non réussis peuvent être sélectionnés.');
+            }
+            $titles[$index] = $result['themes'][$index]['title'];
+        }
+        return array_values($titles);
+    }
+
     public function dates(string $recommendation, \DateTimeImmutable $theory, \DateTimeImmutable $practice, ?\DateTimeImmutable $anchor = null): array
     {
         $obtained=max($theory,$practice); $anchor ??= $obtained;
