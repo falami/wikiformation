@@ -93,8 +93,28 @@ function imageField(question, sync) {
   refresh();
   return box;
 }
+// Keep the native fields as the source of truth for submission and dependencies.
+function enhanceCacesSelect(select) {
+  if (!window.TomSelect || select.tomselect) return;
+  const label = document.querySelector('label[for="' + select.id + '"]');
+  const excluded = [...select.options].filter(option => option.hidden || option.disabled).map(option => option.value);
+  const options = [...select.options].filter(option => !option.hidden && !option.disabled)
+    .map(option => ({value: option.value, text: option.textContent}));
+  new TomSelect(select, {
+    create: false, maxOptions: null, options,
+    placeholder: select.options[0]?.value === '' ? select.options[0].textContent : 'Rechercher…',
+    searchField: ['text'], allowEmptyOption: false,
+    render: {no_results() { return '<div class="no-results">Aucun résultat pour cette recherche</div>'; }},
+    onInitialize() {
+      excluded.forEach(value => this.removeOption(value, true));
+      this.wrapper.classList.add('cx-select');
+      this.control_input.setAttribute('aria-label', label?.textContent.trim() || select.name);
+    }
+  });
+}
 const rec=document.querySelector('#recommendation'), cat=document.querySelector('[data-categories]');
-if(rec&&cat){const cats=JSON.parse(cat.dataset.categories);const refresh=()=>{cat.replaceChildren();for(const c of cats[rec.value]||[]){const o=make('option',c);o.value=c;cat.append(o);}if(cat.dataset.selected){cat.value=cat.dataset.selected;delete cat.dataset.selected;}if(!cat.value&&cat.options.length)cat.selectedIndex=0;filterPractice();};const filterPractice=()=>{const practice=document.querySelector('#practice');if(!practice)return;for(const o of practice.options){o.hidden=!!o.value&&(o.dataset.rec!==rec.value||o.dataset.category!==cat.value);o.disabled=o.hidden;}practice.value='';const empty=document.querySelector('[data-practice-empty]');if(empty)empty.hidden=[...practice.options].some(o=>o.value&&!o.disabled);const link=document.querySelector('[data-create-practice]');if(link){const url=new URL(link.href);url.searchParams.set('recommendation',rec.value);url.searchParams.set('category',cat.value);link.href=url.href;}};rec.addEventListener('change',refresh);cat.addEventListener('change',filterPractice);refresh();}
+if(rec&&cat){const cats=JSON.parse(cat.dataset.categories);const refresh=()=>{cat.tomselect?.destroy();cat.replaceChildren();for(const c of cats[rec.value]||[]){const o=make('option',c);o.value=c;cat.append(o);}if(cat.dataset.selected){cat.value=cat.dataset.selected;delete cat.dataset.selected;}if(!cat.value&&cat.options.length)cat.selectedIndex=0;enhanceCacesSelect(cat);filterPractice();};const filterPractice=()=>{const practice=document.querySelector('#practice');if(!practice)return;practice.tomselect?.destroy();for(const o of practice.options){o.hidden=!!o.value&&(o.dataset.rec!==rec.value||o.dataset.category!==cat.value);o.disabled=o.hidden;}practice.value='';enhanceCacesSelect(practice);const empty=document.querySelector('[data-practice-empty]');if(empty)empty.hidden=[...practice.options].some(o=>o.value&&!o.disabled);const link=document.querySelector('[data-create-practice]');if(link){const url=new URL(link.href);url.searchParams.set('recommendation',rec.value);url.searchParams.set('category',cat.value);link.href=url.href;}};rec.addEventListener('change',refresh);cat.addEventListener('change',filterPractice);refresh();}
+document.querySelectorAll('.cx-form-grid select').forEach(enhanceCacesSelect);
 for(const box of document.querySelectorAll('[data-signature]')){const canvas=box.querySelector('canvas'),input=box.querySelector('input'),ctx=canvas.getContext('2d');let drawing=false,dirty=false;ctx.lineWidth=3;ctx.lineCap='round';ctx.strokeStyle='#17212b';const point=e=>{const r=canvas.getBoundingClientRect();return [(e.clientX-r.left)*canvas.width/r.width,(e.clientY-r.top)*canvas.height/r.height];};canvas.addEventListener('pointerdown',e=>{drawing=true;dirty=true;canvas.setPointerCapture(e.pointerId);ctx.beginPath();ctx.moveTo(...point(e));});canvas.addEventListener('pointermove',e=>{if(drawing){ctx.lineTo(...point(e));ctx.stroke();}});const finish=()=>{if(drawing){drawing=false;input.value=canvas.toDataURL('image/png');}};canvas.addEventListener('pointerup',finish);canvas.addEventListener('pointercancel',finish);box.querySelector('[data-clear-signature]').addEventListener('click',()=>{ctx.clearRect(0,0,canvas.width,canvas.height);input.value='';dirty=false;});box.closest('form').addEventListener('submit',e=>{if(!dirty){e.preventDefault();alert('Veuillez apposer votre signature avant de valider.');}});}
 const editor=document.querySelector('[data-caces-editor]');
 if(editor){const hidden=editor.querySelector('[data-schema]'),kind=editor.querySelector('#kind'),duration=editor.querySelector('#duration'),holder=editor.querySelector('[data-themes]');let schema;try{schema=JSON.parse(hidden.value);}catch{schema={themes:[],durationMinutes:60};}schema.themes??=[];const sync=()=>{schema.durationMinutes=kind.value==='theory'?60:Number(duration.value);hidden.value=JSON.stringify(schema);const total=schema.themes.reduce((s,t)=>s+t.questions.reduce((n,q)=>n+(kind.value==='theory'?1:Number(q.points)),0),0);editor.querySelector('[data-total]').textContent=total+' / 100 points';schema.themes.forEach((t,i)=>{const el=holder.querySelectorAll('[data-theme-total]')[i];const max=t.questions.reduce((n,q)=>n+(kind.value==='theory'?1:Number(q.points)),0);if(el)el.textContent=max+' points · minimum requis : '+Math.ceil(max/2);});};

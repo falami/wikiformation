@@ -301,6 +301,7 @@
     }
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=20261107-accent-2">
+  <link rel="stylesheet" href="{{ asset('dist/css/qcm-assignment-selects.css') }}?v=20261111">
 {% endblock %}
 
 {% block body %}
@@ -356,8 +357,8 @@
 
     <div class="row g-2 align-items-end">
       <div class="col-12 col-md-4">
-        <label class="form-label small text-muted fw-bold">Session</label>
-        <select id="bulkSession" class="form-select form-select-sm js-tomselect" data-placeholder="— Choisir —">
+        <label for="bulkSession" class="form-label small text-muted fw-bold">Session</label>
+        <select id="bulkSession" class="form-select form-select-sm js-qcm-select-control" data-placeholder="— Choisir —">
           <option value="">— Choisir —</option>
           {% for s in sessions %}
             <option value="{{ s.id }}">
@@ -369,8 +370,8 @@
       </div>
 
       <div class="col-12 col-md-4">
-        <label class="form-label small text-muted fw-bold">QCM PRE</label>
-        <select id="bulkQcmPre" class="form-select form-select-sm js-tomselect" data-placeholder="— Choisir —">
+        <label for="bulkQcmPre" class="form-label small text-muted fw-bold">QCM PRE</label>
+        <select id="bulkQcmPre" class="form-select form-select-sm js-qcm-select-control" data-placeholder="— Choisir —">
           <option value="">— Choisir —</option>
           {% for q in qcms %}
             <option value="{{ q.id }}">{{ q.titre }}</option>
@@ -379,8 +380,8 @@
       </div>
 
       <div class="col-12 col-md-4">
-        <label class="form-label small text-muted fw-bold">QCM POST</label>
-        <select id="bulkQcmPost" class="form-select form-select-sm js-tomselect" data-placeholder="— Choisir —">
+        <label for="bulkQcmPost" class="form-label small text-muted fw-bold">QCM POST</label>
+        <select id="bulkQcmPost" class="form-select form-select-sm js-qcm-select-control" data-placeholder="— Choisir —">
           <option value="">— Choisir —</option>
           {% for q in qcms %}
             <option value="{{ q.id }}">{{ q.titre }}</option>
@@ -404,9 +405,9 @@
     </div>
     <div class="qcm-filter-grid">
       <div class="qcm-search-field"><label for="qcmSearch">Recherche globale</label><div class="qcm-search-input"><i class="bi bi-search" aria-hidden="true"></i><input id="qcmSearch" data-list-search type="search" class="form-control" placeholder="Nom, e-mail, questionnaire…" autocomplete="off"></div></div>
-      <div><label for="sessionFilter">Session</label><select data-wf-single id="sessionFilter" class="form-select js-tomselect"><option value="all">Toutes les sessions</option>{% for s in sessions %}<option value="{{ s.id }}">{{ s.code ?: ('Session #' ~ s.id) }}</option>{% endfor %}</select></div>
-      <div><label for="phaseFilter">Phase</label><select data-wf-single id="phaseFilter" class="form-select"><option value="all">Toutes les phases</option><option value="pre">PRE · Début</option><option value="post">POST · Fin</option></select></div>
-      <div><label for="statusFilter">Statut</label><select data-wf-single id="statusFilter" class="form-select"><option value="all">Tous les statuts</option><option value="assigned">Assigné</option><option value="started">En cours</option><option value="submitted">Soumis</option><option value="review_required">À relire</option><option value="validated">Validé</option></select></div>
+      <div><label for="sessionFilter">Session</label><select id="sessionFilter" class="form-select js-qcm-select-control"><option value="all">Toutes les sessions</option>{% for s in sessions %}<option value="{{ s.id }}">{{ s.code ?: ('Session #' ~ s.id) }}</option>{% endfor %}</select></div>
+      <div><label for="phaseFilter">Phase</label><select id="phaseFilter" class="form-select js-qcm-select-control"><option value="all">Toutes les phases</option><option value="pre">PRE · Début</option><option value="post">POST · Fin</option></select></div>
+      <div><label for="statusFilter">Statut</label><select id="statusFilter" class="form-select js-qcm-select-control"><option value="all">Tous les statuts</option><option value="assigned">Assigné</option><option value="started">En cours</option><option value="submitted">Soumis</option><option value="review_required">À relire</option><option value="validated">Validé</option></select></div>
       <div><label for="stagiaireFilter">Stagiaire</label><input id="stagiaireFilter" class="form-control" placeholder="Nom ou e-mail"></div>
     </div>
     <div class="qcm-filter-footer"><span id="qcmFilterSummary" aria-live="polite">Aucun filtre actif</span><details><summary><i class="bi bi-info-circle"></i> Comprendre les statuts</summary><p>PRE : diagnostic initial soumis. POST : validé si le score ne régresse pas par rapport au PRE ; sinon, à relire. La validation ne correspond pas à un seuil de réussite.</p></details></div>
@@ -484,15 +485,24 @@
       let dt = null;
 
       function initTomSelect(){
-        document.querySelectorAll('select.js-tomselect').forEach((el)=>{
+        document.querySelectorAll('select.js-qcm-select-control').forEach((el)=>{
           if (el.tomselect) return;
           new TomSelect(el, {
-            plugins: ['clear_button'],
+            plugins: el.id.startsWith('bulk') ? ['dropdown_input', 'clear_button'] : ['dropdown_input'],
+            wrapperClass: 'ts-wrapper qcm-premium-select',
             create: false,
-            allowEmptyOption: true,
+            allowEmptyOption: false,
+            maxOptions: null,
             maxItems: 1,
             placeholder: el.dataset.placeholder || 'Rechercher…',
-            render: { no_results: () => '<div class="px-2 py-1 text-muted">Aucun résultat</div>' }
+            render: {
+              option: (data, escape) => '<div class="qcm-select-option"><i class="bi bi-check2" aria-hidden="true"></i><span>' + escape(data.text) + '</span></div>',
+              no_results: () => '<div class="no-results">Aucun résultat pour cette recherche</div>'
+            },
+            onInitialize: function(){
+              this.control_input.placeholder = 'Rechercher…';
+              this.control_input.setAttribute('aria-label', 'Rechercher dans ' + (el.labels?.[0]?.textContent || 'la liste'));
+            }
           });
         });
       }

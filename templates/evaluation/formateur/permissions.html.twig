@@ -1,8 +1,22 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Autorisations · {{ template.title }}{% endblock %}
-{% block stylesheets %}{{ parent() }}{% include 'evaluation/_style.html.twig' %}{% endblock %}
+{% block stylesheets %}{{ parent() }}{% include 'evaluation/_style.html.twig' %}
+<style>
+.ev-permissions .form-switch .form-check-input:checked {
+  background-color: var(--theme-color-principal, #233342);
+  border-color: var(--theme-color-principal, #233342);
+}
+.ev-permissions .form-switch .form-check-input:focus {
+  border-color: var(--theme-color-principal, #233342);
+  box-shadow: 0 0 0 .25rem color-mix(in srgb, var(--theme-color-principal, #233342) 25%, transparent);
+}
+.ev-permissions .form-switch .form-check-input:not(:checked):focus {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%236c757d'/%3e%3c/svg%3e");
+}
+</style>
+{% endblock %}
 {% block body %}
-<div class="ev-shell">
+<div class="ev-shell ev-permissions">
   <a class="ev-btn mb-4" href="{{ path('app_formateur_evaluation_template_index', {entite:entite.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Mes modèles</a>
   {% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
   <header class="entity-hero ev-hero"><span class="ev-kicker">VOTRE EXPERTISE · VOS AUTORISATIONS</span><h1>Choisissez qui peut utiliser votre modèle.</h1><p class="ev-lead">{{ template.title }}</p><span class="ev-chip"><i class="bi bi-shield-check" aria-hidden="true"></i> Propriété : {{ template.ownerLabel }}</span></header>
