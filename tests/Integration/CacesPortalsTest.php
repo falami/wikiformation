@@ -75,6 +75,50 @@ final class CacesPortalsTest extends KernelTestCase
         }
     }
 
+    public function testUnusedGridCanBeDeletedButAssignedGridIsProtected(): void
+    {
+        $this->client->loginUser($this->admin);
+        $template = (new \App\Entity\CacesTemplate())->setEntite($this->tenant)->setTitle('Grille à supprimer');
+        $this->em->persist($template); $this->em->flush();
+        $id = $template->getId();
+        $page = $this->client->request('GET', $this->url('app_caces_index'));
+        $action = $this->url('app_caces_delete', ['id'=>$id]);
+        $token = $page->filter('form[action="'.$action.'"] input[name="_token"]')->attr('value');
+        $this->caces->getExam()->setTheorySnapshot(['key'=>'custom-'.$id]);
+        $this->em->flush();
+        $this->client->request('POST', $action, ['_token'=>$token]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        self::assertNotNull($this->em->find(\App\Entity\CacesTemplate::class, $id));
+        $page = $this->client->request('GET', $this->url('app_caces_index'));
+        self::assertCount(0, $page->filter('form[action="'.$action.'"]'));
+        $exam = $this->em->find(\App\Entity\CacesExam::class, $this->caces->getExam()->getId());
+        $exam->setTheorySnapshot(['key'=>'official']);
+        $this->em->flush();
+        $this->client->request('POST', $action, ['_token'=>$token]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        self::assertSame(0, $this->em->getRepository(\App\Entity\CacesTemplate::class)->count(['id'=>$id]));
+    }
+
+    public function testGridDeletionRequiresCsrfAndTenantOwnership(): void
+    {
+        $this->client->loginUser($this->admin);
+        $template = (new \App\Entity\CacesTemplate())->setEntite($this->tenant)->setTitle('Protégée');
+        $this->em->persist($template); $this->em->flush();
+        $id = $template->getId();
+        $action = $this->url('app_caces_delete', ['id'=>$id]);
+        $page = $this->client->request('GET', $this->url('app_caces_index'));
+        $token = $page->filter('form[action="'.$action.'"] input[name="_token"]')->attr('value');
+        $this->client->catchExceptions(true);
+        $this->client->request('POST', $action, ['_token'=>'invalid']);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $template = $this->em->find(\App\Entity\CacesTemplate::class, $id);
+        $template->setEntite(null);
+        $this->em->flush();
+        $this->client->request('POST', $action, ['_token'=>$token]);
+        self::assertSame(404, $this->client->getResponse()->getStatusCode());
+        self::assertSame(1, $this->em->getRepository(\App\Entity\CacesTemplate::class)->count(['id'=>$id]));
+    }
+
     public function testAdminPagesRenderAndExistingEvaluationRemainsIntact(): void
     {
         $this->client->loginUser($this->admin);

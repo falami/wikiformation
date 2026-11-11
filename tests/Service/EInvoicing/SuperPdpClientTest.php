@@ -35,6 +35,25 @@ final class SuperPdpClientTest extends TestCase
         }
     }
 
+    public function testConversionDiagnosticExposesOnlyKnownFieldPaths(): void
+    {
+        foreach ([
+            ['json: unable to unmarshal private-value within "/lines/0/vat_information/invoiced_item_vat_rate"', true],
+            ['private-value at "/private_customer_secret"', false],
+        ] as [$message, $hasPath]) {
+            $client = new SuperPdpClient(new MockHttpClient(new MockResponse(json_encode(['message' => $message]), ['http_code' => 400])));
+            try {
+                $client->convertInvoice(['type_code' => 380]);
+                self::fail('Expected rejection');
+            } catch (SuperPdpException $error) {
+                self::assertStringNotContainsString('private', $error->getMessage());
+                self::assertSame($hasPath, str_contains($error->getMessage(), '/lines/0/vat_information/invoiced_item_vat_rate'));
+                self::assertSame(400, $error->httpStatus);
+                self::assertFalse($error->isUncertain());
+            }
+        }
+    }
+
     public function testAuthorizationUrlUsesPkceAndAccountHintsWithoutCredentials(): void
     {
         $url = (new SuperPdpClient(new MockHttpClient()))->authorizationUrl('app-1', 'https://wiki.test/oauth/callback', str_repeat('a', 32), str_repeat('b', 43), '123456789', 'fr_siren', 'test@example.test');

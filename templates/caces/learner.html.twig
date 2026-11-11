@@ -1,0 +1,14 @@
+{% extends 'caces/base.html.twig' %}
+{% block caces %}
+<header class="entity-hero cx-hero"><div><h1>Mes tests théoriques CACES®</h1><p>Retrouvez les tests qui vous sont affectés par votre organisme.</p></div></header>
+<section class="cx-panel">
+{% for a in attempts %}
+<article class="cx-heading">
+<div><h2>{{ a.exam.session.code }}</h2><p>{{ a.submittedAt ? 'Test terminé' : 'Test à réaliser' }}</p></div>
+<a class="cx-btn primary" href="{{ path('app_caces_theory', {entite:entite.id,id:a.id}) }}">{{ a.submittedAt ? 'Consulter mon test' : 'Ouvrir mon test' }}</a>
+</article>
+{% else %}
+<div class="cx-empty"><h2>Aucun test théorique affecté</h2><p>Vos tests apparaîtront ici dès leur affectation par votre organisme.</p></div>
+{% endfor %}
+</section>
+{% endblock %}

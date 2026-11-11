@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 namespace App\Service\Caces;
-use App\Entity\{CacesTemplate,Entite};
+use App\Entity\{CacesExam,CacesTemplate,Entite};
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -27,6 +27,21 @@ final class CacesLibrary
         foreach ($this->catalog($entite) as $item) if ($item['key']===$key) return $item;
         throw new \InvalidArgumentException('Modèle introuvable.');
     }
+    /** Snapshots are retained even before a candidate starts an evaluation. */
+    public function protectedKeys(): array
+    {
+        $keys = [];
+        foreach ($this->em->createQueryBuilder()->select('e.theorySnapshot', 'e.practiceSnapshot')->from(CacesExam::class, 'e')->getQuery()->toIterable() as $exam) {
+            foreach ($exam as $snapshot) {
+                if (isset($snapshot['key'])) $keys[$snapshot['key']] = true;
+            }
+        }
+        foreach ($this->em->createQueryBuilder()->select('t.schema')->from(CacesTemplate::class, 't')->getQuery()->toIterable() as $row) {
+            if (isset($row['schema']['supersedes'])) $keys[$row['schema']['supersedes']] = true;
+        }
+        return $keys;
+    }
+
     public function image(string $key,int $page): string
     {
         if (!preg_match('/^r(482|483|484|485|486|487|489|490)-v1-202412-g[1-5]$/D',$key) || $page<1 || $page>20) throw new \InvalidArgumentException('Page introuvable.');

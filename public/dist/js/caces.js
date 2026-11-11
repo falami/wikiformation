@@ -133,3 +133,9 @@ const tick=()=>{const left=Math.max(0,Math.ceil(deadline-now()));timer.textConte
 progress();tick();setInterval(tick,1000);setInterval(()=>{if(!closed)save();},15000);window.addEventListener('online',()=>{if(closed)location.reload();else save();});}
 for(const b of document.querySelectorAll('[data-print]'))b.onclick=()=>window.print();
 })();
+
+ document.querySelectorAll('form[data-confirm-delete]').forEach(form => {
+  form.addEventListener('submit', event => {
+    if (!window.confirm('Supprimer définitivement cette grille inutilisée ? Cette action est irréversible.')) event.preventDefault();
+  });
+});

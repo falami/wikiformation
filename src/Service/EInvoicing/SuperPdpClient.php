@@ -260,6 +260,10 @@ final class SuperPdpClient
             $response = $this->httpClient->request($method, self::BASE_URL.$path, $options);
             $status = $response->getStatusCode();
             if ($status < 200 || $status >= 300) {
+                $diagnostic = '';
+                if ($status === 400 && $path === '/v1.beta/invoices/convert') {
+                    $diagnostic = self::conversionDiagnostic($response->getContent(false));
+                }
                 $response->cancel();
                 $uncertain = $mutation && ($status >= 500 || $status === 408);
                 throw new SuperPdpException($this->operationLabel($method, $path). ' : '. match ($status) {
@@ -267,7 +271,7 @@ final class SuperPdpClient
                     403 => 'La plateforme agréée n’autorise pas cette opération. Vérifiez le compte et sa validation.',
                     429 => 'La plateforme agréée limite temporairement les requêtes.',
                     default => $uncertain ? 'La plateforme n’a pas confirmé le résultat. Vérifiez la réception avant tout nouvel envoi.' : 'La plateforme agréée a refusé la requête (HTTP '.$status.').',
-                }, $status, $uncertain);
+                }.$diagnostic, $status, $uncertain);
             }
             $body = $response->getContent(false);
             if (strlen($body) > self::MAX_DOCUMENT_BYTES) $this->invalidResponse($mutation);
@@ -279,6 +283,37 @@ final class SuperPdpClient
                 ? 'Résultat non confirmé après une interruption réseau. Vérifiez la réception avant tout nouvel envoi.'
                 : 'La plateforme agréée est momentanément inaccessible.', null, $mutation);
         }
+    }
+
+    /** Extract only allowlisted field paths, never provider messages or invoice values. */
+    private static function conversionDiagnostic(string $body): string
+    {
+        if (strlen($body) > 65536) return '';
+        $data = json_decode($body, true);
+        $message = is_array($data) ? ($data['message'] ?? null) : null;
+        if (!is_string($message)) return '';
+        $fields = ['number', 'issue_date', 'type_code', 'currency_code', 'process_control',
+            'specification_identifier', 'business_process_type', 'seller', 'buyer', 'name',
+            'electronic_address', 'scheme', 'value', 'legal_registration_identifier',
+            'postal_address', 'address_line1', 'address_line2', 'post_code', 'city', 'country_code',
+            'vat_identifier', 'additional_legal_information', 'payment_due_date', 'payment_terms',
+            'notes', 'subject_code', 'note', 'totals', 'sum_invoice_lines_amount', 'total_without_vat',
+            'total_with_vat', 'total_vat_amount', 'amount_due_for_payment', 'vat_break_down',
+            'vat_category_code', 'vat_category_rate', 'vat_category_taxable_amount', 'vat_category_tax_amount',
+            'vat_exemption_reason_code', 'vat_exemption_reason', 'lines', 'identifier', 'invoiced_quantity',
+            'invoiced_quantity_code', 'net_amount', 'price_details', 'item_net_price', 'item_price_base_quantity',
+            'item_information', 'vat_information', 'invoiced_item_vat_category_code', 'invoiced_item_vat_rate',
+            'real_delivery_date', 'allowances', 'amount', 'reason', 'purchase_order_reference', 'vat_point_date_code'];
+        preg_match_all('~"(/[a-z0-9_/]+)"~', $message, $matches);
+        $paths = [];
+        foreach ($matches[1] as $path) {
+            $valid = true;
+            foreach (explode('/', ltrim($path, '/')) as $part) {
+                if (!in_array($part, $fields, true) && !preg_match('/^[0-9]{1,4}$/D', $part)) $valid = false;
+            }
+            if ($valid) $paths[] = $path;
+        }
+        return $paths === [] ? '' : ' Champ(s) signalé(s) : '.implode(', ', array_slice(array_unique($paths), 0, 5)).'.';
     }
 
     /** Only fixed labels are logged, never provider bodies, URLs or query values. */

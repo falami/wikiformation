@@ -38,13 +38,28 @@ final class CacesController extends AbstractController
     public function index(Entite $entite,Request $request): Response
     {
         $admin=$this->isGranted(TenantPermission::ADMIN,$entite);
+        if (!$admin && !$this->isGranted('ENTITE_FORMATEUR', $entite)) {
+            return $this->redirectToRoute('app_caces_learner', ['entite'=>$entite->getId()]);
+        }
         $q=$this->em->createQueryBuilder()->select('a','e','u','s')->from(CacesAttempt::class,'a')->join('a.exam','e')->join('a.learner','u')->join('e.session','s')->where('a.entite = :e AND e.entite = :e AND s.entite = :e')->setParameter('e',$entite);
         if (!$admin) $q->andWhere('a.learner = :u OR e.practiceTester = :u OR e.theoryTester = :u')->setParameter('u',$this->getUser());
         $search=mb_substr(trim($request->query->getString('q')),0,100);
         if ($search) $q->andWhere('u.nom LIKE :q OR u.prenom LIKE :q OR s.code LIKE :q')->setParameter('q','%'.$search.'%');
         $attempts=$q->orderBy('a.id','DESC')->setMaxResults(200)->getQuery()->getResult();
-        return $this->page('index',$entite,['catalog'=>$admin?$this->library->catalog($entite):[],'attempts'=>$attempts,'search'=>$search]);
+        return $this->page('index',$entite,['catalog'=>$admin?$this->library->catalog($entite):[],'attempts'=>$attempts,'search'=>$search,'protectedKeys'=>$admin?$this->library->protectedKeys():[]]);
     }
+    #[Route('/mes-tests',name:'learner',methods:['GET'])]
+    public function learner(Entite $entite): Response
+    {
+        $attempts = $this->em->createQueryBuilder()->select('a','e','s')
+            ->from(CacesAttempt::class,'a')->join('a.exam','e')->join('e.session','s')
+            ->where('a.entite = :entite AND e.entite = :entite AND s.entite = :entite')
+            ->andWhere('a.learner = :learner')
+            ->setParameter('entite',$entite)->setParameter('learner',$this->getUser())
+            ->orderBy('a.id','DESC')->getQuery()->getResult();
+        return $this->page('learner',$entite,['attempts'=>$attempts]);
+    }
+
     #[Route('/modeles/nouveau',name:'model',methods:['GET','POST'])]
     public function model(Entite $entite,Request $r): Response
     {
@@ -90,6 +105,22 @@ final class CacesController extends AbstractController
         if ($template->getEntite()?->getId()!==$entite->getId() && !($template->getEntite()===null && $this->isGranted('ROLE_SUPER_ADMIN'))) throw $this->createNotFoundException();
         $template->setStatus('archived');$this->em->flush();return $this->redirectToRoute('app_caces_index',['entite'=>$entite->getId()]);
     }
+    #[Route('/modeles/{id}/supprimer',name:'delete',methods:['POST'])]
+    public function delete(Entite $entite,CacesTemplate $template,Request $r): Response
+    {
+        $this->admin($entite);
+        $this->token($r,'caces_delete_'.$template->getId());
+        if ($template->getEntite()?->getId()!==$entite->getId() && !($template->getEntite()===null && $this->isGranted('ROLE_SUPER_ADMIN'))) throw $this->createNotFoundException();
+        if (isset($this->library->protectedKeys()['custom-'.$template->getId()])) {
+            $this->addFlash('warning','Cette grille est utilisée par une évaluation ou une autre version. Vous pouvez l’archiver, mais pas la supprimer.');
+        } else {
+            $this->em->remove($template);
+            $this->em->flush();
+            $this->addFlash('success','La grille inutilisée a été supprimée.');
+        }
+        return $this->redirectToRoute('app_caces_index',['entite'=>$entite->getId()]);
+    }
+
     private function trainers(Entite $entite): array
     {
         $trainers=[];
