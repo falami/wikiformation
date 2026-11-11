@@ -49,6 +49,13 @@ final class CacesController extends AbstractController
     public function model(Entite $entite,Request $r): Response
     {
         $this->admin($entite);$errors=[];$values=['title'=>'','recommendation'=>'489','category'=>'','kind'=>'theory','versionLabel'=>'V1','schema'=>['durationMinutes'=>60,'themes'=>[]]];
+        if ($r->isMethod('GET') && $r->query->getString('kind') === 'practice') {
+            $values['kind']='practice';
+            $rec=$r->query->getString('recommendation','489');
+            if(isset(CacesRules::FAMILIES[$rec])) $values['recommendation']=$rec;
+            $category=$r->query->getString('category');
+            if(in_array($category,CacesRules::CATEGORIES[$values['recommendation']],true)) $values['category']=$category;
+        }
         if ($r->isMethod('GET') && $r->query->getString('copy')) { $values=$this->library->find($entite,$r->query->getString('copy')); $values['title'].=' — nouvelle version'; }
         if ($r->isMethod('POST')) {
             $this->token($r,'caces_model_'.$entite->getId());
@@ -83,16 +90,52 @@ final class CacesController extends AbstractController
         if ($template->getEntite()?->getId()!==$entite->getId() && !($template->getEntite()===null && $this->isGranted('ROLE_SUPER_ADMIN'))) throw $this->createNotFoundException();
         $template->setStatus('archived');$this->em->flush();return $this->redirectToRoute('app_caces_index',['entite'=>$entite->getId()]);
     }
-    #[Route('/sessions/nouvelle',name:'assign',methods:['GET','POST'])]
-    public function assign(Entite $entite,Request $r): Response
+    private function trainers(Entite $entite): array
     {
-        $this->admin($entite); $errors=[];$catalog=$this->library->catalog($entite);
-        $sessions=$this->em->getRepository(Session::class)->findBy(['entite'=>$entite],['id'=>'DESC']);
         $trainers=[];
         foreach($this->em->getRepository(Formateur::class)->findBy(['entite'=>$entite]) as $t) {
             $u=$t->getUtilisateur(); $membership=$this->em->getRepository(UtilisateurEntite::class)->findOneBy(['entite'=>$entite,'utilisateur'=>$u]);
             if($u && $membership?->isActive() && $membership->hasRole(UtilisateurEntite::TENANT_FORMATEUR)) $trainers[$u->getId()]=$u;
         }
+        return $trainers;
+    }
+    #[Route('/sessions/{id}/testeur-pratique',name:'practice_tester',methods:['POST'])]
+    public function practiceTester(Entite $entite,Session $session,Request $r): Response
+    {
+        $this->admin($entite);
+        if($session->getEntite()?->getId()!==$entite->getId()) throw $this->createNotFoundException();
+        $this->token($r,'caces_tester_'.$session->getId());
+        $tester=$this->trainers($entite)[$r->request->getInt('practiceTester')]??null;
+        if(!$tester) throw $this->createAccessDeniedException('Choisissez un formateur actif de cet organisme.');
+        $this->em->wrapInTransaction(function()use($entite,$session,$tester){
+            $this->em->lock($session,LockMode::PESSIMISTIC_WRITE);
+            foreach($this->em->getRepository(CacesExam::class)->findBy(['entite'=>$entite,'session'=>$session]) as $exam) {
+                $this->em->lock($exam,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($exam);
+                if($exam->getPracticeTester()->getId()===$tester->getId()) continue;
+                // Signed results retain their actual examiner; only pending work changes hands.
+                foreach($this->em->getRepository(CacesAttempt::class)->findBy(['exam'=>$exam]) as $attempt) {
+                    $this->em->lock($attempt,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt);
+                    if($attempt->getPracticeAt()) {
+                        $result=$attempt->getPracticeResult();
+                        $result['testerName']??=$attempt->getSignatures()['practiceTester']['name']??$this->fullName($exam->getPracticeTester());
+                        $result['testerId']??=$exam->getPracticeTester()->getId();
+                        $attempt->setPracticeResult($result);
+                    }
+                }
+                $snapshot=$exam->getPracticeSnapshot();
+                $snapshot['testerChanges'][]=['from'=>$exam->getPracticeTester()->getId(),'to'=>$tester->getId(),'by'=>$this->getUser()->getId(),'at'=>(new \DateTimeImmutable())->format(DATE_ATOM)];
+                $exam->setPracticeSnapshot($snapshot)->setPracticeTester($tester);
+            }
+        });
+        $this->addFlash('success','Testeur pratique modifié pour toute la session. Les évaluations déjà signées sont conservées.');
+        return $this->redirectToRoute('app_caces_index',['entite'=>$entite->getId()]);
+    }
+    #[Route('/sessions/nouvelle',name:'assign',methods:['GET','POST'])]
+    public function assign(Entite $entite,Request $r): Response
+    {
+        $this->admin($entite); $errors=[];$catalog=$this->library->catalog($entite);
+        $sessions=$this->em->getRepository(Session::class)->findBy(['entite'=>$entite],['id'=>'DESC']);
+        $trainers=$this->trainers($entite);
         if($r->isMethod('POST')) {
             $this->token($r,'caces_assign_'.$entite->getId());
             try {
@@ -167,6 +210,7 @@ final class CacesController extends AbstractController
             $this->token($r,'caces_dossier_'.$attempt->getId());
             try {
                 $this->em->wrapInTransaction(function() use($entite,$attempt,$r) {
+                    $this->em->lock($attempt->getExam(),LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt->getExam());
                     $this->em->lock($attempt,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt);$this->workflow->expire($attempt,new \DateTimeImmutable());
                     $action=$r->request->getString('action');
                     if($attempt->getCertificate()) throw new \InvalidArgumentException('Ce dossier certifié est verrouillé.');
@@ -177,7 +221,7 @@ final class CacesController extends AbstractController
                         $equipment=trim($r->request->getString('equipment'));if(!$equipment || mb_strlen($equipment)>255) throw new \InvalidArgumentException('Précisez la marque et le modèle de l’engin.');
                         $date=\DateTimeImmutable::createFromFormat('!Y-m-d',$r->request->getString('practiceDate'));if(!$date || $date->format('Y-m-d')!==$r->request->getString('practiceDate') || $date>new \DateTimeImmutable('today')) throw new \InvalidArgumentException('Date de pratique invalide.');
                         $scores=$r->request->all('scores');$result=$this->rules->grade($attempt->getExam()->getPracticeSnapshot()['schema'],$scores,true,$duration);
-                        $result+=['scores'=>$scores,'equipment'=>$equipment,'remediation'=>mb_substr($r->request->getString('remediation'),0,4000),'remediationHours'=>max(0,min(500,$r->request->getInt('remediationHours')))];
+                        $result+=['testerId'=>$this->getUser()->getId(),'testerName'=>$this->fullName($this->getUser()),'scores'=>$scores,'equipment'=>$equipment,'remediation'=>mb_substr($r->request->getString('remediation'),0,4000),'remediationHours'=>max(0,min(500,$r->request->getInt('remediationHours')))];
                         $sig=$this->signature($r,'signature');$signatures=$attempt->getSignatures();$signatures['practiceTester']=['image'=>$sig,'name'=>$this->fullName($this->getUser()),'at'=>(new \DateTimeImmutable())->format(DATE_ATOM)];
                         $attempt->setPracticeResult($result)->setPracticeAt($date)->setSignatures($signatures);
                     } elseif($action==='theorySign') {
@@ -221,14 +265,14 @@ final class CacesController extends AbstractController
 
                         // ID is a durable, unique sequence within the archive, including concurrent sessions.
                         $number=substr($dates['obtainedAt'],0,4).'.'.$exam->getRecommendation().'.C'.$exam->getCategory().'.'.str_pad((string)$attempt->getId(),3,'0',STR_PAD_LEFT);
-                        $attempt->setCertificate($dates+['number'=>$number,'issuedAt'=>(new \DateTimeImmutable())->format(DATE_ATOM),'issuedBy'=>$this->fullName($this->getUser()),'learner'=>$this->fullName($attempt->getLearner()),'practiceTester'=>$this->fullName($exam->getPracticeTester())]);
+                        $attempt->setCertificate($dates+['number'=>$number,'issuedAt'=>(new \DateTimeImmutable())->format(DATE_ATOM),'issuedBy'=>$this->fullName($this->getUser()),'learner'=>$this->fullName($attempt->getLearner()),'practiceTester'=>$attempt->getPracticeResult()['testerName']??$attempt->getSignatures()['practiceTester']['name']??$this->fullName($exam->getPracticeTester())]);
                     } else throw new \InvalidArgumentException('Action inconnue.');
                 });
                 return $this->redirectToRoute('app_caces_show',['entite'=>$entite->getId(),'id'=>$attempt->getId()]);
             } catch(\InvalidArgumentException $e){$this->addFlash('danger',$e->getMessage());return $this->redirectToRoute('app_caces_show',['entite'=>$entite->getId(),'id'=>$attempt->getId()]);}
         }
         $this->em->wrapInTransaction(function()use($attempt){$this->em->lock($attempt,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt);$this->workflow->expire($attempt,new \DateTimeImmutable());});
-        return $this->page('show',$entite,['dossier'=>$attempt,'error'=>$error]);
+        return $this->page('show',$entite,['dossier'=>$attempt,'error'=>$error,'trainers'=>$this->isGranted(TenantPermission::ADMIN,$entite)?$this->trainers($entite):[]]);
     }
     #[Route('/dossiers/{id}/page/{page}',name:'source',requirements:['id'=>'\d+','page'=>'\d+'],methods:['GET'])]
     public function source(Entite $entite,CacesAttempt $attempt,int $page): Response

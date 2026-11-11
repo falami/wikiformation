@@ -44,10 +44,13 @@ python scripts/caces/import_sources.py '/chemin/vers/GRILLES'
 python scripts/caces/practice_r489.py
 ```
 
-Le premier script requiert PyMuPDF et vérifie le nombre et l'ordre des 100 réponses dans chaque grille. Le second ajoute la grille pratique. L'import utilise l'ordre réel des affirmations lorsque le PDF porte un repère erroné ; les repères divergents sont conservés et affichés au candidat. Deux repères de section/illustration parasites sont explicitement exclus : R486 grille 4 page 2 et R490 grille 4 page 4. Les pages originales restent inchangées.
+Le premier script requiert PyMuPDF et vérifie le nombre et l'ordre des 100 réponses dans chaque grille. Le second ajoute la grille pratique. L'import utilise l'ordre réel des affirmations lorsque le PDF porte un repère erroné ; les repères divergents sont conservés et affichés au candidat. Deux repères de section/illustration parasites sont explicitement exclus : R486 grille 4 page 2 et R490 grille 4 page 4. Les énoncés sont extraits des cellules du tableau, délimitées par les lignes des colonnes de réponse et les bandeaux de rubrique. Quatre cellules sans numéro imprimé sont repérées explicitement dans `source_statements.py` après vérification visuelle. Les 4 000 libellés reprennent ainsi les énoncés sources plutôt que des intitulés génériques. Les pages originales restent inchangées pour conserver les schémas partagés. L’import conserve les grilles pratiques existantes. Les modèles personnalisés et les instantanés des examens déjà créés ne sont pas réécrits.
 
 ## Vérifications
 
 Tests PHPUnit dédiés : seuils impairs, total 70/100, zéro pratique, temps pratique, refus des réponses tardives et multiples, dates, intégrité des 40 grilles, accès par rôle, CSRF, parcours avec signatures et documents, testeur extérieur à l'équipe de session, dispense externe. Tests de non-régression du module Evaluation séparés. Lint Twig, conteneur Symfony et JavaScript.
 
 Contrôle visuel du tableau de bord et de la bibliothèque avec des données fictives via le navigateur. La connexion réelle n'a pas été contournée. Pour reproduire le rendu de test uniquement : `CACES_QA_OUTPUT=/tmp/caces-preview php vendor/bin/phpunit tests/Integration/CacesPortalsTest.php` après création du répertoire temporaire.
+
+### Parcours pratique
+La création dédiée (`modeles/nouveau?kind=practice`) accepte des critères notés de 1 à 8 points. La session filtre les grilles publiées par recommandation et catégorie et propose la création contextuelle en cas d’absence. Le testeur affecté renseigne chaque note dans son espace CACES. Un administrateur peut changer le testeur pour toute la session depuis un dossier ; les évaluations signées conservent leur signataire dans les documents et le registre. Les changements sont tracés dans le snapshot pratique.

@@ -143,6 +143,26 @@ final class CacesPortalsTest extends KernelTestCase
         self::assertSame(302,$this->client->getResponse()->getStatusCode());$a=$this->em->find(\App\Entity\CacesAttempt::class,$this->caces->getId());self::assertTrue($a->getTheoryResult()['passed']);self::assertNull($a->getTheoryResult()['score']);self::assertSame('EXT-123',$a->getTheoryResult()['externalEvidence']['reference']);
         $this->client->followRedirect();self::assertSame(200,$this->client->getResponse()->getStatusCode());
     }
+    public function testPracticeCreationContextAndSessionReassignment(): void
+    {
+        $id=$this->caces->getId();$sessionId=$this->caces->getExam()->getSession()->getId();$oldId=$this->trainer->getId();$newId=$this->outsider->getId();
+        $other=(new Formateur())->setUtilisateur($this->outsider)->setEntite($this->tenant)->setCreateur($this->admin);$this->em->persist($other);
+        $this->caces->setPracticeAt(new \DateTimeImmutable())->setPracticeResult(['score'=>100,'passed'=>true,'themes'=>[],'reasons'=>[]])->setSignatures(['practiceTester'=>['name'=>'Testeur initial','at'=>(new \DateTimeImmutable())->format(DATE_ATOM),'image'=>'data:image/png;base64,AA==']]);$this->em->flush();
+        $this->client->loginUser($this->admin);
+        $page=$this->client->request('GET',$this->url('app_caces_model'),['kind'=>'practice','recommendation'=>'482','category'=>'A']);
+        self::assertSame('practice',$page->filter('#kind option[selected]')->attr('value'));
+        self::assertSame('482',$page->filter('#recommendation option[selected]')->attr('value'));
+        $page=$this->client->request('GET',$this->url('app_caces_show',['id'=>$id]));
+        $token=$page->filter('#assignedTester')->ancestors()->filter('form')->filter('input[name="_token"]')->attr('value');
+        $this->client->request('POST',$this->url('app_caces_practice_tester',['id'=>$sessionId]),['_token'=>$token,'practiceTester'=>$newId]);
+        self::assertSame(302,$this->client->getResponse()->getStatusCode());
+        $attempt=$this->em->find(\App\Entity\CacesAttempt::class,$id);
+        self::assertSame($newId,$attempt->getExam()->getPracticeTester()->getId());
+        self::assertSame($oldId,$attempt->getPracticeResult()['testerId']);
+        self::assertSame('Testeur initial',$attempt->getPracticeResult()['testerName']);
+        self::assertCount(1,$attempt->getExam()->getPracticeSnapshot()['testerChanges']);
+    }
+
     public function testOptionalRenderedQaFixture(): void
     {
         if(!getenv('CACES_QA_OUTPUT')){self::assertTrue(true);return;}
