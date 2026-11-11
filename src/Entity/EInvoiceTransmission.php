@@ -54,6 +54,12 @@ class EInvoiceTransmission
     public function getAcceptedAt(): ?\DateTimeImmutable { return $this->acceptedAt; }
     public function getSynchronizedAt(): ?\DateTimeImmutable { return $this->synchronizedAt; }
     public function block(array $issues): void { if ($this->attemptedAt) throw new \LogicException('Transmission déjà tentée.'); $this->status = 'blocked'; $this->issues = array_values($issues); $this->synchronizedAt = new \DateTimeImmutable(); }
+    public function resetAfterCustomerVatCorrection(): void
+    {
+        if ($this->attemptedAt || $this->providerId || $this->acceptedAt || $this->events !== [] || !in_array($this->status, ['blocked', 'queued'], true)) throw new \LogicException('Transmission déjà tentée ou état incompatible.');
+        $this->payload = null; $this->sha256 = null; $this->issues = [];
+        $this->status = 'queued'; $this->synchronizedAt = new \DateTimeImmutable();
+    }
     public function prepared(string $xml): void
     {
         if ($this->attemptedAt) throw new \LogicException('Transmission déjà tentée.');
