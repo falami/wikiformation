@@ -51,7 +51,7 @@ final class CacesDocumentController extends AbstractController
         }
         if(in_array($type,['attestation','carte'],true)&&!$attempt->getCertificate())throw $this->createNotFoundException('Certification non émise.');
         if($type==='echec'&&!(($attempt->getTheoryResult()&&!$attempt->getTheoryResult()['passed'])||($attempt->getPracticeResult()&&!$attempt->getPracticeResult()['passed'])))throw $this->createNotFoundException();
-        $sessionAttempts=$em->createQueryBuilder()->select('a','e')->from(CacesAttempt::class,'a')->join('a.exam','e')->where('a.entite = :tenant AND e.entite = :tenant AND e.session = :session AND a.learner = :learner')->setParameter('tenant',$entite)->setParameter('session',$exam->getSession())->setParameter('learner',$attempt->getLearner())->orderBy('e.recommendation','ASC')->addOrderBy('e.category','ASC')->getQuery()->getResult();
+        $sessionAttempts=$em->createQueryBuilder()->select('a','e')->from(CacesAttempt::class,'a')->join('a.exam','e')->where('a.entite = :tenant AND e.entite = :tenant AND e.session = :session AND a.learner = :learner AND e.recommendation = :recommendation')->setParameter('recommendation',$exam->getRecommendation())->setParameter('tenant',$entite)->setParameter('session',$exam->getSession())->setParameter('learner',$attempt->getLearner())->orderBy('e.recommendation','ASC')->addOrderBy('e.category','ASC')->getQuery()->getResult();
         $cardCertificates = [];
         foreach ($sessionAttempts as $candidate) {
             if ($candidate->getExam()->getRecommendation() === $exam->getRecommendation() && $candidate->getCertificate()) {

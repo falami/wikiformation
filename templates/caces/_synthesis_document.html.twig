@@ -1,5 +1,5 @@
 <article class="cx-document-sheet cx-synthesis syn-compact">
-<header class="syn-header"><div class="syn-masthead"><strong>{{ entite.nom }}</strong><span>CACES® · Résultats de session</span></div><div class="syn-title"><div><span class="syn-label">Récapitulatif du parcours</span><h1>Feuille de synthèse</h1><p>{{ dossier.learner.prenom }} {{ dossier.learner.nom }}</p></div><div class="syn-category"><strong>{{ sessionAttempts|length }}</strong><span>catégories présentées</span></div></div><div class="syn-session"><span>Session <strong>{{ e.session.code }}</strong></span><span>Lieu <strong>{{ e.location }}</strong></span></div></header>
+<header class="syn-header"><div class="syn-masthead"><strong>{{ entite.nom }}</strong><span>CACES® · Résultats de session</span></div><div class="syn-title"><div><span class="syn-label">R.{{ e.recommendation }} · Récapitulatif du parcours</span><h1>Feuille de synthèse</h1><p>{{ dossier.learner.prenom }} {{ dossier.learner.nom }}</p></div><div class="syn-category"><strong>{{ sessionAttempts|length }}</strong><span>catégories présentées</span></div></div><div class="syn-session"><span>Session <strong>{{ e.session.code }}</strong></span><span>Lieu <strong>{{ e.location }}</strong></span></div></header>
 <section class="syn-candidate"><span class="syn-label">Informations du stagiaire</span><dl class="syn-details">
 <div><dt>Date et lieu de naissance</dt><dd>{{ dossier.profile.birthDate|default('') ? dossier.profile.birthDate|date('d/m/Y') : 'Non renseignée' }} · {{ dossier.profile.birthPlace|default('Non renseigné') }}</dd></div>
 <div><dt>Entreprise</dt><dd>{{ dossier.profile.company|default('Non renseignée') }}</dd></div>
@@ -33,10 +33,29 @@
 </div></td></tr>{% endif %}
 {% endfor %}</tbody></table></section>
 <section class="syn-outcome"><span class="syn-label">Bilan de certification</span><h2>CACES® obtenus</h2><p>{{ obtained ? obtained|join(' / ') : 'Aucun certificat émis à ce jour.' }}</p>{% if pending %}<div class="syn-pending"><strong>Épreuves réussies · délivrance en attente</strong><br>{{ pending|join(' / ') }}</div>{% endif %}</section>
-<p class="syn-disclaimer">La validation de la théorie et de la pratique est requise pour chaque catégorie. Seuls les certificats effectivement émis figurent parmi les CACES® obtenus. Les grilles d’évaluation et signatures restent conservées dans les dossiers individuels.</p>
+<section class="syn-signatures"><h2>Signatures et intervenants</h2><div class="syn-signature-grid">
+{% set shown = [] %}
+{% for a in sessionAttempts %}
+{% for role,label in {learner:'Stagiaire',theoryTester:'Testeur théorique',practiceTester:'Testeur pratique'} %}
+{% set source = role == 'practiceTester' ? a : a.theoryAttempt %}
+{% set key = role ~ '-' ~ source.id %}
+{% if key not in shown %}{% set shown = shown|merge([key]) %}{% set signature = a.signatures[role]|default(null) %}
+<div class="syn-signature"><h3>{{ label }}</h3><small>{{ role == 'practiceTester' ? 'Catégorie ' ~ a.exam.category : 'Dossier n°' ~ source.id }}</small>
+{% if signature %}<p>{{ signature.name }}<br><small>{{ signature.at|date('d/m/Y à H:i') }}</small></p><img src="{{ signature.image }}" alt="Signature — {{ label }}">
+{% else %}<p>Signature non enregistrée</p>{% endif %}</div>
+{% endif %}{% endfor %}{% endfor %}
+{% set trainer = e.session.formateur %}
+<div class="syn-signature"><h3>Formateur de la session</h3>
+{% if trainer %}<p>{{ trainer.utilisateur.prenom }} {{ trainer.utilisateur.nom }}</p>
+{% if trainer.signatureDataUrl or trainer.signatureImagePath %}<img src="{{ trainer.signatureDataUrl ?: asset(trainer.signatureImagePath) }}" alt="Signature du formateur"><small>Signature du profil formateur · ne vaut pas validation de cette synthèse.</small>{% else %}<p>Signature non enregistrée</p>{% endif %}
+{% else %}<p>Formateur non renseigné</p>{% endif %}</div>
+</div></section>
+<p class="syn-disclaimer">La validation de la théorie et de la pratique est requise pour chaque catégorie. Seuls les certificats effectivement émis figurent parmi les CACES® obtenus. Les grilles d’évaluation restent conservées dans les dossiers individuels.</p>
 <footer class="syn-footer"><strong>{{ entite.nom }}</strong><span>{{ e.session.code }} · {{ dossier.learner.prenom }} {{ dossier.learner.nom }}</span></footer>
 </article>
 <style>
+.syn-signatures{margin-top:24px}.syn-signatures h2{font-size:18px}.syn-signature-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.syn-signature{border:1px solid #dce5ec;border-radius:8px;padding:14px;break-inside:avoid;overflow-wrap:anywhere}.syn-signature h3{font-size:13px;margin:0 0 6px}.syn-signature p{font-size:12px}.syn-signature small{font-size:10px;color:#697f90;display:block}.syn-signature img{display:block;width:100%;height:65px;object-fit:contain;margin:8px 0}@media screen and (max-width:600px){.syn-signature-grid{grid-template-columns:1fr}} 
+
 .syn-compact .syn-candidate{margin:20px 0;padding:20px;background:#f7f9fb;border:1px solid #dce5ec;border-radius:10px}.syn-compact .syn-details{margin:12px 0 0;gap:14px}.syn-compact .syn-details dd{font-size:12px;overflow-wrap:anywhere}.syn-failure-details{border-left:3px solid #b64b48;padding:10px 14px;background:#fff8f7;color:#743d3d;font-size:12px;line-height:1.6}.syn-failure-details>strong{display:block;margin-bottom:8px}.syn-failure-details ul{margin:4px 0 10px;padding-left:18px}.syn-failure-details p{margin:8px 0 0}.syn-compact .syn-table .syn-failure-row td{padding-top:0}.syn-compact thead{display:table-header-group}
 
 .syn-compact .syn-header{margin-bottom:24px}.syn-compact .syn-title{padding:26px 0}.syn-compact .syn-title h1{font-size:32px;letter-spacing:-1px}.syn-compact .syn-category{padding:15px;min-width:100px}.syn-compact .syn-category strong{font-size:28px}.syn-compact .syn-exam{margin:20px 0}.syn-compact .syn-exam h2{font-size:18px;padding:18px 20px}.syn-compact .syn-table th,.syn-compact .syn-table td{padding:14px 18px;font-size:13px}.syn-compact .syn-table thead th{font-size:10px;letter-spacing:.8px}.syn-category-code{display:inline-block;margin-left:8px;padding:4px 8px;border:1px solid #ccd9e3;border-radius:5px;color:#294a61}.syn-verdict{font-weight:600;font-size:12px}.syn-pass{color:#207051}.syn-fail{color:#aa3939}.syn-wait{color:#6d7e8d}.syn-detail{display:block;font-size:10px;color:#697f90;margin-top:4px}.syn-outcome{padding:23px 25px;background:#f3f7f9;border:1px solid #d9e4ea;border-left:4px solid #b49a62;border-radius:10px;margin-top:22px}.syn-outcome h2{font-size:21px;margin:8px 0 12px}.syn-outcome p{font-size:14px;line-height:1.6;margin:0;color:#24475c;font-weight:600}.syn-pending{font-size:12px;line-height:1.7;border-top:1px solid #d9e4ea;padding-top:13px;margin-top:14px;color:#647789}.syn-disclaimer{font-size:11px;line-height:1.7;color:#738594;margin:20px 0}.syn-compact .syn-footer{margin-top:20px}

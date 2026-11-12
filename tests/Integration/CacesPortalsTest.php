@@ -66,6 +66,34 @@ final class CacesPortalsTest extends KernelTestCase
         $this->client->disableReboot(); $this->client->catchExceptions(false);
     }
 
+    public function testCacesProfilePrefillKeepsExplicitValidationAndTenantIsolation(): void
+    {
+        $service = self::getContainer()->get(\App\Service\Caces\CacesProfilePrefill::class);
+        $this->learner->setTelephone('0600000000');
+        self::assertSame('0600000000', $service->profileFor($this->caces)['phone']);
+        $previous = (new \App\Entity\CacesAttempt())
+            ->setEntite($this->tenant)->setExam($this->caces->getExam())
+            ->setInscription($this->caces->getInscription())->setLearner($this->learner)
+            ->setProfile(['birthPlace' => 'Paris', 'phone' => '0611111111', 'drivingExperience' => 'Deux ans'])
+            ->setSignatures(['learner' => ['at' => '2026-11-01T12:00:00+01:00', 'image' => 'signature']]);
+        // A separate exam avoids the unique exam/learner constraint.
+        $exam = clone $this->caces->getExam();
+        $this->em->persist($exam);
+        $previous->setExam($exam);
+        $this->em->persist($previous); $this->em->flush();
+        self::assertSame('Paris', $service->profileFor($this->caces)['birthPlace']);
+        self::assertSame([], $this->caces->getProfile());
+        self::assertSame([], $this->caces->getSignatures());
+        $previous->setLearner($this->outsider); $this->em->flush();
+        self::assertArrayNotHasKey('birthPlace', $service->profileFor($this->caces));
+        $previous->setLearner($this->learner);
+        $other = (new Entite())->setNom('Other')->setPublic(false)->setCreateur($this->admin);
+        $this->em->persist($other); $previous->setEntite($other); $this->em->flush();
+        self::assertArrayNotHasKey('birthPlace', $service->profileFor($this->caces));
+        $this->caces->setProfile(['phone' => 'Confirmed snapshot']);
+        self::assertSame(['phone' => 'Confirmed snapshot'], $service->profileFor($this->caces));
+    }
+
     public function testClientHistoryShowsArchivedExchangesOnlyForCurrentTenant(): void
     {
         $quote = (new \App\Entity\Devis())->setEntite($this->tenant)->setCreateur($this->admin)->setDestinataire($this->learner)->setNumero('DEV-HISTORY');
@@ -388,6 +416,11 @@ final class CacesPortalsTest extends KernelTestCase
         $this->em->refresh($source);
         self::assertArrayHasKey('theoryTester',$third->getSignatures());
         self::assertArrayNotHasKey('practiceTester',$third->getSignatures());
+        $foreignExam = clone $source->getExam();
+        $foreignExam->setRecommendation('483')->setCategory('A');
+        $foreignAttempt = (new \App\Entity\CacesAttempt())->setEntite($source->getEntite())->setExam($foreignExam)->setInscription($source->getInscription())->setLearner($source->getLearner());
+        $this->em->persist($foreignExam); $this->em->persist($foreignAttempt); $this->em->flush();
+
         $this->client->catchExceptions(true);
         $this->client->request('POST',$show,['_token'=>$token,'action'=>'practice']);
         self::assertSame(403,$this->client->getResponse()->getStatusCode());
@@ -396,6 +429,9 @@ final class CacesPortalsTest extends KernelTestCase
         self::assertSame(200,$this->client->getResponse()->getStatusCode());
         self::assertStringContainsString('Cat. 1A',$page->text());self::assertStringContainsString('Cat. 1B',$page->text());self::assertStringContainsString('Cat. 2B',$page->text());
         self::assertCount(1,$page->filter('.cx-document-sheet'));
+        self::assertStringNotContainsString('R.483', $page->text());
+        self::assertCount(1, $page->filter('.syn-signature img'));
+        self::assertStringContainsString('Formateur de la session', $page->text());
         if(getenv('CACES_QA_OUTPUT')) file_put_contents(getenv('CACES_QA_OUTPUT').'/multi-synthesis.html',$this->client->getResponse()->getContent());
     }
 

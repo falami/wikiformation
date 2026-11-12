@@ -244,7 +244,7 @@ final class CacesController extends AbstractController
         return $this->page('assign',$entite,compact('sessions','trainers','catalog','errors','values','registrationsBySession'));
     }
     #[Route('/dossiers/{id}/theorie',name:'theory',requirements:['id'=>'\d+'],methods:['GET','POST'])]
-    public function theory(Entite $entite,CacesAttempt $attempt,Request $r): Response
+    public function theory(Entite $entite,CacesAttempt $attempt,Request $r, \App\Service\Caces\CacesProfilePrefill $profilePrefill): Response
     {
         $this->scoped($entite,$attempt);
         if($attempt->getLearner()?->getId()!==$this->getUser()?->getId()) throw $this->createAccessDeniedException();
@@ -276,7 +276,7 @@ final class CacesController extends AbstractController
         // Expiration is enforced by the server, including after a disconnected browser returns.
         $this->em->wrapInTransaction(function() use($attempt){$this->em->refresh($attempt->getTheoryAttempt(),LockMode::PESSIMISTIC_WRITE);$this->em->lock($attempt,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt);$this->workflow->expire($attempt,new \DateTimeImmutable());});
         $schema=$attempt->getExam()->getTheorySnapshot()['schema'];foreach($schema['themes'] as &$theme)foreach($theme['questions'] as &$q)unset($q['correct']);unset($theme,$q);
-        $view=['id'=>$attempt->getId(),'startedAt'=>$attempt->getStartedAt(),'submittedAt'=>$attempt->getSubmittedAt(),'answers'=>$attempt->getAnswers(),'result'=>$attempt->getTheoryResult(),'profile'=>$attempt->getProfile(),'signed'=>isset($attempt->getSignatures()['learner']),'deadline'=>$this->workflow->deadline($attempt)?->getTimestamp(),'serverNow'=>time(),'recommendation'=>$attempt->getExam()->getRecommendation(),'category'=>$attempt->getExam()->getCategory(),'schema'=>$schema];
+        $view=['id'=>$attempt->getId(),'startedAt'=>$attempt->getStartedAt(),'submittedAt'=>$attempt->getSubmittedAt(),'answers'=>$attempt->getAnswers(),'result'=>$attempt->getTheoryResult(),'profile'=>$profilePrefill->profileFor($attempt),'prefilled'=>$attempt->getProfile()===[],'signed'=>isset($attempt->getSignatures()['learner']),'deadline'=>$this->workflow->deadline($attempt)?->getTimestamp(),'serverNow'=>time(),'recommendation'=>$attempt->getExam()->getRecommendation(),'category'=>$attempt->getExam()->getCategory(),'schema'=>$schema];
         return $this->page('theory',$entite,['test'=>$view,'error'=>$error]);
     }
     #[Route('/dossiers/{id}/pratique/brouillon', name: 'practice_draft', requirements: ['id'=>'\d+'], methods: ['POST'])]
