@@ -21,7 +21,7 @@ final class StripeConnectControllerTest extends TestCase
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('scenarios')]
-    public function testOnboarding(int $status, ?string $code, bool $replaced, bool $linked): void
+    public function testOnboarding(int $status, ?string $code, bool $replaced, bool $linked, array $replacement = [], string $key = 'sk_live_fixture', bool $creationFails = false): void
     {
         $entite = (new Entite())->setEmail('test@example.org')->setNom('Test');
         (new \ReflectionProperty($entite, 'id'))->setValue($entite, 42);
@@ -30,13 +30,16 @@ final class StripeConnectControllerTest extends TestCase
         $entite->setConnect($connect);
         $calls = [];
         $http = $this->createMock(ClientInterface::class);
-        $http->method('request')->willReturnCallback(function ($method, $url, $headers, $params) use (&$calls, $status, $code) {
+        $http->method('request')->willReturnCallback(function ($method, $url, $headers, $params) use (&$calls, $status, $code, $creationFails) {
             $path = parse_url($url, PHP_URL_PATH);
             $calls[] = [$method, $path, $params];
             if ($method === 'get') {
                 return [json_encode($code ? ['error' => ['type' => 'invalid_request_error', 'code' => $code, 'message' => 'Unavailable']] : ['id' => 'acct_old', 'object' => 'account']), $status, []];
             }
             if ($path === '/v1/accounts') {
+                if ($creationFails) {
+                    return [json_encode(['error' => ['type' => 'invalid_request_error', 'message' => 'Denied']]), 403, []];
+                }
                 return [json_encode(['id' => 'acct_new', 'object' => 'account']), 200, []];
             }
             self::assertSame('/v1/account_links', $path);
@@ -45,7 +48,7 @@ final class StripeConnectControllerTest extends TestCase
         ApiRequestor::setHttpClient($http);
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects($replaced ? self::once() : self::never())->method('flush');
-        $controller = new StripeConnectController(new StripeClientFactory('sk_live_fixture'), $em, 'https://example.org');
+        $controller = new StripeConnectController(new StripeClientFactory($key), $em, 'https://example.org');
         $container = new Container();
         $csrf = $this->createMock(CsrfTokenManagerInterface::class);
         $csrf->method('isTokenValid')->willReturn(true);
@@ -53,7 +56,7 @@ final class StripeConnectControllerTest extends TestCase
         $router = $this->createMock(RouterInterface::class);
         $router->method('generate')->willReturn('/connect');
         $container->set('router', $router);
-        $request = Request::create('/connect/start', 'POST', ['_token' => 'valid']);
+        $request = Request::create('/connect/start', 'POST', ['_token' => 'valid'] + $replacement);
         $request->setSession(new Session(new MockArraySessionStorage()));
         $stack = new RequestStack();
         $stack->push($request);
@@ -63,7 +66,7 @@ final class StripeConnectControllerTest extends TestCase
         self::assertSame($replaced ? 'acct_new' : 'acct_old', $connect->getStripeAccountId());
         self::assertSame(!$replaced, $connect->isChargesEnabled());
         self::assertSame($linked ? 'https://connect.stripe.com/setup/test' : '/connect', $response->headers->get('Location'));
-        self::assertCount($replaced ? 3 : ($linked ? 2 : 1), $calls);
+        self::assertCount($creationFails ? 2 : ($replaced ? 3 : ($linked ? 2 : 1)), $calls);
     }
 
     public static function scenarios(): array
@@ -72,6 +75,11 @@ final class StripeConnectControllerTest extends TestCase
             'existing account reused' => [200, null, false, true],
             'missing test account replaced' => [404, 'resource_missing', true, true],
             'permission error preserves account' => [403, 'permission_denied', false, false],
+            'confirmed production replacement' => [403, 'permission_denied', true, true, ['replaceAccount' => 'acct_old', 'confirmReplacement' => '1']],
+            'stale confirmation rejected' => [403, 'permission_denied', false, false, ['replaceAccount' => 'acct_other', 'confirmReplacement' => '1']],
+            'unchecked confirmation rejected' => [403, 'permission_denied', false, false, ['replaceAccount' => 'acct_old']],
+            'test mode replacement rejected' => [403, 'permission_denied', false, false, ['replaceAccount' => 'acct_old', 'confirmReplacement' => '1'], 'sk_test_fixture'],
+            'creation failure preserves old account' => [403, 'permission_denied', false, false, ['replaceAccount' => 'acct_old', 'confirmReplacement' => '1'], 'sk_live_fixture', true],
             'other invalid request preserves account' => [400, 'parameter_invalid', false, false],
         ];
     }

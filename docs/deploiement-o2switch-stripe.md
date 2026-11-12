@@ -81,3 +81,5 @@ La page « Paiements en ligne · Stripe » affiche désormais le mode de la clé
 5. Terminer l’inscription chez Stripe puis rafraîchir les statuts. Le compte de test n’est pas supprimé chez Stripe. La référence locale est remplacée uniquement après création réussie du nouveau compte ; ses anciens statuts sont remis à zéro.
 
 Référence : [clés API et séparation test/production](https://docs.stripe.com/keys).
+
+Si Stripe refuse l’accès à l’ancien compte (HTTP 403), le bouton normal conserve la référence existante. En mode production, un encart « Nouvelle connexion de production » permet désormais de confirmer explicitement que cette référence est celle de l’ancien compte de test, puis de créer une nouvelle connexion. Vérifier la plateforme de la clé serveur avant de confirmer. La confirmation est liée à l’identifiant affiché et protégée par CSRF ; une confirmation périmée ou une configuration de test ne permet pas ce remplacement. En cas d’échec de création, l’ancienne référence est conservée.

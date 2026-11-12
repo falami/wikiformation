@@ -35,6 +35,7 @@ final class StripeConnectController extends AbstractController
         }
 
         $accountAvailable = false;
+        $canReconnect = false;
         if ($connect->getStripeAccountId()) {
             try {
                 $account = $this->stripeFactory->client()->accounts->retrieve($connect->getStripeAccountId(), []);
@@ -43,6 +44,7 @@ final class StripeConnectController extends AbstractController
                 $connect->setChargesEnabled((bool) $account->charges_enabled);
                 $connect->setPayoutsEnabled((bool) $account->payouts_enabled);
             } catch (\Stripe\Exception\ApiErrorException $error) {
+                $canReconnect = $error instanceof \Stripe\Exception\PermissionException && $this->stripeFactory->mode() === 'live';
                 $this->addFlash('warning', 'Le compte enregistré ne peut pas être vérifié avec la configuration Stripe actuelle. Après un passage du test à la production, démarrez à nouveau l’inscription.');
             }
         }
@@ -52,6 +54,7 @@ final class StripeConnectController extends AbstractController
             'connect' => $connect,
             'stripeMode' => $this->stripeFactory->mode(),
             'accountAvailable' => $accountAvailable,
+            'canReconnect' => $canReconnect,
         ]);
     }
 
@@ -74,6 +77,14 @@ final class StripeConnectController extends AbstractController
             } catch (\Stripe\Exception\InvalidRequestException $error) {
                 // Only a missing resource permits replacement; never replace on auth/network failures.
                 if ($error->getStripeCode() !== 'resource_missing') {
+                    throw $error;
+                }
+                $createAccount = true;
+            } catch (\Stripe\Exception\PermissionException $error) {
+                // An explicit, account-bound confirmation is required to replace an inaccessible account.
+                if ($this->stripeFactory->mode() !== 'live'
+                    || $request->request->get('replaceAccount') !== $connect->getStripeAccountId()
+                    || $request->request->get('confirmReplacement') !== '1') {
                     throw $error;
                 }
                 $createAccount = true;

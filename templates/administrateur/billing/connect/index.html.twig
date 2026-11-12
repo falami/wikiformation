@@ -116,6 +116,24 @@
     {% endif %}
   </div>
 
+  {% if canReconnect %}
+    <div class="card-premium p-3 mb-3">
+      <div class="fw-bold mb-2">Nouvelle connexion de production</div>
+      <p>Si le compte affiché est votre ancien compte de test, vous pouvez créer une nouvelle connexion.
+        Vérifiez d’abord que la clé serveur appartient à la bonne plateforme Stripe.
+        L’ancienne référence sera remplacée dans WikiFormation après création réussie ; aucun compte ne sera supprimé chez Stripe.</p>
+      <form method="post" action="{{ path('app_administrateur_billing_connect_start', {entite: entite.id}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('connect_start') }}">
+        <input type="hidden" name="replaceAccount" value="{{ connect.stripeAccountId }}">
+        <label class="d-block mb-3">
+          <input type="checkbox" name="confirmReplacement" value="1" required>
+          Je confirme que le compte affiché est mon ancien compte de test et souhaite remplacer sa connexion.
+        </label>
+        <button type="submit" class="btn btn-warning">Créer une nouvelle connexion de production</button>
+      </form>
+    </div>
+  {% endif %}
+
   <div class="row g-3">
     <div class="col-12 col-lg-6">
       <div class="card-premium p-3">
