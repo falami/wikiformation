@@ -28,13 +28,27 @@ final class CacesDocumentController extends AbstractController
             }fclose($out);
         },200,['Content-Type'=>'text/csv; charset=UTF-8','Content-Disposition'=>'attachment; filename="registre-caces.csv"','Cache-Control'=>'private, no-store']);
     }
-    #[Route('/dossiers/{id}/documents/{type}',name:'document',requirements:['id'=>'\d+','type'=>'synthese|attestation|carte|echec'],methods:['GET'])]
+    #[Route('/dossiers/{id}/documents/{type}',name:'document',requirements:['id'=>'\d+','type'=>'synthese|attestation|carte|echec|global'],methods:['GET'])]
     public function document(Entite $entite,CacesAttempt $attempt,string $type,UtilisateurEntiteManager $uem,EntityManagerInterface $em): Response
     {
         $exam=$attempt->getExam();
         if($attempt->getEntite()?->getId()!==$entite->getId() || $exam->getEntite()?->getId()!==$entite->getId() || $exam->getSession()?->getEntite()?->getId()!==$entite->getId())throw $this->createNotFoundException();
         $user=$this->getUser()?->getId();
         if(!$this->isGranted(TenantPermission::ADMIN,$entite) && !in_array($user,[$exam->getPracticeTester()->getId(),$exam->getTheoryTester()->getId(),$attempt->getLearner()->getId()],true))throw $this->createAccessDeniedException();
+        if ($type === 'global') {
+            $records = $em->createQueryBuilder()->select('a','e','s')->from(CacesAttempt::class,'a')->join('a.exam','e')->join('e.session','s')
+                ->where('a.entite = :tenant AND e.entite = :tenant AND s.entite = :tenant AND a.learner = :learner AND e.recommendation = :recommendation')
+                ->setParameter('tenant',$entite)->setParameter('learner',$attempt->getLearner())->setParameter('recommendation',$exam->getRecommendation())
+                ->orderBy('e.category','ASC')->addOrderBy('a.id','DESC')->getQuery()->getResult();
+            // Each category retains its own access check, including across sessions.
+            foreach ($records as $record) {
+                $test = $record->getExam();
+                if (!$this->isGranted(TenantPermission::ADMIN,$entite) && !in_array($user,[$test->getPracticeTester()?->getId(),$test->getTheoryTester()?->getId(),$record->getLearner()->getId()],true)) throw $this->createAccessDeniedException();
+            }
+            $response = $this->render('caces/recommendation_document.html.twig',['entite'=>$entite,'dossier'=>$attempt,'records'=>$records,'utilisateurEntite'=>$uem->getUserEntiteLink($entite)]);
+            $response->headers->set('Cache-Control','private, no-store');
+            return $response;
+        }
         if(in_array($type,['attestation','carte'],true)&&!$attempt->getCertificate())throw $this->createNotFoundException('Certification non émise.');
         if($type==='echec'&&!(($attempt->getTheoryResult()&&!$attempt->getTheoryResult()['passed'])||($attempt->getPracticeResult()&&!$attempt->getPracticeResult()['passed'])))throw $this->createNotFoundException();
         $sessionAttempts=$em->createQueryBuilder()->select('a','e')->from(CacesAttempt::class,'a')->join('a.exam','e')->where('a.entite = :tenant AND e.entite = :tenant AND e.session = :session AND a.learner = :learner')->setParameter('tenant',$entite)->setParameter('session',$exam->getSession())->setParameter('learner',$attempt->getLearner())->orderBy('e.recommendation','ASC')->addOrderBy('e.category','ASC')->getQuery()->getResult();

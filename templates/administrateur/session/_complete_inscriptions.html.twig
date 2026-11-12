@@ -1,0 +1,68 @@
+<div class="modal fade" id="completeInscriptionsModal" tabindex="-1" aria-labelledby="completeInscriptionsTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content rounded-4 overflow-hidden">
+    <div class="modal-header" style="background:#203747;color:white"><div><small class="text-warning text-uppercase">Clôture de la session</small><h2 class="modal-title fs-5 mt-1" id="completeInscriptionsTitle">Terminer aussi les inscriptions ?</h2></div><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+    <div class="modal-body p-4">
+      <p>Vérifiez les participants avant de mettre à jour leur inscription. Les changements seront appliqués à l’enregistrement du formulaire.</p>
+      <div class="alert alert-light border"><strong data-completion-count></strong><br><small>Les inscriptions annulées, absentes ou déjà terminées conservent leur statut.</small></div>
+      <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Participant</th><th>Statut actuel</th><th>Après confirmation</th></tr></thead><tbody data-completion-preview></tbody></table></div>
+    </div>
+    <div class="modal-footer gap-2"><button type="button" class="btn btn-outline-secondary" data-completion-session>Terminer uniquement la session</button><button type="button" class="btn btn-primary" data-completion-all>Terminer les inscriptions proposées</button></div>
+  </div></div>
+</div>
+<script>
+(() => {
+  const status = document.getElementById('{{ form.status.vars.id }}');
+  const form = status?.form;
+  const element = document.getElementById('completeInscriptionsModal');
+  if (!form || !element) return;
+  let previous = status.value;
+  let reviewed = status.value === 'done';
+  let pendingSubmit = null;
+  let candidates = [];
+  const eligible = new Set(['preinscrit', 'confirme', 'en_cours']);
+  const rows = () => [...form.querySelectorAll('.inscription-item')].map(row => ({
+    status: row.querySelector('select[name$="[status]"]'),
+    learner: row.querySelector('select[name$="[stagiaire]"]')
+  })).filter(row => row.status && row.learner);
+  const modal = () => bootstrap.Modal.getOrCreateInstance(element);
+  function preview() {
+    const body = element.querySelector('[data-completion-preview]');
+    body.replaceChildren(); candidates = [];
+    for (const row of rows()) {
+      const change = eligible.has(row.status.value) && !!row.learner.value;
+      if (change) candidates.push(row);
+      const tr = document.createElement('tr');
+      for (const text of [row.learner.selectedOptions[0]?.textContent || 'Participant à sélectionner', row.status.selectedOptions[0]?.textContent || '—', change ? 'Terminé' : 'Inchangé']) {
+        const td = document.createElement('td'); td.textContent = text; tr.append(td);
+      }
+      body.append(tr);
+    }
+    element.querySelector('[data-completion-count]').textContent = `${candidates.length} inscription(s) proposée(s) pour le statut « Terminé ».`;
+    element.querySelector('[data-completion-all]').disabled = candidates.length === 0;
+    modal().show();
+  }
+  status.addEventListener('change', () => {
+    if (status.value === 'done' && previous !== 'done') { reviewed = false; preview(); }
+    if (status.value !== 'done') reviewed = false;
+    previous = status.value;
+  });
+  form.addEventListener('submit', event => {
+    if (status.value !== 'done' || reviewed) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    pendingSubmit = event.submitter; preview();
+  }, true);
+  function confirm(complete) {
+    if (complete) for (const row of candidates) {
+      if (!row.status.isConnected || !eligible.has(row.status.value)) continue;
+      if (row.status.tomselect) row.status.tomselect.setValue('termine');
+      else { row.status.value = 'termine'; row.status.dispatchEvent(new Event('change', {bubbles:true})); }
+    }
+    reviewed = true;
+    const submitter = pendingSubmit; pendingSubmit = null;
+    if (submitter) element.addEventListener('hidden.bs.modal', () => form.requestSubmit(submitter), {once:true});
+    modal().hide();
+  }
+  element.querySelector('[data-completion-all]').addEventListener('click', () => confirm(true));
+  element.querySelector('[data-completion-session]').addEventListener('click', () => confirm(false));
+})();
+</script>

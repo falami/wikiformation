@@ -89,6 +89,21 @@ final class CacesPortalsTest extends KernelTestCase
         self::assertStringNotContainsString('Private other tenant', $html);
     }
 
+    public function testGlobalRecommendationDocumentKeepsIndividualDocuments(): void
+    {
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', $this->url('app_caces_document', ['id'=>$this->caces->getId(), 'type'=>'global']));
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $html = $this->client->getResponse()->getContent();
+        self::assertStringContainsString('Bilan global des résultats', $html);
+        self::assertStringContainsString('Évaluation en cours', $html);
+        self::assertStringContainsString('/documents/synthese', $html);
+        $this->client->loginUser($this->outsider);
+        $this->client->catchExceptions(true);
+        $this->client->request('GET', $this->url('app_caces_document', ['id'=>$this->caces->getId(), 'type'=>'global']));
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+    }
+
     public function testPracticeScoresAutosaveWithoutSigningAndSurviveReload(): void
     {
         $this->client->loginUser($this->trainer);
@@ -380,7 +395,7 @@ final class CacesPortalsTest extends KernelTestCase
         $page=$this->client->request('GET',$this->url('app_caces_document',['id'=>$source->getId(),'type'=>'synthese']));
         self::assertSame(200,$this->client->getResponse()->getStatusCode());
         self::assertStringContainsString('Cat. 1A',$page->text());self::assertStringContainsString('Cat. 1B',$page->text());self::assertStringContainsString('Cat. 2B',$page->text());
-        self::assertCount(4,$page->filter('.cx-document-sheet'));
+        self::assertCount(1,$page->filter('.cx-document-sheet'));
         if(getenv('CACES_QA_OUTPUT')) file_put_contents(getenv('CACES_QA_OUTPUT').'/multi-synthesis.html',$this->client->getResponse()->getContent());
     }
 
@@ -449,7 +464,7 @@ final class CacesPortalsTest extends KernelTestCase
         }
         $this->client->loginUser($this->admin);
         $page=$this->client->request('GET',$this->url('app_caces_document',['id'=>$sourceId,'type'=>'synthese']));
-        self::assertSame(3,substr_count($page->filter('.syn-overview')->text(),'Obtenue'));
+        self::assertSame(3,substr_count($page->filter('.syn-overview')->text(),'CACES® obtenu'));
     }
 
     public function testReassigningOneCategoryPreservesOtherTesters(): void

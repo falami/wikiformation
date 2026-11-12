@@ -1,0 +1,26 @@
+{% extends 'caces/base.html.twig' %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/caces-document.css') }}?v=8"><style>.cr-result{break-inside:avoid;border-top:1px solid #dce4ea;padding:22px 0}.cr-result h2{font-size:20px}.cr-meta{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:#536c7b}.cr-result table{width:100%;margin:16px 0;border-collapse:collapse}.cr-result th,.cr-result td{padding:10px;border:1px solid #dce4ea;text-align:left}.cr-result th{background:#f2f6f8}@media print{.cr-result{break-inside:avoid}.cx-document-sheet{height:auto!important;overflow:visible!important}}</style>{% endblock %}
+{% block caces %}
+<div class="cx-print cx-document">
+<div class="cx-actions cx-no-print mb-4"><a class="cx-btn" href="{{ path('app_caces_show',{entite:entite.id,id:dossier.id}) }}">← Retour au dossier</a><button class="cx-btn primary" data-print>Imprimer / Enregistrer en PDF</button></div>
+<section class="cx-card cx-document-sheet">
+<header class="cx-document-heading"><span class="cx-eyebrow">{{ entite.nom }} · CACES® · R.{{ dossier.exam.recommendation }}</span><h1>Bilan global des résultats</h1><p>Réussites et échecs · Toutes les sessions enregistrées dans cet organisme</p></header>
+<div class="cx-document-identity"><span class="cx-eyebrow">Candidat</span><h2>{{ dossier.learner.prenom }} {{ dossier.learner.nom }}</h2><p>Recommandation R.{{ dossier.exam.recommendation }} · {{ records|length }} dossier(s)</p></div>
+<p>Ce récapitulatif conserve chaque passage, y compris les nouvelles tentatives. Les attestations individuelles restent disponibles. Une réussite aux épreuves ne vaut pas émission du certificat.</p>
+{% for record in records %}
+{% set theory=record.theoryResult %}{% set practice=record.practiceResult %}{% set certificate=record.certificate %}
+<section class="cr-result" data-global-attempt="{{ record.id }}">
+<h2>Catégorie {{ record.exam.category }} · {% if certificate %}Certificat émis{% elseif (theory.passed is defined and not theory.passed) or (practice.passed is defined and not practice.passed) %}Ajourné{% elseif theory.passed|default(false) and practice.passed|default(false) %}Épreuves réussies · délivrance en attente{% else %}Évaluation en cours{% endif %}</h2>
+<div class="cr-meta"><span>Session {{ record.exam.session.code }}</span><span>Dossier n°{{ record.id }}</span><span>{{ record.exam.location }}</span></div>
+<table><thead><tr><th>Épreuve</th><th>Date</th><th>Résultat</th><th>Testeur</th></tr></thead><tbody>
+{% for kind,label in {theory:'Théorie',practice:'Pratique'} %}{% set result=kind == 'theory' ? theory : practice %}{% set date=kind == 'theory' ? record.submittedAt : record.practiceAt %}{% set tester=kind == 'theory' ? record.exam.theoryTester : record.exam.practiceTester %}
+<tr><td>{{ label }}</td><td>{{ date ? date|date('d/m/Y') : '—' }}</td><td>{% if result.passed is defined %}{{ result.externalEvidence|default(false) ? 'Dispense' : (result.score|default('—') ~ '/100') }} · {{ result.passed ? 'Reçu' : 'Ajourné' }}{% else %}Non évalué{% endif %}</td><td>{{ tester.prenom }} {{ tester.nom }}</td></tr>
+{% endfor %}</tbody></table>
+{% if certificate %}<p><strong>N° CACES® {{ certificate.number }}</strong> · Obtenu le {{ certificate.obtainedAt|date('d/m/Y') }} · Échéance {{ certificate.expiresAt|date('d/m/Y') }}</p>{% endif %}
+{% for result in [theory,practice] %}{% if result.passed is defined and not result.passed %}{% for reason in result.reasons|default([]) %}<p>{{ reason }}</p>{% endfor %}{% endif %}{% endfor %}
+{% if practice.remediation|default('') %}<p>Complément de formation préconisé : {{ practice.remediation }} · {{ practice.remediationHours|default(0) }} h</p>{% endif %}
+<div class="cx-actions cx-no-print"><a class="cx-btn" href="{{ path('app_caces_document',{entite:entite.id,id:record.id,type:'synthese'}) }}">Synthèse individuelle</a>{% if certificate %}<a class="cx-btn" href="{{ path('app_caces_document',{entite:entite.id,id:record.id,type:'attestation'}) }}">Attestation individuelle</a>{% elseif (theory.passed is defined and not theory.passed) or (practice.passed is defined and not practice.passed) %}<a class="cx-btn" href="{{ path('app_caces_document',{entite:entite.id,id:record.id,type:'echec'}) }}">Attestation d’échec individuelle</a>{% endif %}</div>
+</section>{% endfor %}
+<footer class="cx-document-footer">{{ entite.nom }} · {{ dossier.learner.prenom }} {{ dossier.learner.nom }} · R.{{ dossier.exam.recommendation }}</footer>
+</section></div>
+{% endblock %}
