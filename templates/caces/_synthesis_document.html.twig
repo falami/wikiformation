@@ -1,5 +1,13 @@
 <article class="cx-document-sheet cx-synthesis syn-compact">
 <header class="syn-header"><div class="syn-masthead"><strong>{{ entite.nom }}</strong><span>CACES® · Résultats de session</span></div><div class="syn-title"><div><span class="syn-label">Récapitulatif du parcours</span><h1>Feuille de synthèse</h1><p>{{ dossier.learner.prenom }} {{ dossier.learner.nom }}</p></div><div class="syn-category"><strong>{{ sessionAttempts|length }}</strong><span>catégories présentées</span></div></div><div class="syn-session"><span>Session <strong>{{ e.session.code }}</strong></span><span>Lieu <strong>{{ e.location }}</strong></span></div></header>
+<section class="syn-candidate"><span class="syn-label">Informations du stagiaire</span><dl class="syn-details">
+<div><dt>Date et lieu de naissance</dt><dd>{{ dossier.profile.birthDate|default('') ? dossier.profile.birthDate|date('d/m/Y') : 'Non renseignée' }} · {{ dossier.profile.birthPlace|default('Non renseigné') }}</dd></div>
+<div><dt>Entreprise</dt><dd>{{ dossier.profile.company|default('Non renseignée') }}</dd></div>
+<div><dt>Adresse</dt><dd>{{ dossier.profile.address|default('Non renseignée') }}</dd></div>
+<div><dt>Coordonnées</dt><dd>{{ dossier.profile.phone|default('Non renseigné') }} · {{ dossier.learner.email }}</dd></div>
+<div><dt>Expérience de conduite</dt><dd>{{ dossier.profile.drivingExperience|default('Non renseignée') }}</dd></div>
+<div><dt>Formation antérieure</dt><dd>{{ dossier.profile.trainingExperience|default('Non renseignée') }}</dd></div>
+</dl></section>
 <section class="syn-exam syn-overview"><h2>Validation des épreuves</h2><table class="syn-table"><thead><tr><th>Recommandation / catégorie</th><th>Théorie</th><th>Pratique</th><th>Résultat final</th></tr></thead><tbody>
 {% set obtained = [] %}{% set pending = [] %}
 {% for a in sessionAttempts %}
@@ -9,14 +17,28 @@
 {% set label = 'R.' ~ a.exam.recommendation ~ ' · Cat. ' ~ a.exam.category %}
 {% if a.certificate %}{% set obtained = obtained|merge([label]) %}{% elseif passed %}{% set pending = pending|merge([label]) %}{% endif %}
 <tr><th>R.{{ a.exam.recommendation }} <span class="syn-category-code">Cat. {{ a.exam.category }}</span></th>
-{% for result in [theory,practice] %}<td><span class="syn-verdict {{ result.passed is defined ? (result.passed ? 'syn-pass' : 'syn-fail') : 'syn-wait' }}">{{ result.passed is defined ? (result.passed ? 'Validée' : 'Non validée') : 'À évaluer' }}</span>{% if result.externalEvidence|default(false) %}<small class="syn-detail">Dispense reconnue</small>{% endif %}</td>{% endfor %}
+{% for kind,result in {theory:theory,practice:practice} %}
+{% set source = kind == 'theory' ? a.theoryAttempt : a %}
+{% set tester = kind == 'theory' ? source.exam.theoryTester : a.exam.practiceTester %}
+{% set date = kind == 'theory' ? source.submittedAt : a.practiceAt %}
+{% set role = kind == 'theory' ? 'theoryTester' : 'practiceTester' %}
+<td><span class="syn-verdict {{ result.passed is defined ? (result.passed ? 'syn-pass' : 'syn-fail') : 'syn-wait' }}">{{ result.passed is defined ? (result.passed ? 'Validée' : 'Non validée') : 'À évaluer' }}</span>
+{% if result.externalEvidence|default(false) %}<small class="syn-detail">Dispense reconnue · CACES initial du {{ result.anchorAt|date('d/m/Y') }}</small>{% elseif result.score is defined and result.score is not null %}<small class="syn-detail">Note : {{ result.score }}/100</small>{% endif %}
+<small class="syn-detail">{{ source.signatures[role].name|default(tester.prenom ~ ' ' ~ tester.nom) }}</small><small class="syn-detail">{{ date ? date|date('d/m/Y') : 'Date non renseignée' }}</small>
+</td>{% endfor %}
 <td>{% if a.certificate %}<strong class="syn-pass">CACES® obtenu</strong><small class="syn-detail">{{ a.certificate.number }}</small>{% elseif failed %}<strong class="syn-fail">Ajourné</strong>{% elseif passed %}<strong>Épreuves réussies</strong><small class="syn-detail">Certificat à émettre</small>{% else %}<span class="syn-wait">En cours</span>{% endif %}</td></tr>
+{% if failed %}<tr class="syn-failure-row"><td colspan="4"><div class="syn-failure-details"><strong>Motifs d’échec · {{ label }}</strong>
+{% for kind,result in {theory:theory,practice:practice} %}{% if result.passed is defined and not result.passed %}<div><b>{{ kind == 'theory' ? 'Théorie' : 'Pratique' }}</b><ul>{% for reason in result.reasons|default([]) %}<li>{{ reason }}</li>{% else %}<li>Motif non renseigné dans le résultat enregistré.</li>{% endfor %}</ul></div>{% endif %}{% endfor %}
+{% if practice.remediation|default('') %}<p>Complément de formation préconisé : {{ practice.remediation }}{% if practice.remediationHours|default(0) %} · {{ practice.remediationHours }} h{% endif %}</p>{% endif %}
+</div></td></tr>{% endif %}
 {% endfor %}</tbody></table></section>
 <section class="syn-outcome"><span class="syn-label">Bilan de certification</span><h2>CACES® obtenus</h2><p>{{ obtained ? obtained|join(' / ') : 'Aucun certificat émis à ce jour.' }}</p>{% if pending %}<div class="syn-pending"><strong>Épreuves réussies · délivrance en attente</strong><br>{{ pending|join(' / ') }}</div>{% endif %}</section>
 <p class="syn-disclaimer">La validation de la théorie et de la pratique est requise pour chaque catégorie. Seuls les certificats effectivement émis figurent parmi les CACES® obtenus. Les grilles d’évaluation et signatures restent conservées dans les dossiers individuels.</p>
 <footer class="syn-footer"><strong>{{ entite.nom }}</strong><span>{{ e.session.code }} · {{ dossier.learner.prenom }} {{ dossier.learner.nom }}</span></footer>
 </article>
 <style>
+.syn-compact .syn-candidate{margin:20px 0;padding:20px;background:#f7f9fb;border:1px solid #dce5ec;border-radius:10px}.syn-compact .syn-details{margin:12px 0 0;gap:14px}.syn-compact .syn-details dd{font-size:12px;overflow-wrap:anywhere}.syn-failure-details{border-left:3px solid #b64b48;padding:10px 14px;background:#fff8f7;color:#743d3d;font-size:12px;line-height:1.6}.syn-failure-details>strong{display:block;margin-bottom:8px}.syn-failure-details ul{margin:4px 0 10px;padding-left:18px}.syn-failure-details p{margin:8px 0 0}.syn-compact .syn-table .syn-failure-row td{padding-top:0}.syn-compact thead{display:table-header-group}
+
 .syn-compact .syn-header{margin-bottom:24px}.syn-compact .syn-title{padding:26px 0}.syn-compact .syn-title h1{font-size:32px;letter-spacing:-1px}.syn-compact .syn-category{padding:15px;min-width:100px}.syn-compact .syn-category strong{font-size:28px}.syn-compact .syn-exam{margin:20px 0}.syn-compact .syn-exam h2{font-size:18px;padding:18px 20px}.syn-compact .syn-table th,.syn-compact .syn-table td{padding:14px 18px;font-size:13px}.syn-compact .syn-table thead th{font-size:10px;letter-spacing:.8px}.syn-category-code{display:inline-block;margin-left:8px;padding:4px 8px;border:1px solid #ccd9e3;border-radius:5px;color:#294a61}.syn-verdict{font-weight:600;font-size:12px}.syn-pass{color:#207051}.syn-fail{color:#aa3939}.syn-wait{color:#6d7e8d}.syn-detail{display:block;font-size:10px;color:#697f90;margin-top:4px}.syn-outcome{padding:23px 25px;background:#f3f7f9;border:1px solid #d9e4ea;border-left:4px solid #b49a62;border-radius:10px;margin-top:22px}.syn-outcome h2{font-size:21px;margin:8px 0 12px}.syn-outcome p{font-size:14px;line-height:1.6;margin:0;color:#24475c;font-weight:600}.syn-pending{font-size:12px;line-height:1.7;border-top:1px solid #d9e4ea;padding-top:13px;margin-top:14px;color:#647789}.syn-disclaimer{font-size:11px;line-height:1.7;color:#738594;margin:20px 0}.syn-compact .syn-footer{margin-top:20px}
 @media screen and (max-width:600px){.syn-compact{padding:18px!important}.syn-compact .syn-title{gap:12px}.syn-compact .syn-title h1{font-size:24px}.syn-compact .syn-table th,.syn-compact .syn-table td{padding:9px 5px;font-size:11px}.syn-verdict{font-size:10px}.syn-category-code{margin:4px 0}.syn-detail{overflow-wrap:anywhere}}
 @media print{.syn-compact{padding:0!important;break-after:auto!important;page-break-after:auto!important}.syn-compact .syn-title{padding:14px 0}.syn-compact .syn-title h1{font-size:24px}.syn-compact .syn-exam{margin:12px 0}.syn-compact .syn-table th,.syn-compact .syn-table td{padding:8px 10px;font-size:10px}.syn-compact .syn-exam h2{padding:10px 14px;font-size:15px}.syn-compact .syn-outcome{padding:15px;margin-top:14px;break-inside:avoid}.syn-compact .syn-disclaimer{font-size:9px;margin:12px 0}.syn-compact .syn-footer{margin-top:12px}.syn-compact tr{break-inside:avoid}}
