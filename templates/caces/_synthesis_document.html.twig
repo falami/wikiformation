@@ -8,6 +8,23 @@
 <div><dt>Expérience de conduite</dt><dd>{{ dossier.profile.drivingExperience|default('Non renseignée') }}</dd></div>
 <div><dt>Formation antérieure</dt><dd>{{ dossier.profile.trainingExperience|default('Non renseignée') }}</dd></div>
 </dl></section>
+<section class="syn-intervenants"><h2>Signatures et intervenants</h2><div class="syn-signature-grid">
+{% set shown = [] %}
+{% for a in sessionAttempts %}
+{% for role,label in {learner:'Stagiaire',theoryTester:'Testeur théorique',practiceTester:'Testeur pratique'} %}
+{% set source = role == 'practiceTester' ? a : a.theoryAttempt %}
+{% set key = role ~ '-' ~ source.id %}
+{% if key not in shown %}{% set shown = shown|merge([key]) %}{% set signature = a.signatures[role]|default(null) %}
+<div class="syn-signature"><h3>{{ label }}</h3><small>{{ role == 'practiceTester' ? 'Catégorie ' ~ a.exam.category : 'Dossier n°' ~ source.id }}</small>
+{% if signature %}<p>{{ signature.name }}<br><small>{{ signature.at|date('d/m/Y à H:i') }}</small></p><img src="{{ signature.image }}" alt="Signature — {{ label }}">
+{% else %}<p>Signature non enregistrée</p>{% endif %}</div>
+{% endif %}{% endfor %}{% endfor %}
+{% set trainer = e.session.formateur %}
+<div class="syn-signature"><h3>Formateur de la session</h3>
+{% if trainer %}<p>{{ trainer.utilisateur.prenom }} {{ trainer.utilisateur.nom }}</p>
+{% if trainer.signatureDataUrl or trainer.signatureImagePath %}<img src="{{ trainer.signatureDataUrl ?: asset(trainer.signatureImagePath) }}" alt="Signature du formateur"><small>Signature du profil formateur · ne vaut pas validation de cette synthèse.</small>{% else %}<p>Signature non enregistrée</p>{% endif %}
+{% else %}<p>Formateur non renseigné</p>{% endif %}</div>
+</div></section>
 <section class="syn-exam syn-overview"><h2>Validation des épreuves</h2><table class="syn-table"><thead><tr><th>Recommandation / catégorie</th><th>Théorie</th><th>Pratique</th><th>Résultat final</th></tr></thead><tbody>
 {% set obtained = [] %}{% set pending = [] %}
 {% for a in sessionAttempts %}
@@ -28,33 +45,22 @@
 </td>{% endfor %}
 <td>{% if a.certificate %}<strong class="syn-pass">CACES® obtenu</strong><small class="syn-detail">{{ a.certificate.number }}</small>{% elseif failed %}<strong class="syn-fail">Ajourné</strong>{% elseif passed %}<strong>Épreuves réussies</strong><small class="syn-detail">Certificat à émettre</small>{% else %}<span class="syn-wait">En cours</span>{% endif %}</td></tr>
 {% if failed %}<tr class="syn-failure-row"><td colspan="4"><div class="syn-failure-details"><strong>Motifs d’échec · {{ label }}</strong>
-{% for kind,result in {theory:theory,practice:practice} %}{% if result.passed is defined and not result.passed %}<div><b>{{ kind == 'theory' ? 'Théorie' : 'Pratique' }}</b><ul>{% for reason in result.reasons|default([]) %}<li>{{ reason }}</li>{% else %}<li>Motif non renseigné dans le résultat enregistré.</li>{% endfor %}</ul></div>{% endif %}{% endfor %}
+{% for kind,result in {theory:theory,practice:practice} %}{% if result.passed is defined and not result.passed %}<div><b>{{ kind == 'theory' ? 'Théorie' : 'Pratique' }}</b><ul>{% set summaryReasons = [] %}
+{% for reason in result.reasons|default([]) %}
+{% set shortReason = reason starts with 'Critère à zéro' ? 'Critère à zéro' : (reason starts with 'Seuil non atteint' ? 'Seuil non atteint' : (reason starts with 'Note inférieure à 70/100' ? 'Note inférieure à 70/100.' : reason)) %}
+{% if shortReason not in summaryReasons %}{% set summaryReasons = summaryReasons|merge([shortReason]) %}{% endif %}
+{% endfor %}
+{% for reason in summaryReasons %}<li>{{ reason }}</li>{% else %}<li>Motif non renseigné dans le résultat enregistré.</li>{% endfor %}</ul></div>{% endif %}{% endfor %}
 {% if practice.remediation|default('') %}<p>Complément de formation préconisé : {{ practice.remediation }}{% if practice.remediationHours|default(0) %} · {{ practice.remediationHours }} h{% endif %}</p>{% endif %}
 </div></td></tr>{% endif %}
 {% endfor %}</tbody></table></section>
 <section class="syn-outcome"><span class="syn-label">Bilan de certification</span><h2>CACES® obtenus</h2><p>{{ obtained ? obtained|join(' / ') : 'Aucun certificat émis à ce jour.' }}</p>{% if pending %}<div class="syn-pending"><strong>Épreuves réussies · délivrance en attente</strong><br>{{ pending|join(' / ') }}</div>{% endif %}</section>
-<section class="syn-signatures"><h2>Signatures et intervenants</h2><div class="syn-signature-grid">
-{% set shown = [] %}
-{% for a in sessionAttempts %}
-{% for role,label in {learner:'Stagiaire',theoryTester:'Testeur théorique',practiceTester:'Testeur pratique'} %}
-{% set source = role == 'practiceTester' ? a : a.theoryAttempt %}
-{% set key = role ~ '-' ~ source.id %}
-{% if key not in shown %}{% set shown = shown|merge([key]) %}{% set signature = a.signatures[role]|default(null) %}
-<div class="syn-signature"><h3>{{ label }}</h3><small>{{ role == 'practiceTester' ? 'Catégorie ' ~ a.exam.category : 'Dossier n°' ~ source.id }}</small>
-{% if signature %}<p>{{ signature.name }}<br><small>{{ signature.at|date('d/m/Y à H:i') }}</small></p><img src="{{ signature.image }}" alt="Signature — {{ label }}">
-{% else %}<p>Signature non enregistrée</p>{% endif %}</div>
-{% endif %}{% endfor %}{% endfor %}
-{% set trainer = e.session.formateur %}
-<div class="syn-signature"><h3>Formateur de la session</h3>
-{% if trainer %}<p>{{ trainer.utilisateur.prenom }} {{ trainer.utilisateur.nom }}</p>
-{% if trainer.signatureDataUrl or trainer.signatureImagePath %}<img src="{{ trainer.signatureDataUrl ?: asset(trainer.signatureImagePath) }}" alt="Signature du formateur"><small>Signature du profil formateur · ne vaut pas validation de cette synthèse.</small>{% else %}<p>Signature non enregistrée</p>{% endif %}
-{% else %}<p>Formateur non renseigné</p>{% endif %}</div>
-</div></section>
+
 <p class="syn-disclaimer">La validation de la théorie et de la pratique est requise pour chaque catégorie. Seuls les certificats effectivement émis figurent parmi les CACES® obtenus. Les grilles d’évaluation restent conservées dans les dossiers individuels.</p>
 <footer class="syn-footer"><strong>{{ entite.nom }}</strong><span>{{ e.session.code }} · {{ dossier.learner.prenom }} {{ dossier.learner.nom }}</span></footer>
 </article>
 <style>
-.syn-signatures{margin-top:24px}.syn-signatures h2{font-size:18px}.syn-signature-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.syn-signature{border:1px solid #dce5ec;border-radius:8px;padding:14px;break-inside:avoid;overflow-wrap:anywhere}.syn-signature h3{font-size:13px;margin:0 0 6px}.syn-signature p{font-size:12px}.syn-signature small{font-size:10px;color:#697f90;display:block}.syn-signature img{display:block;width:100%;height:65px;object-fit:contain;margin:8px 0}@media screen and (max-width:600px){.syn-signature-grid{grid-template-columns:1fr}} 
+.syn-compact .syn-intervenants{display:block;width:100%;margin:24px 0}.syn-intervenants h2{font-size:18px}.syn-compact .syn-signature-grid{width:100%;box-sizing:border-box}.syn-compact .syn-signature{min-width:0;box-sizing:border-box}.syn-signature-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.syn-signature{border:1px solid #dce5ec;border-radius:8px;padding:14px;break-inside:avoid;overflow-wrap:anywhere}.syn-signature h3{font-size:13px;margin:0 0 6px}.syn-signature p{font-size:12px}.syn-signature small{font-size:10px;color:#697f90;display:block}.syn-signature img{display:block;width:100%;height:65px;object-fit:contain;margin:8px 0}@media screen and (max-width:600px){.syn-signature-grid{grid-template-columns:1fr}} 
 
 .syn-compact .syn-candidate{margin:20px 0;padding:20px;background:#f7f9fb;border:1px solid #dce5ec;border-radius:10px}.syn-compact .syn-details{margin:12px 0 0;gap:14px}.syn-compact .syn-details dd{font-size:12px;overflow-wrap:anywhere}.syn-failure-details{border-left:3px solid #b64b48;padding:10px 14px;background:#fff8f7;color:#743d3d;font-size:12px;line-height:1.6}.syn-failure-details>strong{display:block;margin-bottom:8px}.syn-failure-details ul{margin:4px 0 10px;padding-left:18px}.syn-failure-details p{margin:8px 0 0}.syn-compact .syn-table .syn-failure-row td{padding-top:0}.syn-compact thead{display:table-header-group}
 
