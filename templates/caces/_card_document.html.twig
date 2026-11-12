@@ -12,19 +12,22 @@
 } %}
 <div class="cc-intro cx-no-print">
   <div><span>DOCUMENT DU TITULAIRE</span><h1>Carte CACES®</h1><p>{{ learner }} · R.{{ e.recommendation }} · {{ cardCertificates|length }} certificat(s) émis</p></div>
-  <p>Deux faces à conserver ensemble.<br>Impression A4 paysage, recto-verso, retournement sur le bord court.</p>
+  <p>Deux faces à conserver ensemble.<br>Impression A5 paysage, recto-verso, retournement sur le bord court.</p>
 </div>
+{% if not c.issuerCertificationNumber|default('') or not c.signatoryRole|default('') or not dossier.learner.photo or not entite.adresse or not entite.codePostal or not entite.ville %}
+<div class="cc-completeness cx-no-print" role="status">Avant remise au titulaire : vérifiez le numéro de certification INRS, l’identité et la qualité du signataire, la photo et les coordonnées complètes de l’organisme. Les champs manquants restent signalés sur la carte.</div>
+{% endif %}
 <div class="cc-face-label cx-no-print">01 — Recto · Titulaire et organisme</div>
 <section class="cc-page cc-front" aria-label="Recto de la carte CACES">
-  <div class="cc-holder">
+  <div class="cc-holder"><div class="cc-edition">CACES® <span>R.{{ e.recommendation }} · CERTIFICATS DU TITULAIRE</span></div>
     <div><p class="cc-label">Titulaire</p><h2 class="cc-value">{{ learner }}</h2></div>
     <div class="cc-numbers"><p class="cc-label">CACES® numéro(s)</p>
       <ul>{% for a in cardCertificates %}<li><strong>{{ a.certificate.number }}</strong><span>R.{{ a.exam.recommendation }} · Catégorie {{ a.exam.category }}</span></li>{% endfor %}</ul>
     </div>
-    <div class="cc-issued"><p class="cc-label">Délivré par</p><h3>{{ entite.nom }}</h3><p>{{ entite.adresse }}<br>{{ entite.codePostal }} {{ entite.ville }}</p>{% if entite.siret %}<p class="cc-small">SIRET {{ entite.siret }}</p>{% endif %}</div>
+    <div class="cc-issued"><p class="cc-label">Délivré par</p><h3>{{ entite.nom }}</h3><p>{{ entite.adresse }}<br>{{ entite.codePostal }} {{ entite.ville }}</p><p class="cc-small">N° de certification INRS : <strong>{{ c.issuerCertificationNumber|default('À renseigner') }}</strong></p>{% if entite.siret %}<p class="cc-small">SIRET {{ entite.siret }}</p>{% endif %}</div>
     <div class="cc-verification">Pour toute demande de vérification, contactez l’organisme émetteur en précisant le numéro du certificat.<br><strong>{{ entite.email ?: entite.telephone ?: entite.nom }}</strong></div>
   </div>
-  <div class="cc-cover">
+  <div class="cc-cover"><div class="cc-edition">CERTIFICATION <span>CONDUITE EN SÉCURITÉ</span></div>
     <div class="cc-brand">
       {% if entite.logo %}<img src="{{ asset('uploads/photos/entite/logo/' ~ entite.logo) }}" alt="Logo {{ entite.nom }}">{% else %}<div class="cc-brand-symbol" aria-hidden="true">CACES<sup>®</sup></div>{% endif %}
       <h2>{{ entite.nom }}</h2>
@@ -34,6 +37,7 @@
       {% if entite.siteInternet %}<p>{{ entite.siteInternet }}</p>{% endif %}
     </div>
     <div class="cc-cover-title"><strong>CACES<sup>®</sup></strong><p>Certificat d’aptitude à la conduite en sécurité</p><span>R.{{ e.recommendation }} · {{ cardFamily }}</span></div>
+    <div class="cc-mandatory"><p>La marque CACES® est protégée par un dépôt à l’INPI sous le numéro 03.3237295</p><img src="{{ asset('dist/images/caces/assurance-maladie-risques-professionnels.png') }}" alt="L’Assurance Maladie · Risques professionnels"></div>
     <p class="cc-small cc-copy">Document recto-verso · Toute copie doit comporter les deux faces.</p>
   </div>
 </section>
@@ -44,7 +48,7 @@
     <p class="cc-label">Titulaire</p><h2 class="cc-value">{{ learner }}</h2>
     <p class="cc-label">Date de naissance</p><p class="cc-value">{{ dossier.profile.birthDate|default('') ? dossier.profile.birthDate|date('d/m/Y') : 'Non renseignée' }}</p>
     {% if dossier.profile.birthPlace|default('') %}<p class="cc-small">À {{ dossier.profile.birthPlace }}</p>{% endif %}
-    <p class="cc-label">Émis par</p><p class="cc-value">{{ c.issuedBy }}</p><p class="cc-small">Le {{ c.issuedAt|date('d/m/Y') }}</p>
+    <p class="cc-label">Signataire du certificat</p><p class="cc-value">{{ c.signatoryName|default(c.issuedBy) }}</p><p class="cc-small">{{ c.signatoryRole|default('Qualité du signataire à renseigner') }}</p><p class="cc-small">Le {{ c.issuedAt|date('d/m/Y') }}</p>
     {% if dossier.signatures.learner|default(null) %}<div class="cc-signature"><p class="cc-label">Signature du titulaire</p><img src="{{ dossier.signatures.learner.image }}" alt="Signature du titulaire"></div>{% endif %}
   </div>
   <div class="cc-register">
@@ -63,6 +67,7 @@
       {% endfor %}
       </tbody>
     </table>
+    {% if e.recommendation == '489' %}<p class="cc-aipr">Ce(s) CACES® ne permet(tent) pas la délivrance d’une AIPR</p>{% endif %}
     <p class="cc-register-note">Seules les catégories renseignées correspondent à un certificat émis dans cette session. Les cases barrées ne valent pas certification.</p>
   </div>
   <div class="cc-back-footer">Document recto-verso · Toute copie doit comporter les deux faces.<span>Session {{ e.session.code }} · Dossier n°{{ dossier.id }}</span></div>
