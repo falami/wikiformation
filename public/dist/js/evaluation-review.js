@@ -86,12 +86,14 @@
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
       try {
-        const response = await fetch(form.action, {method: 'POST', body: data, headers: {'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json'}, signal: controller.signal});
+        // Buttons named "action" shadow form.action with a RadioNodeList.
+        const endpoint = form.getAttribute('action') || window.location.href;
+        const response = await fetch(endpoint, {method: 'POST', body: data, headers: {'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json'}, signal: controller.signal});
         if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Votre session a peut-être expiré. Reconnectez-vous puis rechargez le dossier.');
         const result = await response.json();
         if (!response.ok) {
           if (response.status === 409) { blocked = true; backup.hidden = false; }
-          throw new Error(result.error || 'Enregistrement impossible.');
+          throw new Error(result.error || 'Enregistrement impossible (HTTP ' + response.status + ').');
         }
         if (!Number.isInteger(result.version)) throw new Error('Réponse du serveur inattendue.');
         version.value = String(result.version);

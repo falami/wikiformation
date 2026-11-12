@@ -430,7 +430,8 @@ final class CacesPortalsTest extends KernelTestCase
         self::assertStringContainsString('Cat. 1A',$page->text());self::assertStringContainsString('Cat. 1B',$page->text());self::assertStringContainsString('Cat. 2B',$page->text());
         self::assertCount(1,$page->filter('.cx-document-sheet'));
         self::assertStringNotContainsString('R.483', $page->text());
-        self::assertCount(1, $page->filter('.syn-signature img'));
+        self::assertCount(3, $page->filter('.syn-result-signature'));
+        self::assertCount(0, $page->filter('.syn-signature img'));
         self::assertStringContainsString('Formateur de la session', $page->text());
         if(getenv('CACES_QA_OUTPUT')) file_put_contents(getenv('CACES_QA_OUTPUT').'/multi-synthesis.html',$this->client->getResponse()->getContent());
     }

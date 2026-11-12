@@ -4,7 +4,8 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const source = fs.readFileSync('public/dist/js/evaluation-review.js', 'utf8');
 
-function setup(snapshot) {
+function setup(snapshot, options = {}) {
+  const requests = [];
   const field = (name, value, max, type = 'number') => ({name, value, max, type, checked: false, disabled: false, validity: {valid: true}, checkValidity() { return this.validity.valid; }});
   const points = field('practice[p1][points]', '2', '4');
   const second = field('practice[p2][points]', '', '2');
@@ -19,6 +20,9 @@ function setup(snapshot) {
     {querySelector: () => na, querySelectorAll: () => [second]}
   ];
   const form = {
+    // Named action buttons shadow HTMLFormElement.action in the browser.
+    action: {toString: () => '[object RadioNodeList]'},
+    getAttribute: name => name === 'action' ? (options.action ?? null) : null,
     dataset: {draftKey: 'test', editable: '1'},
     elements: {namedItem: name => name === 'version' ? version : {}},
     querySelector: selector => nodes[selector] || null,
@@ -28,11 +32,17 @@ function setup(snapshot) {
   let stored = snapshot ? JSON.stringify(snapshot) : null;
   vm.runInNewContext(source, {
     document: {getElementById: () => form},
-    window: {addEventListener() {}},
+    window: {addEventListener() {}, location: {href: 'https://example.test/fr/formateur/1/evaluations/4'}},
+    FormData: class { set() {} delete() {} },
+    AbortController,
+    fetch: async (url, init) => {
+      requests.push({url, init});
+      return {ok: true, headers: {get: () => 'application/json'}, json: async () => ({version: 2})};
+    },
     localStorage: {getItem: () => stored, setItem: (_, value) => { stored = value; }},
     setTimeout() {}, clearTimeout() {}
   });
-  return {points, second, na, comment, nodes, events, stored: () => JSON.parse(stored)};
+  return {points, second, na, comment, nodes, events, requests, version, stored: () => JSON.parse(stored)};
 }
 
 test('partial score uses only assessed criteria and zero is a grade', () => {
@@ -61,4 +71,21 @@ test('stale local copy never replaces current server values', () => {
   assert.equal(s.points.value, '2');
   assert.equal(s.nodes['[data-export-draft]'].hidden, false);
   assert.match(s.nodes['[data-save-status]'].textContent, /ancienne version/);
+});
+
+test('draft save posts to page URL despite named action buttons', async () => {
+  const s = setup();
+  s.comment.value = 'Observation à sauvegarder';
+  await s.events.submit({preventDefault() {}, submitter: {value: 'save'}});
+  assert.equal(s.requests[0].url, 'https://example.test/fr/formateur/1/evaluations/4');
+  assert.equal(s.requests[0].init.method, 'POST');
+  assert.equal(s.version.value, '2');
+  assert.match(s.nodes['[data-save-status]'].textContent, /Brouillon enregistré/);
+  assert.equal(s.stored().values['practice[p1][comment]'], 'Observation à sauvegarder');
+});
+
+test('draft save respects an explicit form action', async () => {
+  const s = setup(null, {action: '/evaluation/save'});
+  await s.events.submit({preventDefault() {}, submitter: {value: 'save'}});
+  assert.equal(s.requests[0].url, '/evaluation/save');
 });
