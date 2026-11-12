@@ -206,7 +206,18 @@ final class CacesPortalsTest extends KernelTestCase
         self::assertSame(302,$this->client->getResponse()->getStatusCode());
         $this->client->loginUser($this->admin);$page=$this->client->request('GET',$show);$token=$page->filter('input[name="_token"]')->first()->attr('value');$this->client->request('POST',$show,['_token'=>$token,'action'=>'certify']);
         $a=$this->em->find(\App\Entity\CacesAttempt::class,$id);self::assertNotEmpty($a->getCertificate());self::assertCount(3,$a->getSignatures());self::assertSame(100,$a->getPracticeResult()['score']);
-        foreach(['synthese','attestation','carte'] as $type){$this->client->request('GET',$this->url('app_caces_document',['id'=>$id,'type'=>$type]));self::assertSame(200,$this->client->getResponse()->getStatusCode());}
+        foreach(['synthese','attestation','carte'] as $type){
+            $page=$this->client->request('GET',$this->url('app_caces_document',['id'=>$id,'type'=>$type]));
+            self::assertSame(200,$this->client->getResponse()->getStatusCode());
+            if ($type === 'carte') {
+                self::assertCount(2, $page->filter('.cc-page'));
+                self::assertCount(9, $page->filter('.cc-table tbody tr'));
+                self::assertCount(1, $page->filter('[data-card-certified="3"]'));
+                self::assertCount(24, $page->filter('.cc-crossed'));
+                self::assertStringContainsString($a->getCertificate()['number'], $page->filter('.cc-numbers')->text());
+                self::assertStringContainsString($a->getCertificate()['practiceTester'], $page->filter('[data-card-certified="3"]')->text());
+            }
+        }
     }
     public function testSessionAcceptsTesterWhoIsNotItsTrainer(): void
     {
