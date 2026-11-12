@@ -63,3 +63,20 @@ La création dédiée (`modeles/nouveau?kind=practice`) accepte des critères no
 Les barèmes ne sont plus plafonnés à 8 : la saisie accepte notamment 10, 15, 20 et 30 points conformément aux tableaux. Les modèles personnalisés autorisent de 1 à 100 points par critère, avec exactement 100 points par épreuve. Les options complémentaires sur 50 points ne font pas partie de cette bibliothèque par catégorie. La durée de 60 minutes reste une valeur proposée à adapter dans une copie du modèle à la procédure de l’organisme ; elle n’est pas extraite des unités de test.
 
 Import reproductible avec PyMuPDF : `python scripts/caces/import_practice.py /chemin/vers/les/referentiels`. L’import utilise la géométrie des tableaux et vérifie les totaux ; il conserve les consignes de chaque point d’évaluation, les pages sources et leur empreinte SHA-256. Les pages PNG privées sont consultables par les administrateurs depuis le modèle. L’ancien modèle R489 catégorie 3 reste accessible sous sa clé d’origine, archivé pour les nouvelles affectations ; les snapshots des sessions existantes ne sont pas modifiés.
+
+
+### Affectation multicatégories (12 novembre 2026)
+
+L’écran de préparation accepte plusieurs épreuves pratiques d’une même recommandation en une seule création. Chaque ligne choisit une catégorie, une grille publiée, un testeur actif et, facultativement, les inscrits concernés (aucune sélection = tous les inscrits éligibles). Exemple : R489 1A, 1B et 2B, avec trois testeurs différents. Les catégories sont contrôlées côté serveur ; une catégorie inconnue, répétée, déjà affectée, une grille incompatible ou un inscrit d’une autre session entraîne le rejet de l’ensemble, en conservant la saisie.
+
+Un seul questionnaire est tiré parmi les grilles actives de la bibliothèque choisie (cinq dans la bibliothèque commune initiale). Un ajout de catégories conserve le tirage et le testeur théorique existants. Pour chaque stagiaire, les nouveaux dossiers partagent une tentative théorique via `caces_attempt.theory_source_id` : réponses, délai, résultat, fiche candidat et signatures théorique/stagiaire. Le portail stagiaire n’affiche qu’une seule tentative. Les scores, brouillons, temps, engins et signatures pratiques restent indépendants. Les dossiers antérieurs ne sont pas fusionnés rétroactivement.
+
+La feuille de synthèse rassemble toutes les catégories du stagiaire dans sa session : résultats, testeurs, obtention et validité des certificats, puis relevés détaillés et signatures. Les dossiers proposent une navigation par catégorie respectant les droits du testeur. Le formulaire de changement de testeur ne modifie désormais que la catégorie affichée. La signature et la certification restent contrôlées individuellement ; dès qu’une catégorie partageant la théorie est certifiée, la fiche candidat commune est verrouillée.
+
+Migration additive appliquée à Docker local le 12 novembre 2026, à exécuter sur chaque environnement lors du déploiement avant d’exposer le nouveau code :
+
+```sh
+php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20261112020000' --up --no-interaction
+```
+
+Aucun déploiement distant effectué. Tests d’intégration isolés SQLite : création de trois catégories, sélection d’inscrits, partage des résultats y compris l’échec, signature théorique commune, refus d’un testeur pratique non affecté, réaffectation ciblée, certification de chaque catégorie et verrouillage de la fiche commune. Contrôle navigateur de l’ajout des catégories 1A/1B/2B, des grilles filtrées, de la synthèse et du rendu mobile.

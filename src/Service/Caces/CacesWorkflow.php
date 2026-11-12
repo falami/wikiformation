@@ -10,6 +10,7 @@ final class CacesWorkflow
     public function deadline(CacesAttempt $a): ?\DateTimeImmutable { return $a->getStartedAt()?->modify('+60 minutes'); }
     public function expire(CacesAttempt $a, \DateTimeImmutable $now): bool
     {
+        $a = $a->getTheoryAttempt();
         if (!$a->getSubmittedAt() && $this->deadline($a) && $now >= $this->deadline($a)) {
             $a->setTheoryResult($this->rules->grade($a->getExam()->getTheorySnapshot()['schema'],$a->getAnswers()))->setSubmittedAt($this->deadline($a));
             return true;
@@ -18,6 +19,7 @@ final class CacesWorkflow
     }
     public function saveAnswers(CacesAttempt $a,array $answers,\DateTimeImmutable $now,bool $submit=false): void
     {
+        $a = $a->getTheoryAttempt();
         if ($this->expire($a,$now) || $a->getSubmittedAt()) return;
         if (!$a->getStartedAt()) throw new \DomainException('Démarrez le test avant de répondre.');
         $valid=[];

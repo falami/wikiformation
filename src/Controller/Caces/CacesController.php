@@ -54,7 +54,7 @@ final class CacesController extends AbstractController
         $attempts = $this->em->createQueryBuilder()->select('a','e','s')
             ->from(CacesAttempt::class,'a')->join('a.exam','e')->join('e.session','s')
             ->where('a.entite = :entite AND e.entite = :entite AND s.entite = :entite')
-            ->andWhere('a.learner = :learner')
+            ->andWhere('a.learner = :learner AND a.theorySource IS NULL')
             ->setParameter('entite',$entite)->setParameter('learner',$this->getUser())
             ->orderBy('a.id','DESC')->getQuery()->getResult();
         return $this->page('learner',$entite,['attempts'=>$attempts]);
@@ -138,9 +138,11 @@ final class CacesController extends AbstractController
         $this->token($r,'caces_tester_'.$session->getId());
         $tester=$this->trainers($entite)[$r->request->getInt('practiceTester')]??null;
         if(!$tester) throw $this->createAccessDeniedException('Choisissez un formateur actif de cet organisme.');
-        $this->em->wrapInTransaction(function()use($entite,$session,$tester){
+        $examId=$r->request->getInt('exam');
+        $this->em->wrapInTransaction(function()use($entite,$session,$tester,$examId){
             $this->em->lock($session,LockMode::PESSIMISTIC_WRITE);
             foreach($this->em->getRepository(CacesExam::class)->findBy(['entite'=>$entite,'session'=>$session]) as $exam) {
+                if($examId && $exam->getId()!==$examId) continue;
                 $this->em->lock($exam,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($exam);
                 if($exam->getPracticeTester()->getId()===$tester->getId()) continue;
                 // Signed results retain their actual examiner; only pending work changes hands.
@@ -158,7 +160,7 @@ final class CacesController extends AbstractController
                 $exam->setPracticeSnapshot($snapshot)->setPracticeTester($tester);
             }
         });
-        $this->addFlash('success','Testeur pratique modifié pour toute la session. Les évaluations déjà signées sont conservées.');
+        $this->addFlash('success','Affectation du testeur pratique mise à jour. Les évaluations déjà signées sont conservées.');
         return $this->redirectToRoute('app_caces_index',['entite'=>$entite->getId()]);
     }
     #[Route('/sessions/nouvelle',name:'assign',methods:['GET','POST'])]
@@ -167,43 +169,86 @@ final class CacesController extends AbstractController
         $this->admin($entite); $errors=[];$catalog=$this->library->catalog($entite);
         $sessions=$this->em->getRepository(Session::class)->findBy(['entite'=>$entite],['id'=>'DESC']);
         $trainers=$this->trainers($entite);
+        $values=$r->isMethod('POST')?$r->request->all():['session'=>$r->query->getString('session'),'recommendation'=>'489'];
         if($r->isMethod('POST')) {
             $this->token($r,'caces_assign_'.$entite->getId());
             try {
                 $session=$this->em->getRepository(Session::class)->findOneBy(['id'=>$r->request->getInt('session'),'entite'=>$entite]);
-                $rec=$r->request->getString('recommendation');$category=$r->request->getString('category');
-                $theoryTester=$trainers[$r->request->getInt('theoryTester')]??null;$practiceTester=$trainers[$r->request->getInt('practiceTester')]??null;
-                if(!$session || !$theoryTester || !$practiceTester || !in_array($category,CacesRules::CATEGORIES[$rec]??[],true)) throw new \InvalidArgumentException('Choisissez une session, une catégorie et deux testeurs actifs.');
+                $rec=$r->request->getString('recommendation');
+                $theoryTester=$trainers[$r->request->getInt('theoryTester')]??null;
+                if(!$session || !$theoryTester || !isset(CacesRules::CATEGORIES[$rec])) throw new \InvalidArgumentException('Choisissez une session, une recommandation et un testeur théorique actif.');
+                $rows=$r->request->all('practices');
+                // Compatibility with existing integrations posting a single category.
+                if(!$rows) $rows=[['category'=>$r->request->getString('category'),'tester'=>$r->request->getInt('practiceTester'),'template'=>$r->request->getString('practice')]];
+                if(count($rows)>count(CacesRules::CATEGORIES[$rec])) throw new \InvalidArgumentException('Trop d’épreuves pour cette recommandation.');
+                $practices=[];
+                foreach($rows as $row) {
+                    if(!is_array($row) || !is_string($row['category']??null) || !is_scalar($row['tester']??null) || !is_string($row['template']??null)) throw new \InvalidArgumentException('Épreuve pratique invalide.');
+                    $category=$row['category'];$tester=$trainers[(int)$row['tester']]??null;
+                    if(!$tester || !in_array($category,CacesRules::CATEGORIES[$rec],true)) throw new \InvalidArgumentException('Chaque épreuve doit avoir une catégorie valide et un testeur actif.');
+                    if(isset($practices[$category])) throw new \InvalidArgumentException('Une catégorie ne peut être ajoutée qu’une seule fois.');
+                    $practice=$this->library->find($entite,$row['template']);
+                    if($practice['kind']!=='practice' || $practice['recommendation']!==$rec || $practice['category']!==$category || ($practice['status']??'active')!=='active') throw new \InvalidArgumentException('Chaque grille pratique doit correspondre à sa catégorie et être publiée.');
+                    $this->rules->validate($practice['schema'],'practice');
+                    $selected=$row['learners']??[];
+                    if(!is_array($selected) || array_filter($selected,fn($id)=>!is_scalar($id)||!ctype_digit((string)$id))) throw new \InvalidArgumentException('Sélection de stagiaires invalide.');
+                    $practices[$category]=['tester'=>$tester,'template'=>$practice,'learners'=>array_map('intval',$selected)];
+                }
                 $pool=array_values(array_filter($catalog,fn($t)=>$t['recommendation']===$rec && $t['kind']==='theory' && ($t['status']??'active')==='active' && ($r->request->getString('pool')==='custom' ? str_starts_with($t['key'],'custom-') && !($t['global']??false) : (!str_starts_with($t['key'],'custom-') || ($t['global']??false)))));
-                if(!$pool) throw new \InvalidArgumentException('Aucun modèle actif dans cette bibliothèque.');
-                $practice=$this->library->find($entite,$r->request->getString('practice'));
-                if($practice['kind']!=='practice' || $practice['recommendation']!==$rec || $practice['category']!==$category || ($practice['status']??'active')!=='active') throw new \InvalidArgumentException('Le modèle pratique doit correspondre à la recommandation et à la catégorie.');
-                $this->rules->validate($practice['schema'],'practice');
                 $location=trim($r->request->getString('location'));if(!$location || mb_strlen($location)>255) throw new \InvalidArgumentException('Indiquez le lieu du test.');
-                $this->em->wrapInTransaction(function() use($session,$entite,$rec,$category,$theoryTester,$practiceTester,$pool,$practice,$location) {
+                // DBAL keeps the manager usable after a validation rollback.
+                $this->em->getConnection()->transactional(function() use($session,$entite,$rec,$theoryTester,$pool,$practices,$location) {
                     $this->em->lock($session,LockMode::PESSIMISTIC_WRITE);
-                    if($this->em->getRepository(CacesExam::class)->findOneBy(['entite'=>$entite,'session'=>$session,'recommendation'=>$rec,'category'=>$category])) throw new \InvalidArgumentException('Cette catégorie est déjà affectée à cette session.');
-                    // One random draw per session/recommendation, shared across its categories.
-                    $existing=$this->em->getRepository(CacesExam::class)->findOneBy(['entite'=>$entite,'session'=>$session,'recommendation'=>$rec]);
-                    if($existing) foreach($this->em->getRepository(CacesAttempt::class)->findBy(['exam'=>$existing]) as $a) if($a->getCertificate()) throw new \InvalidArgumentException('Des certificats ont déjà été émis pour cette session. Préparez une nouvelle session pour une extension.');
+                    $existingExams=$this->em->getRepository(CacesExam::class)->findBy(['entite'=>$entite,'session'=>$session,'recommendation'=>$rec],['id'=>'ASC']);
+                    $sources=[];
+                    foreach($existingExams as $existing) {
+                        if(isset($practices[$existing->getCategory()])) throw new \InvalidArgumentException('La catégorie '.$existing->getCategory().' est déjà affectée à cette session.');
+                        foreach($this->em->getRepository(CacesAttempt::class)->findBy(['exam'=>$existing]) as $a) {
+                            if($a->getCertificate()) throw new \InvalidArgumentException('Des certificats ont déjà été émis. Préparez une nouvelle session pour une extension.');
+                            $sources[$a->getLearner()->getId()]??=$a->getTheoryAttempt();
+                        }
+                    }
+                    $existing=$existingExams[0]??null;
+                    if($existing && $existing->getTheoryTester()->getId()!==$theoryTester->getId()) throw new \InvalidArgumentException('Conservez le testeur théorique déjà affecté à cette session et recommandation.');
+                    if(!$existing && !$pool) throw new \InvalidArgumentException('Aucun modèle théorique actif dans cette bibliothèque.');
                     $theory=$existing?->getTheorySnapshot()??$pool[random_int(0,count($pool)-1)];
                     $this->rules->validate($theory['schema'],'theory');
-                    $registrations=array_filter($this->em->getRepository(Inscription::class)->findBy(['entite'=>$entite,'session'=>$session]),fn($i)=>!in_array($i->getStatus(),[\App\Enum\StatusInscription::ANNULE,\App\Enum\StatusInscription::ABSENT],true));
+                    $registrations=[];
+                    foreach($this->em->getRepository(Inscription::class)->findBy(['entite'=>$entite,'session'=>$session]) as $i) {
+                        if(!in_array($i->getStatus(),[\App\Enum\StatusInscription::ANNULE,\App\Enum\StatusInscription::ABSENT],true)) $registrations[$i->getId()]=$i;
+                    }
                     if(!$registrations) throw new \InvalidArgumentException('Cette session ne comporte aucun stagiaire éligible.');
-                    $exam=(new CacesExam())->setEntite($entite)->setSession($session)->setCreateur($this->getUser())->setTheoryTester($theoryTester)->setPracticeTester($practiceTester)->setRecommendation($rec)->setCategory($category)->setLocation($location)->setTheorySnapshot($theory)->setPracticeSnapshot($practice);
-                    $this->em->persist($exam);
-                    foreach($registrations as $i) $this->em->persist((new CacesAttempt())->setEntite($entite)->setExam($exam)->setInscription($i)->setLearner($i->getStagiaire()));
+                    foreach($practices as $p) if(array_diff($p['learners'],array_keys($registrations))) throw new \InvalidArgumentException('Un stagiaire sélectionné ne fait pas partie des inscrits éligibles de cette session.');
+                    foreach($practices as $category=>$p) {
+                        $exam=(new CacesExam())->setEntite($entite)->setSession($session)->setCreateur($this->getUser())->setTheoryTester($theoryTester)->setPracticeTester($p['tester'])->setRecommendation($rec)->setCategory((string)$category)->setLocation($location)->setTheorySnapshot($theory)->setPracticeSnapshot($p['template']);
+                        $this->em->persist($exam);
+                        foreach($registrations as $id=>$i) {
+                            if($p['learners'] && !in_array($id,$p['learners'],true)) continue;
+                            $a=(new CacesAttempt())->setEntite($entite)->setExam($exam)->setInscription($i)->setLearner($i->getStagiaire());
+                            $learnerId=$i->getStagiaire()->getId();
+                            if(isset($sources[$learnerId])) $a->setTheorySource($sources[$learnerId]);
+                            else $sources[$learnerId]=$a;
+                            $this->em->persist($a);
+                        }
+                    }
+                    $this->em->flush();
                 });
-                $this->addFlash('success','Session de tests créée. La grille tirée au sort et les barèmes sont figés.');return $this->redirectToRoute('app_caces_index',['entite'=>$entite->getId()]);
-            }catch(\InvalidArgumentException $e){$this->addFlash('danger',$e->getMessage());return $this->redirectToRoute('app_caces_assign',['entite'=>$entite->getId()]);}
+                $this->addFlash('success',count($practices).' épreuve(s) pratique(s) créée(s). Une seule théorie par stagiaire, commune aux catégories de cette recommandation.');
+                return $this->redirectToRoute('app_caces_index',['entite'=>$entite->getId()]);
+            }catch(\InvalidArgumentException $e){$errors[]=$e->getMessage();}
         }
-        return $this->page('assign',$entite,compact('sessions','trainers','catalog','errors'));
+        $registrationsBySession=[];
+        foreach($this->em->getRepository(Inscription::class)->findBy(['entite'=>$entite]) as $i) {
+            if($i->getSession()?->getEntite()?->getId()===$entite->getId() && !in_array($i->getStatus(),[\App\Enum\StatusInscription::ANNULE,\App\Enum\StatusInscription::ABSENT],true)) $registrationsBySession[$i->getSession()->getId()][]=['id'=>$i->getId(),'name'=>$this->fullName($i->getStagiaire())];
+        }
+        return $this->page('assign',$entite,compact('sessions','trainers','catalog','errors','values','registrationsBySession'));
     }
     #[Route('/dossiers/{id}/theorie',name:'theory',requirements:['id'=>'\d+'],methods:['GET','POST'])]
     public function theory(Entite $entite,CacesAttempt $attempt,Request $r): Response
     {
         $this->scoped($entite,$attempt);
         if($attempt->getLearner()?->getId()!==$this->getUser()?->getId()) throw $this->createAccessDeniedException();
+        if ($attempt->getTheorySource()) return $this->redirectToRoute('app_caces_theory',['entite'=>$entite->getId(),'id'=>$attempt->getTheoryAttempt()->getId()],307);
         $error=null;
         if($r->isMethod('POST')) {
             $this->token($r,'caces_theory_'.$attempt->getId());
@@ -218,7 +263,8 @@ final class CacesController extends AbstractController
                         if(in_array('', $profile, true)) throw new \InvalidArgumentException('Complétez tous les champs de la fiche de synthèse.');
                         $birth=\DateTimeImmutable::createFromFormat('!Y-m-d',$profile['birthDate']);
                         if(!$birth || $birth->format('Y-m-d')!==$profile['birthDate'] || $birth>new \DateTimeImmutable('today')) throw new \InvalidArgumentException('La date de naissance est invalide.');
-                        if($attempt->getCertificate()) throw new \InvalidArgumentException('Le dossier certifié est verrouillé.');
+                        $certified=$this->em->createQueryBuilder()->select('a')->from(CacesAttempt::class,'a')->where('a.theorySource = :source')->setParameter('source',$attempt)->getQuery()->getResult();
+                        if($attempt->getCertificate() || array_filter($certified,fn($a)=>(bool)$a->getCertificate())) throw new \InvalidArgumentException('Le dossier certifié est verrouillé.');
                         $attempt->setProfile($profile);
                         $sig=$this->signature($r,'signature');$signatures=$attempt->getSignatures();$signatures['learner']=['image'=>$sig,'name'=>$this->fullName($attempt->getLearner()),'at'=>$now->format(DATE_ATOM)];$attempt->setSignatures($signatures);
                     }
@@ -228,7 +274,7 @@ final class CacesController extends AbstractController
             }catch(\InvalidArgumentException|\DomainException $e){$error=$e->getMessage();if($r->headers->get('X-Requested-With')==='XMLHttpRequest')return $this->json(['error'=>$error],422);$this->addFlash('danger',$error);return $this->redirectToRoute('app_caces_theory',['entite'=>$entite->getId(),'id'=>$attempt->getId()]);}
         }
         // Expiration is enforced by the server, including after a disconnected browser returns.
-        $this->em->wrapInTransaction(function() use($attempt){$this->em->lock($attempt,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt);$this->workflow->expire($attempt,new \DateTimeImmutable());});
+        $this->em->wrapInTransaction(function() use($attempt){$this->em->refresh($attempt->getTheoryAttempt(),LockMode::PESSIMISTIC_WRITE);$this->em->lock($attempt,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt);$this->workflow->expire($attempt,new \DateTimeImmutable());});
         $schema=$attempt->getExam()->getTheorySnapshot()['schema'];foreach($schema['themes'] as &$theme)foreach($theme['questions'] as &$q)unset($q['correct']);unset($theme,$q);
         $view=['id'=>$attempt->getId(),'startedAt'=>$attempt->getStartedAt(),'submittedAt'=>$attempt->getSubmittedAt(),'answers'=>$attempt->getAnswers(),'result'=>$attempt->getTheoryResult(),'profile'=>$attempt->getProfile(),'signed'=>isset($attempt->getSignatures()['learner']),'deadline'=>$this->workflow->deadline($attempt)?->getTimestamp(),'serverNow'=>time(),'recommendation'=>$attempt->getExam()->getRecommendation(),'category'=>$attempt->getExam()->getCategory(),'schema'=>$schema];
         return $this->page('theory',$entite,['test'=>$view,'error'=>$error]);
@@ -279,8 +325,10 @@ final class CacesController extends AbstractController
             $this->token($r,'caces_dossier_'.$attempt->getId());
             try {
                 $this->em->wrapInTransaction(function() use($entite,$attempt,$r) {
+                    // Serialize issuance with category creation and tester reassignment.
+                    if($r->request->getString('action')==='certify') $this->em->lock($attempt->getExam()->getSession(),LockMode::PESSIMISTIC_WRITE);
                     $this->em->lock($attempt->getExam(),LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt->getExam());
-                    $this->em->lock($attempt,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt);$this->workflow->expire($attempt,new \DateTimeImmutable());
+                    $this->em->refresh($attempt->getTheoryAttempt(),LockMode::PESSIMISTIC_WRITE);$this->em->lock($attempt,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt);$this->workflow->expire($attempt,new \DateTimeImmutable());
                     $action=$r->request->getString('action');
                     if($attempt->getCertificate()) throw new \InvalidArgumentException('Ce dossier certifié est verrouillé.');
                     if($action==='practice') {
@@ -307,10 +355,12 @@ final class CacesController extends AbstractController
                         if(!is_numeric($hours) || (float)$hours<0 || (float)$hours>500 || fmod((float)$hours,0.5)!==0.0) throw new \InvalidArgumentException('Saisissez une durée entre 0 et 500 heures, par demi-heure.');
                         $result['remediationThemes']=array_values($themes);
                         $result['remediationDurationSeconds']=(int)round((float)$hours*3600);
-                        $attempt->setTheoryResult($result);
-                        $signatures['theoryTester']=['image'=>$this->signature($r,'signature'),'name'=>$this->fullName($this->getUser()),'at'=>(new \DateTimeImmutable())->format(DATE_ATOM)];$attempt->setSignatures($signatures);
+                        $attempt->getTheoryAttempt()->setTheoryResult($result);
+                        $signatures=array_intersect_key($signatures,array_flip(['learner','theoryTester'])) + array_diff_key($attempt->getTheoryAttempt()->getSignatures(),array_flip(['learner','theoryTester']));
+                        $signatures['theoryTester']=['image'=>$this->signature($r,'signature'),'name'=>$this->fullName($this->getUser()),'at'=>(new \DateTimeImmutable())->format(DATE_ATOM)];$attempt->getTheoryAttempt()->setSignatures($signatures);
                     } elseif($action==='reuse') {
                         $this->admin($entite);
+                        if($attempt->getTheorySource()) throw new \InvalidArgumentException('Gérez la dispense depuis le dossier théorique commun.');
                         if($attempt->getStartedAt() || $attempt->getSubmittedAt()) throw new \InvalidArgumentException('Le test a déjà commencé.');
                         $previous=$this->em->getRepository(CacesAttempt::class)->findOneBy(['id'=>$r->request->getInt('previous'),'entite'=>$entite,'learner'=>$attempt->getLearner()]);
                         if(!$previous || !$previous->getSubmittedAt() || !($previous->getTheoryResult()['passed']??false) || $previous->getExam()->getRecommendation()!==$attempt->getExam()->getRecommendation()) throw new \InvalidArgumentException('Le dossier doit concerner ce stagiaire et la même recommandation avec une théorie réussie.');
@@ -322,6 +372,7 @@ final class CacesController extends AbstractController
                         $attempt->setTheoryResult($result)->setSubmittedAt($previous->getSubmittedAt())->setSignatures($signatures);
                     } elseif($action==='externalReuse') {
                         $this->admin($entite);
+                        if($attempt->getTheorySource()) throw new \InvalidArgumentException('Gérez la dispense depuis le dossier théorique commun.');
                         if($attempt->getStartedAt() || $attempt->getSubmittedAt()) throw new \InvalidArgumentException('Le test a déjà commencé.');
                         $raw=$r->request->getString('initialDate');$initial=\DateTimeImmutable::createFromFormat('!Y-m-d',$raw);
                         $reference=trim($r->request->getString('certificateReference'));$issuer=trim($r->request->getString('certificateIssuer'));
@@ -352,8 +403,9 @@ final class CacesController extends AbstractController
                 return $this->redirectToRoute('app_caces_show',['entite'=>$entite->getId(),'id'=>$attempt->getId()]);
             } catch(\InvalidArgumentException $e){$this->addFlash('danger',$e->getMessage());return $this->redirectToRoute('app_caces_show',['entite'=>$entite->getId(),'id'=>$attempt->getId()]);}
         }
-        $this->em->wrapInTransaction(function()use($attempt){$this->em->lock($attempt,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt);$this->workflow->expire($attempt,new \DateTimeImmutable());});
-        return $this->page('show',$entite,['dossier'=>$attempt,'error'=>$error,'trainers'=>$this->isGranted(TenantPermission::ADMIN,$entite)?$this->trainers($entite):[]]);
+        $this->em->wrapInTransaction(function()use($attempt){$this->em->refresh($attempt->getTheoryAttempt(),LockMode::PESSIMISTIC_WRITE);$this->em->lock($attempt,LockMode::PESSIMISTIC_WRITE);$this->em->refresh($attempt);$this->workflow->expire($attempt,new \DateTimeImmutable());});
+        $sessionAttempts=$this->em->createQueryBuilder()->select('a','e')->from(CacesAttempt::class,'a')->join('a.exam','e')->where('a.entite = :tenant AND e.entite = :tenant AND e.session = :session AND a.learner = :learner')->setParameter('tenant',$entite)->setParameter('session',$attempt->getExam()->getSession())->setParameter('learner',$attempt->getLearner())->orderBy('e.category','ASC')->getQuery()->getResult();
+        return $this->page('show',$entite,['sessionAttempts'=>$sessionAttempts,'dossier'=>$attempt,'error'=>$error,'trainers'=>$this->isGranted(TenantPermission::ADMIN,$entite)?$this->trainers($entite):[]]);
     }
     #[Route('/dossiers/{id}/page/{page}',name:'source',requirements:['id'=>'\d+','page'=>'\d+'],methods:['GET'])]
     public function source(Entite $entite,CacesAttempt $attempt,int $page): Response

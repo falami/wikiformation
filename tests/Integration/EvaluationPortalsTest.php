@@ -145,6 +145,34 @@ final class EvaluationPortalsTest extends KernelTestCase
         }
     }
 
+    public function testAutomaticDraftSaveReturnsJsonAndNeverPublishes(): void
+    {
+        foreach (['partial', 'invalid', 'stale', 'race'] as $case) {
+            $d = $this->dossier();
+            $payload = ['_token' => 'valid', 'version' => $case === 'stale' ? '0' : '1', 'action' => 'save',
+                'practice' => ['p1' => ['points' => $case === 'invalid' ? '99' : '2', 'comment' => 'Observation en cours'], 'p2' => ['na' => '1']]];
+            $em = $this->createMock(EntityManagerInterface::class);
+            if ($case === 'race') $em->expects(self::once())->method('flush')->willThrowException(OptimisticLockException::lockFailed($d));
+            elseif ($case === 'partial') $em->expects(self::once())->method('flush');
+            else $em->expects(self::never())->method('flush');
+            $context = [];
+            $controller = new TrainerController();
+            $controller->setContainer($this->controllerContainer($d->getEvaluator(), $context));
+            $request = new Request([], $payload, [], [], [], ['REQUEST_METHOD' => 'POST', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+            $response = $controller->show($d->getEntite(), $d, $request, $em, new EvaluationWorkflow(), $this->notifier($em));
+            self::assertSame(match ($case) { 'partial' => 200, 'invalid' => 422, default => 409 }, $response->getStatusCode());
+            $json = json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR);
+            self::assertNull($d->getPublishedAt());
+            self::assertSame([], $context);
+            if ($case === 'partial') {
+                self::assertSame(1, $json['version']);
+                self::assertSame(2.0, $d->getPracticeGrading()['p1']['points']);
+                self::assertSame('Observation en cours', $d->getPracticeGrading()['p1']['comment']);
+                self::assertTrue($d->getPracticeGrading()['p2']['na']);
+            } else self::assertNotEmpty($json['error']);
+        }
+    }
+
     public function testAllQuestionTypesAndPublishedResultsRenderEscaped(): void
     {
         self::bootKernel();
@@ -162,8 +190,16 @@ final class EvaluationPortalsTest extends KernelTestCase
         self::assertStringNotContainsString('Corrigé', $html);
         $this->submit($d);
         $workflow->saveReview($d, ['q1' => ['points' => 0], 'q2' => ['points' => 2], 'q3' => ['points' => 2], 'q4' => ['points' => 4, 'comment' => '<b>Observation</b>']], ['p1' => ['points' => 4], 'p2' => ['na' => true]], 'favorable', 'favorable');
+        self::getContainer()->get('security.token_storage')->setToken(new UsernamePasswordToken($d->getEvaluator(), 'main', ['ROLE_USER']));
         $trainerContext = ['entite' => $d->getEntite(), 'dossier' => $d, 'theory' => $d->getTheoryGrading(), 'practice' => $d->getPracticeGrading(), 'theoryVerdict' => $d->getTheoryVerdict(), 'practiceVerdict' => $d->getPracticeVerdict(), 'suggestions' => $workflow->suggestTheoryGrading($d), 'summary' => $workflow->scoreSummary($d), 'error' => null, 'conflict' => false];
         $html = $twig->load('evaluation/formateur/show.html.twig')->renderBlock('body', $trainerContext);
+        $crawler = new \Symfony\Component\DomCrawler\Crawler($html);
+        foreach (['theory', 'practice'] as $part) {
+            $options = $crawler->filter('#'.$part.'-verdict option');
+            self::assertSame(['', 'favorable', 'defavorable'], $options->extract(['value']));
+            self::assertSame('Favorable', $crawler->filter('#'.$part.'-verdict option[value=favorable]')->text());
+        }
+        self::assertCount(6, $crawler->filter('input[type=number][step="0.5"][min="0"][max]'));
         self::assertStringContainsString('value="0"', $html);
         self::assertStringContainsString('&lt;script&gt;', $html);
         self::assertStringNotContainsString('<script>untrusted', $html);

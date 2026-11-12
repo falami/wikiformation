@@ -131,10 +131,10 @@ final class EvaluationWorkflowTest extends TestCase
     public function testDraftScoresDoNotPretendToBeACompleteResult(): void
     {
         $d = $this->dossier(); $this->submit($d);
-        $this->workflow->saveReview($d, ['q1' => ['points' => 1.25]], [], null, null);
+        $this->workflow->saveReview($d, ['q1' => ['points' => 1.5]], [], null, null);
         self::assertNull($this->workflow->scoreSummary($d)['theory']['on20']);
         self::assertNull($this->workflow->scoreSummary($d)['practice']['on20']);
-        self::assertSame(1.25, $d->getTheoryGrading()['q1']['points']);
+        self::assertSame(1.5, $d->getTheoryGrading()['q1']['points']);
         $this->expectException(\DomainException::class);
         $this->workflow->publish($d);
     }
@@ -246,9 +246,25 @@ final class EvaluationWorkflowTest extends TestCase
         }
     }
 
+    public function testPracticeScoreCannotExceedOnePointMaximum(): void
+    {
+        $schema = $this->schema();
+        $schema['practice'][0]['points'] = 1;
+        $d = $this->dossier($schema);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->workflow->saveReview($d, [], ['p1' => ['points' => 2]], null, null);
+    }
+
+    public function testPracticeScoreMustUseHalfPointIncrements(): void
+    {
+        $d = $this->dossier();
+        $this->expectException(\InvalidArgumentException::class);
+        $this->workflow->saveReview($d, [], ['p1' => ['points' => 0.25]], null, null);
+    }
+
     public static function invalidGrades(): iterable
     {
-        yield [-1]; yield [2.01]; yield [NAN]; yield [INF]; yield ['NaN']; yield [true]; yield [[]]; yield [0.001];
+        yield [-1]; yield [2.01]; yield [0.25]; yield [1.75]; yield [NAN]; yield [INF]; yield ['NaN']; yield [true]; yield [[]]; yield [0.001];
     }
 
     #[DataProvider('invalidSchemas')]

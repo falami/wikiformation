@@ -34,9 +34,24 @@ final class StripeConnectController extends AbstractController
             $this->em->flush();
         }
 
+        $accountAvailable = false;
+        if ($connect->getStripeAccountId()) {
+            try {
+                $account = $this->stripeFactory->client()->accounts->retrieve($connect->getStripeAccountId(), []);
+                $accountAvailable = true;
+                $connect->setDetailsSubmitted((bool) $account->details_submitted);
+                $connect->setChargesEnabled((bool) $account->charges_enabled);
+                $connect->setPayoutsEnabled((bool) $account->payouts_enabled);
+            } catch (\Stripe\Exception\ApiErrorException $error) {
+                $this->addFlash('warning', 'Le compte enregistré ne peut pas être vérifié avec la configuration Stripe actuelle. Après un passage du test à la production, démarrez à nouveau l’inscription.');
+            }
+        }
+
         return $this->render('administrateur/billing/connect/index.html.twig', [
             'entite' => $entite,
             'connect' => $connect,
+            'stripeMode' => $this->stripeFactory->mode(),
+            'accountAvailable' => $accountAvailable,
         ]);
     }
 
@@ -52,7 +67,20 @@ final class StripeConnectController extends AbstractController
         try {
         $stripe = $this->stripeFactory->client();
 
-        if (!$connect->getStripeAccountId()) {
+        $createAccount = !$connect->getStripeAccountId();
+        if (!$createAccount) {
+            try {
+                $stripe->accounts->retrieve($connect->getStripeAccountId(), []);
+            } catch (\Stripe\Exception\InvalidRequestException $error) {
+                // Only a missing resource permits replacement; never replace on auth/network failures.
+                if ($error->getStripeCode() !== 'resource_missing') {
+                    throw $error;
+                }
+                $createAccount = true;
+            }
+        }
+
+        if ($createAccount) {
             $account = $stripe->accounts->create([
                 'type' => 'standard',
                 'country' => 'FR',
@@ -69,9 +97,15 @@ final class StripeConnectController extends AbstractController
                 'metadata' => [
                     'entite_id' => (string) $entite->getId(),
                 ],
+            ], [
+                'idempotency_key' => 'connect-onboarding-'.$entite->getId().'-'.($connect->getStripeAccountId() ?? 'initial'),
             ]);
 
-            $connect->setStripeAccountId($account->id)->touch();
+            $connect->setStripeAccountId($account->id)
+                ->setDetailsSubmitted(false)
+                ->setChargesEnabled(false)
+                ->setPayoutsEnabled(false)
+                ->touch();
             $entite->setConnect($connect);
 
             $this->em->persist($connect);

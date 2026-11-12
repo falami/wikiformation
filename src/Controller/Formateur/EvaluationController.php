@@ -44,6 +44,7 @@ final class EvaluationController extends AbstractController
             throw $this->createNotFoundException();
         }
 
+        $autosave = $request->isXmlHttpRequest() && $request->request->getString('action') === 'save';
         $error = null;
         $conflict = false;
         $status = 200;
@@ -76,6 +77,9 @@ final class EvaluationController extends AbstractController
                     $workflow->publish($dossier);
                 }
                 $em->flush();
+                if ($autosave) {
+                    return $this->json(['version' => $dossier->getVersion()], 200, ['Cache-Control' => 'no-store']);
+                }
                 if ($action === 'publish') {
                     $this->addFlash('success', 'Les résultats ont été validés et sont disponibles dans l’espace du stagiaire.');
                     if (!$notifier->notify($dossier)) {
@@ -97,6 +101,10 @@ final class EvaluationController extends AbstractController
                 $error = $e->getMessage();
                 $status = 422;
             }
+        }
+
+        if ($autosave && $error !== null) {
+            return $this->json(['error' => $error], $status, ['Cache-Control' => 'no-store']);
         }
 
         $suggestions = $dossier->getTheorySubmittedAt() ? $workflow->suggestTheoryGrading($dossier) : [];

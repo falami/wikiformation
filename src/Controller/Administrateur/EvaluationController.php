@@ -131,7 +131,7 @@ final class EvaluationController extends AbstractController
             if (!$this->isCsrfTokenValid('evaluation_assign_'.$entite->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Le formulaire a expiré.');
             $template = $this->em->getRepository(EvaluationTemplate::class)->find($templateId);
             $evaluator = $evaluators[$request->request->getInt('evaluator')] ?? null;
-            if (!$session || !$template || !$this->library->available($template, $entite) || !$evaluator) $errors[] = 'Choisissez un modèle actif, une session et un formateur intervenant sur cette session.';
+            if (!$session || !$template || !$evaluator || !$this->library->availableForEvaluator($template, $entite, $evaluator)) $errors[] = 'Choisissez un modèle actif, une session et un formateur intervenant sur cette session.';
             $allowed = []; foreach ($inscriptions as $inscription) $allowed[$inscription->getId()] = $inscription;
             if (!$selected || count($selected) > 500) $errors[] = 'Sélectionnez entre 1 et 500 stagiaires.';
             foreach ($selected as $id) if (!is_scalar($id) || !ctype_digit((string) $id) || !isset($allowed[(int) $id])) { $errors[] = 'Une inscription sélectionnée ne correspond pas à cette session.'; break; }
@@ -139,7 +139,7 @@ final class EvaluationController extends AbstractController
                 $created = $this->em->wrapInTransaction(function () use ($selected, $allowed, $template, $evaluator, $entite): int {
                     $this->em->lock($template, LockMode::PESSIMISTIC_WRITE);
                     $this->em->refresh($template);
-                    if (!$this->library->available($template, $entite)) return -1;
+                    if (!$this->library->availableForEvaluator($template, $entite, $evaluator)) return -1;
                     $snapshot = $this->workflow->snapshotTemplate($template);
                     $created = 0;
                     $ids = array_unique(array_map('intval', $selected)); sort($ids);
@@ -159,7 +159,7 @@ final class EvaluationController extends AbstractController
             }
         }
         return $this->page('assign', $entite, ['sessions' => $this->em->getRepository(Session::class)->findBy(['entite' => $entite], ['id' => 'DESC']), 'session' => $session,
-            'templates' => $this->library->catalog($entite, true), 'templateId' => $templateId,
+            'templates' => array_values(array_filter($this->library->catalog($entite, true), static fn (EvaluationTemplate $model) => !$model->getTrainerOwner() || isset($evaluators[$model->getTrainerOwner()->getId()]))), 'templateId' => $templateId,
             'inscriptions' => $inscriptions, 'evaluators' => $evaluators, 'evaluatorId' => $request->request->getInt('evaluator'), 'selected' => $selected, 'errors' => $errors]);
     }
 

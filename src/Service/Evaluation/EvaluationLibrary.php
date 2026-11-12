@@ -25,6 +25,12 @@ final class EvaluationLibrary
             : $model->getEntite()?->getId() === $tenant->getId();
     }
 
+    public function availableForEvaluator(EvaluationTemplate $model, Entite $tenant, Utilisateur $evaluator): bool
+    {
+        return $this->available($model, $tenant)
+            && (!$model->getTrainerOwner() || $model->getTrainerOwner()->getId() === $evaluator->getId());
+    }
+
     /** Tenant models plus published partner models; private trainer drafts never leak. */
     public function catalog(Entite $tenant, bool $availableOnly = false): array
     {

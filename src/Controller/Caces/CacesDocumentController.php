@@ -29,7 +29,7 @@ final class CacesDocumentController extends AbstractController
         },200,['Content-Type'=>'text/csv; charset=UTF-8','Content-Disposition'=>'attachment; filename="registre-caces.csv"','Cache-Control'=>'private, no-store']);
     }
     #[Route('/dossiers/{id}/documents/{type}',name:'document',requirements:['id'=>'\d+','type'=>'synthese|attestation|carte|echec'],methods:['GET'])]
-    public function document(Entite $entite,CacesAttempt $attempt,string $type,UtilisateurEntiteManager $uem): Response
+    public function document(Entite $entite,CacesAttempt $attempt,string $type,UtilisateurEntiteManager $uem,EntityManagerInterface $em): Response
     {
         $exam=$attempt->getExam();
         if($attempt->getEntite()?->getId()!==$entite->getId() || $exam->getEntite()?->getId()!==$entite->getId() || $exam->getSession()?->getEntite()?->getId()!==$entite->getId())throw $this->createNotFoundException();
@@ -37,6 +37,7 @@ final class CacesDocumentController extends AbstractController
         if(!$this->isGranted(TenantPermission::ADMIN,$entite) && !in_array($user,[$exam->getPracticeTester()->getId(),$exam->getTheoryTester()->getId(),$attempt->getLearner()->getId()],true))throw $this->createAccessDeniedException();
         if(in_array($type,['attestation','carte'],true)&&!$attempt->getCertificate())throw $this->createNotFoundException('Certification non émise.');
         if($type==='echec'&&!(($attempt->getTheoryResult()&&!$attempt->getTheoryResult()['passed'])||($attempt->getPracticeResult()&&!$attempt->getPracticeResult()['passed'])))throw $this->createNotFoundException();
-        $r=$this->render('caces/document.html.twig',['entite'=>$entite,'dossier'=>$attempt,'type'=>$type,'utilisateurEntite'=>$uem->getUserEntiteLink($entite)]);$r->headers->set('Cache-Control','private, no-store');return $r;
+        $sessionAttempts=$em->createQueryBuilder()->select('a','e')->from(CacesAttempt::class,'a')->join('a.exam','e')->where('a.entite = :tenant AND e.entite = :tenant AND e.session = :session AND a.learner = :learner')->setParameter('tenant',$entite)->setParameter('session',$exam->getSession())->setParameter('learner',$attempt->getLearner())->orderBy('e.recommendation','ASC')->addOrderBy('e.category','ASC')->getQuery()->getResult();
+        $r=$this->render('caces/document.html.twig',['entite'=>$entite,'dossier'=>$attempt,'type'=>$type,'sessionAttempts'=>$sessionAttempts,'utilisateurEntite'=>$uem->getUserEntiteLink($entite)]);$r->headers->set('Cache-Control','private, no-store');return $r;
     }
 }

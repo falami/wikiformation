@@ -125,6 +125,24 @@ final class EvaluationAdminTest extends KernelTestCase
         self::assertSame(2, $this->em->getRepository(EvaluationDossier::class)->count([]));
     }
 
+    public function testAssignmentRejectsAnotherTrainersSharedModel(): void
+    {
+        $model = (new EvaluationTemplate())->setEntite($this->tenant)->setCreateur($this->outsider)
+            ->setTrainerOwner($this->outsider)->setTitle('Modèle autre formateur')->setSchema($this->schema())->setActive(true);
+        $model->setAuthorizedEntites([$this->tenant]);
+        $this->em->persist($model); $this->em->flush();
+        $this->client->loginUser($this->admin);
+        $page = $this->client->request('GET', $this->url('app_administrateur_evaluation_assign', ['session'=>$this->dossier->getSession()->getId()]));
+        self::assertCount(0, $page->filter('#template option[value="'.$model->getId().'"]'));
+        $this->client->request('POST', $this->url('app_administrateur_evaluation_assign'), [
+            '_token'=>$page->filter('input[name="_token"]')->attr('value'),
+            'session'=>$this->dossier->getSession()->getId(), 'template'=>$model->getId(),
+            'evaluator'=>$this->trainer->getId(), 'inscriptions'=>[$this->dossier->getInscription()->getId()],
+        ]);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame(1, $this->em->getRepository(EvaluationDossier::class)->count([]));
+    }
+
     public function testRetakeRequiresPublicationAndKeepsOriginalFrozen(): void
     {
         $this->client->loginUser($this->admin);

@@ -153,6 +153,7 @@ final class EvaluationWorkflow
             if ($na && $failed) throw new \InvalidArgumentException('Un critère non applicable ne peut pas être déclaré non acquis.');
             $value = $grade['points'] ?? null;
             $points = $value === null || $value === '' ? null : $this->schema->points($value, $item['points']);
+            if ($points !== null && abs($points * 2 - round($points * 2)) > 0.0000001) throw new \InvalidArgumentException('La note doit être un multiple de 0,5 point.');
             if ($na && $points !== null) throw new \InvalidArgumentException('Un critère non applicable ne reçoit pas de note.');
             if ($complete && !$na && $points === null) throw new \DomainException('Tous les éléments applicables doivent être notés avant publication.');
             $result[$item['id']] = ['points' => $points, 'comment' => $this->schema->text($grade['comment'] ?? '', 10000, true)];

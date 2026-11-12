@@ -69,3 +69,15 @@ Activer cette commande après une recette avec un dossier dédié : seuls les do
 `App\Entity\Session::isEmargementRequis()` existe dans le projet et les tests de périmètre d’émargement passent. Le contrôleur doit être déployé avec la version correspondante de `src/Entity/Session.php`. Si seul l’éditeur signale encore une méthode absente, enregistrer les fichiers puis réindexer Intelephense/recharger la fenêtre. L’avertissement de la capture ne démontre pas une erreur PHP en exécution.
 
 Ces réglages ne sont pas appliqués automatiquement à Stripe ou à l’hébergement par les modifications du code local.
+
+## Passage de Stripe Connect du test à la production
+
+La page « Paiements en ligne · Stripe » affiche désormais le mode de la clé serveur (Test ou Production) et vérifie le compte enregistré avant d’afficher ses statuts. Le mode de l’application est déterminé par sa clé API, pas par le mode actuellement affiché dans le Dashboard Stripe.
+
+1. Dans la configuration privée du serveur, renseigner les clés de la **plateforme de production** : `STRIPE_SECRET_KEY` (clé serveur live), `STRIPE_PUBLIC_KEY` (`pk_live_...`) et les secrets de signature des destinations webhook de production correspondantes. Ne pas transmettre ces secrets dans le chat.
+2. Vérifier les URL HTTPS de retour et les destinations webhook, ainsi que les autres objets Stripe utilisés par l’application (prix, clients et abonnements) : les objets du sandbox ne sont pas transférés en production. La clé serveur est partagée avec les autres services Stripe de l’application.
+3. Recharger la configuration de production (y compris le fichier d’environnement compilé, si utilisé), puis vider le cache Symfony.
+4. Ouvrir « Paiements en ligne · Stripe », vérifier « Production », puis cliquer sur « Démarrer / Reprendre l’onboarding ». Si Stripe répond que l’ancien compte est introuvable (`resource_missing`), le parcours crée un compte Standard dans l’environnement actif et ouvre l’inscription hébergée par Stripe. Un compte encore accessible est réutilisé ; une erreur d’autorisation ne déclenche pas de remplacement.
+5. Terminer l’inscription chez Stripe puis rafraîchir les statuts. Le compte de test n’est pas supprimé chez Stripe. La référence locale est remplacée uniquement après création réussie du nouveau compte ; ses anciens statuts sont remis à zéro.
+
+Référence : [clés API et séparation test/production](https://docs.stripe.com/keys).

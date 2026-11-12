@@ -27,13 +27,26 @@ class CacesAttempt
     private ?Utilisateur $learner = null;
     public function getLearner(): ?Utilisateur { return $this->learner; }
     public function setLearner(?Utilisateur $value): static { $this->learner = $value; return $this; }
+    #[ORM\ManyToOne(targetEntity: self::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'RESTRICT')]
+    private ?self $theorySource = null;
+    public function getTheorySource(): ?self { return $this->theorySource; }
+    public function getTheoryAttempt(): self { return $this->theorySource ?? $this; }
+    public function setTheorySource(self $source): static
+    {
+        if ($this->startedAt || $this->submittedAt || $this->certificate || $this->theorySource || $source === $this || $source->getTheorySource() || $source->getEntite() !== $this->entite || $source->getLearner() !== $this->learner || $source->getExam()?->getSession() !== $this->exam?->getSession() || $source->getExam()?->getRecommendation() !== $this->exam?->getRecommendation()) {
+            throw new \InvalidArgumentException('La théorie commune doit appartenir au même stagiaire, à la même session et à la même recommandation.');
+        }
+        $this->theorySource = $source;
+        return $this;
+    }
     #[ORM\Column(type: 'json')]
     private array $answers = [];
-    public function getAnswers(): array { return $this->answers; }
+    public function getAnswers(): array { return $this->theorySource ? $this->theorySource->getAnswers() : $this->answers; }
     public function setAnswers(array $value): static { $this->answers = $value; return $this; }
     #[ORM\Column(type: 'json')]
     private array $theoryResult = [];
-    public function getTheoryResult(): array { return $this->theoryResult; }
+    public function getTheoryResult(): array { return $this->theorySource ? $this->theorySource->getTheoryResult() : $this->theoryResult; }
     public function setTheoryResult(array $value): static { $this->theoryResult = $value; return $this; }
     #[ORM\Column(type: 'json')]
     private array $practiceResult = [];
@@ -45,11 +58,11 @@ class CacesAttempt
     public function setPracticeResult(array $value): static { $this->practiceResult = $value; return $this; }
     #[ORM\Column(type: 'json')]
     private array $profile = [];
-    public function getProfile(): array { return $this->profile; }
+    public function getProfile(): array { return $this->theorySource ? $this->theorySource->getProfile() : $this->profile; }
     public function setProfile(array $value): static { $this->profile = $value; return $this; }
     #[ORM\Column(type: 'json')]
     private array $signatures = [];
-    public function getSignatures(): array { return $this->signatures; }
+    public function getSignatures(): array { return $this->theorySource ? array_diff_key($this->signatures, array_flip(['learner', 'theoryTester'])) + array_intersect_key($this->theorySource->getSignatures(), array_flip(['learner', 'theoryTester'])) : $this->signatures; }
     public function setSignatures(array $value): static { $this->signatures = $value; return $this; }
     #[ORM\Column(type: 'json')]
     private array $certificate = [];
@@ -57,11 +70,11 @@ class CacesAttempt
     public function setCertificate(array $value): static { $this->certificate = $value; return $this; }
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $startedAt = null;
-    public function getStartedAt(): ?\DateTimeImmutable { return $this->startedAt; }
+    public function getStartedAt(): ?\DateTimeImmutable { return $this->theorySource ? $this->theorySource->getStartedAt() : $this->startedAt; }
     public function setStartedAt(?\DateTimeImmutable $value): static { $this->startedAt = $value; return $this; }
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $submittedAt = null;
-    public function getSubmittedAt(): ?\DateTimeImmutable { return $this->submittedAt; }
+    public function getSubmittedAt(): ?\DateTimeImmutable { return $this->theorySource ? $this->theorySource->getSubmittedAt() : $this->submittedAt; }
     public function setSubmittedAt(?\DateTimeImmutable $value): static { $this->submittedAt = $value; return $this; }
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $practiceAt = null;

@@ -160,7 +160,7 @@ final class CacesPortalsTest extends KernelTestCase
     public function testAdminPagesRenderAndExistingEvaluationRemainsIntact(): void
     {
         $this->client->loginUser($this->admin);
-        foreach(['app_caces_index','app_caces_assign','app_caces_model','app_administrateur_evaluation_index'] as $route){$this->client->request('GET',$this->url($route));self::assertSame(200,$this->client->getResponse()->getStatusCode(),$route);}
+        foreach(['app_caces_index','app_caces_assign','app_caces_model','app_administrateur_evaluation_index'] as $route){$this->client->request('GET',$this->url($route));self::assertSame(200,$this->client->getResponse()->getStatusCode(),$route);if($route==='app_caces_assign' && getenv('CACES_QA_OUTPUT')) file_put_contents(getenv('CACES_QA_OUTPUT').'/multi-assign.html',$this->client->getResponse()->getContent());}
         $this->client->request('GET',$this->url('app_caces_show',['id'=>$this->caces->getId()]));self::assertSame(200,$this->client->getResponse()->getStatusCode());
         $this->client->request('GET',$this->url('app_caces_export'));self::assertSame(200,$this->client->getResponse()->getStatusCode());
         self::assertSame('Validation des acquis',$this->template->getTitle());
@@ -257,7 +257,7 @@ final class CacesPortalsTest extends KernelTestCase
         self::assertStringContainsString('Circuler à vide',$page->text());
         $this->client->loginUser($this->admin);
         $page=$this->client->request('GET',$this->url('app_caces_assign'));
-        self::assertCount(37,$page->filter('#practice option[data-rec]'));
+        self::assertCount(37,$page->filter('[data-field=template] option[data-rec]'));
         $page=$this->client->request('GET',$this->url('app_caces_model'),['copy'=>$template['key']]);
         self::assertSame(200,$this->client->getResponse()->getStatusCode());
         self::assertStringContainsString('R489A-juillet2026.pdf',$page->text());
@@ -281,6 +281,157 @@ final class CacesPortalsTest extends KernelTestCase
         $this->client->loginUser($this->learner);$this->client->request('GET',$this->url('app_caces_learner'));
         file_put_contents(getenv('CACES_QA_OUTPUT').'/qa-caces-learner-local.html',$this->client->getResponse()->getContent());
         self::assertSame(200,$this->client->getResponse()->getStatusCode());
+    }
+    public function testMultipleCategoriesShareOneTheoryAndKeepIndependentTesters(): void
+    {
+        [$session,$registration]=$this->multiSession();
+        $other=(new Formateur())->setUtilisateur($this->outsider)->setEntite($this->tenant)->setCreateur($this->admin);
+        $this->em->persist($other);$this->em->flush();
+        $payload=$this->multiPayload($session);
+        $payload['practices'][1]['tester']=$this->outsider->getId();
+        $this->postMulti($payload);
+        self::assertSame(302,$this->client->getResponse()->getStatusCode());
+        $exams=$this->em->getRepository(\App\Entity\CacesExam::class)->findBy(['session'=>$session],['id'=>'ASC']);
+        self::assertCount(3,$exams);
+        self::assertSame($exams[0]->getTheorySnapshot(),$exams[2]->getTheorySnapshot());
+        self::assertSame($this->outsider->getId(),$exams[1]->getPracticeTester()->getId());
+        $attempts=array_map(fn($exam)=>$this->em->getRepository(\App\Entity\CacesAttempt::class)->findOneBy(['exam'=>$exam]),$exams);
+        [$source,$second,$third]=$attempts;
+        self::assertSame($source,$second->getTheorySource());self::assertSame($source,$third->getTheorySource());
+        $this->client->loginUser($this->learner);
+        $page=$this->client->request('GET',$this->url('app_caces_learner'));
+        self::assertCount(2,$page->filter('.cl-test-card')); // Existing fixture + one shared theory.
+        $this->client->request('GET',$this->url('app_caces_theory',['id'=>$second->getId()]));
+        self::assertSame(307,$this->client->getResponse()->getStatusCode());
+        $url=$this->url('app_caces_theory',['id'=>$source->getId()]);
+        $page=$this->client->request('GET',$url);$token=$page->filter('input[name="_token"]')->attr('value');
+        $this->client->request('POST',$url,['_token'=>$token,'action'=>'start']);
+        $this->client->request('POST',$url,['_token'=>$token,'action'=>'submit','answers'=>[]]);
+        $source=$this->em->find(\App\Entity\CacesAttempt::class,$source->getId());
+        $second=$this->em->find(\App\Entity\CacesAttempt::class,$second->getId());
+        $third=$this->em->find(\App\Entity\CacesAttempt::class,$third->getId());
+        $this->em->refresh($source);
+        self::assertFalse($second->getTheoryResult()['passed']);self::assertSame($source->getSubmittedAt(),$third->getSubmittedAt());
+        $sig='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=';
+        $this->client->loginUser($this->trainer);
+        $show=$this->url('app_caces_show',['id'=>$second->getId()]);
+        $page=$this->client->request('GET',$show);$token=$page->filter('input[name="_token"]')->first()->attr('value');
+        $this->client->request('POST',$show,['_token'=>$token,'action'=>'theorySign','signature'=>$sig]);
+        $source=$this->em->find(\App\Entity\CacesAttempt::class,$source->getId());
+        $second=$this->em->find(\App\Entity\CacesAttempt::class,$second->getId());
+        $third=$this->em->find(\App\Entity\CacesAttempt::class,$third->getId());
+        $this->em->refresh($source);
+        self::assertArrayHasKey('theoryTester',$third->getSignatures());
+        self::assertArrayNotHasKey('practiceTester',$third->getSignatures());
+        $this->client->catchExceptions(true);
+        $this->client->request('POST',$show,['_token'=>$token,'action'=>'practice']);
+        self::assertSame(403,$this->client->getResponse()->getStatusCode());
+        $this->client->loginUser($this->admin);
+        $page=$this->client->request('GET',$this->url('app_caces_document',['id'=>$source->getId(),'type'=>'synthese']));
+        self::assertSame(200,$this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Cat. 1A',$page->text());self::assertStringContainsString('Cat. 1B',$page->text());self::assertStringContainsString('Cat. 2B',$page->text());
+        self::assertCount(4,$page->filter('.cx-document-sheet'));
+        if(getenv('CACES_QA_OUTPUT')) file_put_contents(getenv('CACES_QA_OUTPUT').'/multi-synthesis.html',$this->client->getResponse()->getContent());
+    }
+
+    public function testInvalidMultiAssignmentIsAtomicAndPreservesForm(): void
+    {
+        [$session]=$this->multiSession();
+        $payload=$this->multiPayload($session);
+        $payload['practices'][2]['category']='1A';
+        $this->postMulti($payload);
+        self::assertSame(200,$this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Une catégorie ne peut être ajoutée',$this->client->getResponse()->getContent());
+        self::assertSame(0,$this->em->getRepository(\App\Entity\CacesExam::class)->count(['session'=>$session]));
+        $payload=$this->multiPayload($session);$payload['practices'][2]['learners']=[$this->caces->getInscription()->getId()];
+        $this->postMulti($payload);
+        self::assertSame(200,$this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('ne fait pas partie',$this->client->getResponse()->getContent());
+        self::assertSame(0,$this->em->getRepository(\App\Entity\CacesExam::class)->count(['session'=>$session]));
+        $payload=$this->multiPayload($session);$payload['practices'][2]['template']='r489-cat1a-pratique-202607';
+        $this->postMulti($payload);
+        self::assertSame(0,$this->em->getRepository(\App\Entity\CacesExam::class)->count(['session'=>$session]));
+    }
+
+    public function testCategoryAssignmentsCanTargetDifferentLearnersAndRejectResubmission(): void
+    {
+        [$session,$registration]=$this->multiSession();
+        $other=(new Inscription())->setSession($session)->setStagiaire($this->outsider)->setEntite($this->tenant)->setCreateur($this->admin);
+        $this->em->persist($other);$this->em->flush();
+        $payload=$this->multiPayload($session);$payload['practices'][0]['learners']=[$registration->getId()];$payload['practices'][1]['learners']=[$other->getId()];
+        $this->postMulti($payload);
+        $exams=$this->em->getRepository(\App\Entity\CacesExam::class)->findBy(['session'=>$session],['id'=>'ASC']);
+        self::assertCount(3,$exams);
+        self::assertSame(1,$this->em->getRepository(\App\Entity\CacesAttempt::class)->count(['exam'=>$exams[0]]));
+        self::assertSame(1,$this->em->getRepository(\App\Entity\CacesAttempt::class)->count(['exam'=>$exams[1]]));
+        self::assertSame(2,$this->em->getRepository(\App\Entity\CacesAttempt::class)->count(['exam'=>$exams[2]]));
+        $this->postMulti($payload);
+        self::assertSame(200,$this->client->getResponse()->getStatusCode());
+        self::assertSame(3,$this->em->getRepository(\App\Entity\CacesExam::class)->count(['session'=>$session]));
+    }
+
+    public function testSharedSuccessCertifiesEachCategoryAndFreezesSharedIdentity(): void
+    {
+        [$session]=$this->multiSession();$this->postMulti($this->multiPayload($session));
+        $exams=$this->em->getRepository(\App\Entity\CacesExam::class)->findBy(['session'=>$session],['id'=>'ASC']);
+        $attempts=array_map(fn($e)=>$this->em->getRepository(\App\Entity\CacesAttempt::class)->findOneBy(['exam'=>$e]),$exams);
+        $source=$attempts[0];$sourceId=$source->getId();
+        $signature=['name'=>'Signature QA','at'=>(new \DateTimeImmutable())->format(DATE_ATOM),'image'=>'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII='];
+        $source->setTheoryResult(['score'=>100,'passed'=>true,'themes'=>[],'reasons'=>[]])->setSubmittedAt(new \DateTimeImmutable('today'))->setProfile(['birthDate'=>'1990-01-01'])->setSignatures(['learner'=>$signature,'theoryTester'=>$signature]);
+        foreach($attempts as $a) $a->setPracticeAt(new \DateTimeImmutable('today'))->setPracticeResult(['score'=>100,'passed'=>true,'themes'=>[],'reasons'=>[]])->setSignatures($a->getSignatures()+['practiceTester'=>$signature]);
+        $this->em->flush();
+        // Issue a dependent category first: its shared identity must then be frozen.
+        $ids=[$attempts[1]->getId(),$attempts[2]->getId(),$sourceId];
+        foreach($ids as $id){
+            $this->client->loginUser($this->admin);$url=$this->url('app_caces_show',['id'=>$id]);
+            $page=$this->client->request('GET',$url);$token=$page->filter('input[name="_token"]')->first()->attr('value');
+            $this->client->request('POST',$url,['_token'=>$token,'action'=>'certify']);
+            $a=$this->em->find(\App\Entity\CacesAttempt::class,$id);
+            self::assertNotEmpty($a->getCertificate());
+            self::assertCount(3,$a->getSignatures());
+            if($id===$ids[0]) {
+                $this->client->loginUser($this->learner);$url=$this->url('app_caces_theory',['id'=>$sourceId]);
+                $page=$this->client->request('GET',$url);$token=$page->filter('input[name="_token"]')->first()->attr('value');
+                $this->client->request('POST',$url,['_token'=>$token,'action'=>'profile','signature'=>$signature['image'],'birthDate'=>'1991-01-01','birthPlace'=>'Paris','address'=>'Adresse','phone'=>'0100000000','company'=>'Test','drivingExperience'=>'Oui','trainingExperience'=>'Oui']);
+                $source=$this->em->find(\App\Entity\CacesAttempt::class,$sourceId);
+                self::assertSame('1990-01-01',$source->getProfile()['birthDate']);
+            }
+        }
+        $this->client->loginUser($this->admin);
+        $page=$this->client->request('GET',$this->url('app_caces_document',['id'=>$sourceId,'type'=>'synthese']));
+        self::assertSame(3,substr_count($page->filter('.syn-overview')->text(),'Obtenue'));
+    }
+
+    public function testReassigningOneCategoryPreservesOtherTesters(): void
+    {
+        [$session]=$this->multiSession();
+        $other=(new Formateur())->setUtilisateur($this->outsider)->setEntite($this->tenant)->setCreateur($this->admin);$this->em->persist($other);$this->em->flush();
+        $this->postMulti($this->multiPayload($session));
+        $exams=$this->em->getRepository(\App\Entity\CacesExam::class)->findBy(['session'=>$session],['id'=>'ASC']);
+        $a=$this->em->getRepository(\App\Entity\CacesAttempt::class)->findOneBy(['exam'=>$exams[0]]);
+        $page=$this->client->request('GET',$this->url('app_caces_show',['id'=>$a->getId()]));
+        $token=$page->filter('#assignedTester')->ancestors()->filter('form')->filter('input[name="_token"]')->attr('value');
+        $this->client->request('POST',$this->url('app_caces_practice_tester',['id'=>$session->getId()]),['_token'=>$token,'exam'=>$exams[0]->getId(),'practiceTester'=>$this->outsider->getId()]);
+        foreach($exams as $i=>$exam){$current=$this->em->find(\App\Entity\CacesExam::class,$exam->getId());self::assertSame($i===0?$this->outsider->getId():$this->trainer->getId(),$current->getPracticeTester()->getId());}
+    }
+    private function multiSession(): array
+    {
+        $base=$this->caces->getExam()->getSession();
+        $session=(new Session())->setEntite($this->tenant)->setCreateur($this->admin)->setCode('MULTI-CACES')->setFormation($base->getFormation())->setSite($base->getSite())->setFormateur($base->getFormateur());
+        $registration=(new Inscription())->setSession($session)->setStagiaire($this->learner)->setEntite($this->tenant)->setCreateur($this->admin);
+        $this->em->persist($session);$this->em->persist($registration);$this->em->flush();
+        return [$session,$registration];
+    }
+    private function multiPayload(Session $session): array
+    {
+        return ['session'=>$session->getId(),'recommendation'=>'489','location'=>'Centre multi','theoryTester'=>$this->trainer->getId(),'pool'=>'official','practices'=>array_map(fn($cat)=>['category'=>$cat,'tester'=>$this->trainer->getId(),'template'=>'r489-cat'.strtolower($cat).'-pratique-202607'],['1A','1B','2B'])];
+    }
+    private function postMulti(array $payload): void
+    {
+        $this->client->loginUser($this->admin);
+        $url=$this->url('app_caces_assign');$page=$this->client->request('GET',$url);
+        $payload['_token']=$page->filter('input[name="_token"]')->attr('value');
+        $this->client->request('POST',$url,$payload);
     }
     private function user(string $email, string $name): Utilisateur
     {

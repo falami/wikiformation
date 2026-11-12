@@ -107,20 +107,29 @@
 
   {% include 'flagMessage.html.twig' %}
 
+  <div class="alert {{ stripeMode == 'live' ? 'alert-info' : 'alert-warning' }}">
+    <strong>Environnement Stripe : {{ stripeMode == 'live' ? 'Production' : (stripeMode == 'test' ? 'Test' : 'Non identifié') }}</strong>
+    {% if stripeMode == 'test' %}
+      <div>Les paiements sont simulés. Pour encaisser réellement, configurez les clés Stripe de production sur le serveur, puis démarrez l’inscription en production.</div>
+    {% elseif stripeMode == 'live' and not accountAvailable %}
+      <div>Démarrez l’inscription pour connecter votre organisme à la plateforme de production. Un compte de test ne peut pas être converti en compte de production.</div>
+    {% endif %}
+  </div>
+
   <div class="row g-3">
     <div class="col-12 col-lg-6">
       <div class="card-premium p-3">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="fw-bold">Statut du compte</div>
           <div class="d-flex gap-2 flex-wrap">
-            <span class="status-pill {{ connect.detailsSubmitted ? 'ok' : 'ko' }}">
-              Détails {{ connect.detailsSubmitted ? 'OK' : 'KO' }}
+            <span class="status-pill {{ (accountAvailable and connect.detailsSubmitted) ? 'ok' : 'ko' }}">
+              Détails {{ (accountAvailable and connect.detailsSubmitted) ? 'OK' : 'KO' }}
             </span>
-            <span class="status-pill {{ connect.chargesEnabled ? 'ok' : 'ko' }}">
-              Charges {{ connect.chargesEnabled ? 'OK' : 'KO' }}
+            <span class="status-pill {{ (accountAvailable and connect.chargesEnabled) ? 'ok' : 'ko' }}">
+              Charges {{ (accountAvailable and connect.chargesEnabled) ? 'OK' : 'KO' }}
             </span>
-            <span class="status-pill {{ connect.payoutsEnabled ? 'ok' : 'ko' }}">
-              Payouts {{ connect.payoutsEnabled ? 'OK' : 'KO' }}
+            <span class="status-pill {{ (accountAvailable and connect.payoutsEnabled) ? 'ok' : 'ko' }}">
+              Payouts {{ (accountAvailable and connect.payoutsEnabled) ? 'OK' : 'KO' }}
             </span>
           </div>
         </div>
@@ -130,8 +139,8 @@
         <div class="small text-muted">Stripe Account Id</div>
         <div class="fw-semibold">{{ connect.stripeAccountId ?? '—' }}</div>
 
-        <div class="mt-3 alert {{ connect.isReadyForCheckout ? 'alert-success' : 'alert-warning' }} mb-0">
-          {% if connect.isReadyForCheckout %}
+        <div class="mt-3 alert {{ (accountAvailable and connect.isReadyForCheckout) ? 'alert-success' : 'alert-warning' }} mb-0">
+          {% if (accountAvailable and connect.isReadyForCheckout) %}
             <i class="bi bi-check-circle me-1"></i>
             Configuration transmise à Stripe. La disponibilité du compte et la prise en charge des frais sont vérifiées avant chaque nouveau lien de paiement.
           {% else %}

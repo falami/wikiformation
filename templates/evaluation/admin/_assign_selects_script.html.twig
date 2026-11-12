@@ -1,7 +1,12 @@
 <script>
 (() => {
   function init() {
-    if (!window.TomSelect) return;
+    const template = document.querySelector('.ev-assignment #template');
+    const evaluator = document.querySelector('.ev-assignment #evaluator');
+    const models = template ? Array.from(template.options).filter(option => option.value).map(option => ({
+      value: option.value, text: option.textContent, owner: option.dataset.owner,
+    })) : [];
+
     const fields = [
       ['session-picker', 'bi-calendar3', 'Rechercher une session…'],
       ['template', 'bi-patch-check', 'Rechercher un modèle…'],
@@ -9,7 +14,7 @@
     ];
     fields.forEach(([id, icon, placeholder]) => {
       const select = document.querySelector('.ev-assignment #' + id);
-      if (!select || select.tomselect) return;
+      if (!window.TomSelect || !select || select.tomselect) return;
       const control = new TomSelect(select, {
         create: false,
         maxItems: 1,
@@ -34,6 +39,31 @@
       control.control_input.setAttribute('aria-label', select.labels?.[0]?.textContent.trim() || placeholder);
       control.control_input.setAttribute('placeholder', placeholder);
     });
+    if (template && evaluator) {
+      const refreshModels = () => {
+        const selected = template.value;
+        const allowed = evaluator.value ? models.filter(model => model.owner === '0' || model.owner === evaluator.value) : [];
+        const retained = allowed.some(model => model.value === selected) ? selected : '';
+        if (template.tomselect) {
+          const control = template.tomselect;
+          control.clear(true);
+          control.clearOptions();
+          control.addOptions(allowed);
+          control.setValue(retained, true);
+          evaluator.value ? control.enable() : control.disable();
+        } else {
+          template.replaceChildren(new Option('Sélectionnez un modèle actif…', ''), ...allowed.map(model => new Option(model.text, model.value)));
+          template.value = retained;
+          template.disabled = !evaluator.value;
+        }
+        document.getElementById('template-help').textContent = !evaluator.value
+          ? 'Choisissez d’abord un formateur pour afficher les modèles disponibles.'
+          : allowed.length ? 'Modèles de l’organisme et modèles autorisés du formateur sélectionné.'
+          : 'Aucun modèle actif disponible pour ce formateur.';
+      };
+      evaluator.addEventListener('change', refreshModels);
+      refreshModels();
+    }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once: true});
   else init();
