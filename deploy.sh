@@ -26,9 +26,11 @@ trap 'echo "Deployment interrupted. Inspect backup directory: $BACKUP_DIR" >&2' 
 printf 'Backup before deployment: %s\n' "$BACKUP_DIR"
 git rev-parse HEAD > "$BACKUP_DIR/revision.txt"
 
-# Includes hidden configuration, dependencies and uploaded files. Runtime cache/logs
-# are excluded. External storage and symlink targets require their own backups.
-tar --exclude='./.git' --exclude='./var/cache' --exclude='./var/log' \
+# Includes hidden configuration, dependencies and uploaded files. Runtime cache,
+# logs and active HTTP sessions are excluded: requests mutate sessions while tar
+# reads them. Keep tar failures fatal for all files that must be backed up.
+# External storage and symlink targets require their own backups.
+tar --exclude='./.git' --exclude='./var/cache' --exclude='./var/log' --exclude='./var/sessions' \
   -czf "$BACKUP_DIR/files.tar.gz.partial" -C "$APP_DIR" .
 gzip -t "$BACKUP_DIR/files.tar.gz.partial"
 mv "$BACKUP_DIR/files.tar.gz.partial" "$BACKUP_DIR/files.tar.gz"

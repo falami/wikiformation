@@ -12,7 +12,7 @@ Lors d'une mise à jour du script de déploiement lui-même, installer sa nouvel
 
 Chaque exécution crée `~/backups/wkformation/DATE-HEURE-XXXXXX/` :
 
-- `files.tar.gz` : application, dépendances, fichiers cachés de configuration et uploads locaux ; hors `.git`, `var/cache`, `var/log`.
+- `files.tar.gz` : application, dépendances, fichiers cachés de configuration et uploads locaux ; hors `.git`, `var/cache`, `var/log`, `var/sessions`.
 - `database.sql.gz` : base MySQL/MariaDB configurée par l'application en production, avec procédures, événements et déclencheurs.
 - `revision.txt`, `SHA256SUMS` et `COMPLETE` : révision avant déploiement, empreintes vérifiées et marqueur de réussite.
 
@@ -23,6 +23,8 @@ Le dump utilise `--single-transaction --skip-lock-tables`, après vérification 
 Les fichiers et la base sont sauvegardés successivement : pour une restauration cohérente entre uploads et base sur un site très actif, suspendre les écritures et les workers pendant la sauvegarde. Les cibles de liens symboliques et les stockages externes ne sont pas inclus.
 
 ## Vérification et restauration
+
+Si `tar` signale « var/sessions/prod : fichier modifié pendant sa lecture », installer la version corrigée de `deploy.sh` avant de relancer la commande. Les sessions HTTP sont temporaires et modifiées par les visiteurs : elles sont exclues de l'archive, sans être supprimées du site. Une restauration sur une installation vierge nécessitera une nouvelle connexion des utilisateurs. Les erreurs concernant les autres fichiers restent bloquantes. L'arrêt à cette étape intervient avant le pull et les migrations ; le dossier sans `COMPLETE` reste une sauvegarde incomplète.
 
 En cas d'échec de l'export, le diagnostic du client SQL s'affiche dans le terminal et dans `database-error.log` (privé, mot de passe masqué). Le déploiement reste bloqué. Ce diagnostic permet de distinguer un problème de droits, de connexion ou d'option incompatible ; ne pas lancer les migrations pour contourner cet échec.
 
