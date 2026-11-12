@@ -210,6 +210,22 @@ final class CacesPortalsTest extends KernelTestCase
             $page=$this->client->request('GET',$this->url('app_caces_document',['id'=>$id,'type'=>$type]));
             self::assertSame(200,$this->client->getResponse()->getStatusCode());
             if ($type === 'carte') {
+                $html = $this->client->getResponse()->getContent();
+                self::assertStringNotContainsString('workspace-shell', $html);
+                self::assertStringNotContainsString('workspace-layout.css', $html);
+                $stylesheets = $page->filter('link[rel="stylesheet"]')->extract(['href']);
+                self::assertCount(1, $stylesheets, 'The printable card must be isolated from administrative layout styles.');
+                self::assertStringContainsString('/dist/css/caces-card.css', $stylesheets[0]);
+                self::assertStringContainsString('03.3237295', $page->text());
+                self::assertStringContainsString('AIPR', $page->text());
+                self::assertCount(1, $page->filter('img[src*="assurance-maladie-risques-professionnels.png"]'));
+                foreach ($page->filter('.cc-page') as $face) {
+                    $text = $face->textContent;
+                    self::assertStringContainsString('CACES', $text);
+                    self::assertStringContainsString($a->getCertificate()['learner'], $text);
+                    self::assertStringContainsString($a->getCertificate()['number'], $text);
+                    self::assertStringContainsString('Toute copie doit comporter les deux faces', $text);
+                }
                 self::assertCount(2, $page->filter('.cc-page'));
                 self::assertCount(9, $page->filter('.cc-table tbody tr'));
                 self::assertCount(1, $page->filter('[data-card-certified="3"]'));
