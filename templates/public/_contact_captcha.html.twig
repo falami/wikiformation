@@ -1,8 +1,11 @@
-{% set captchaInputId = captchaPrefix|default('') ~ contactCaptchaForm.captchaAnswer.vars.id %}
-<div class="contact-captcha mb-3">
-  {{ form_label(contactCaptchaForm.captchaAnswer, null, {label_attr: {class: 'form-label fw-semibold', for: captchaInputId}}) }}
-  {{ form_widget(contactCaptchaForm.captchaAnswer, {id: captchaInputId, attr: {class: 'form-control', 'aria-describedby': captchaInputId ~ '_help'}}) }}
-  <div id="{{ captchaInputId }}_help" class="small mt-1">{{ contactCaptchaForm.captchaAnswer.vars.help }}</div>
-  {{ form_errors(contactCaptchaForm.captchaAnswer) }}
-  {{ form_widget(contactCaptchaForm.captchaId) }}
+<div class="contact-captcha mb-3" data-contact-captcha>
+  {{ form_widget(contactCaptchaForm.captchaToken, {id: captchaPrefix|default('') ~ contactCaptchaForm.captchaToken.vars.id}) }}
+  <div data-contact-challenge></div>
+  <p class="small mb-2" data-contact-captcha-status role="status" aria-live="polite">Vérification de sécurité à l’ouverture du formulaire.</p>
+  <button type="button" class="btn btn-outline-secondary btn-sm mb-2" data-contact-captcha-retry hidden>Réessayer la vérification</button>
+  {{ form_errors(contactCaptchaForm.captchaToken) }}
+  <noscript><p class="small">Activez JavaScript pour vérifier et envoyer ce formulaire.</p></noscript>
+  <p class="small mb-0">Protection anti-spam par Cloudflare Turnstile.
+    <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Confidentialité</a>.
+  </p>
 </div>

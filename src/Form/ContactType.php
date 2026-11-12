@@ -2,9 +2,6 @@
 namespace App\Form;
 
 use App\Service\Security\ContactCaptcha;
-use Symfony\Component\Form\FormError;
-use Symfony\Component\Form\FormEvent;
-use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -24,7 +21,7 @@ class ContactType extends AbstractType
 
     public function buildForm(FormBuilderInterface $b, array $o): void
     {
-        $challenge = $this->captcha->create();
+        $captcha = $this->captcha->configuration();
         $b
             ->add('nom', TextType::class, [
                 'label' => 'Nom',
@@ -50,15 +47,14 @@ class ContactType extends AbstractType
                 'attr' => ['rows' => 5],
             ])
 
-            ->add('captchaId', HiddenType::class, [
+            ->add('captchaToken', HiddenType::class, [
                 'mapped' => false,
-                'data' => $challenge['id'],
-            ])
-            ->add('captchaAnswer', TextType::class, [
-                'mapped' => false,
-                'label' => $challenge['question'],
-                'help' => 'Saisissez le résultat en chiffres. Cette vérification est valable 30 minutes.',
-                'attr' => ['inputmode' => 'numeric', 'autocomplete' => 'off', 'maxlength' => 3],
+                'error_bubbling' => false,
+                'constraints' => [
+                    new Assert\NotBlank(message: 'Veuillez effectuer la vérification de sécurité avant l’envoi.'),
+                    new Assert\Length(max: 2048),
+                ],
+                'attr' => ['data-contact-token' => '', 'data-sitekey' => $captcha['siteKey'], 'data-context' => $captcha['context']],
             ])
 
             // Honeypot (doit rester vide)
@@ -84,15 +80,7 @@ class ContactType extends AbstractType
             ])
 
         ;
-        $b->addEventListener(FormEvents::POST_SUBMIT, function (FormEvent $event): void {
-            $form = $event->getForm();
-            $id = $form->get('captchaId');
-            $answer = $form->get('captchaAnswer');
-            if (!$id->isSynchronized() || !$answer->isSynchronized()
-                || !$this->captcha->verify((string) $id->getData(), (string) $answer->getData())) {
-                $answer->addError(new FormError('La vérification anti-spam est incorrecte ou a expiré. Veuillez répondre au nouveau calcul.'));
-            }
-        });
+
     }
 
     public function configureOptions(OptionsResolver $resolver): void

@@ -60,6 +60,7 @@ for asset in \
   public/dist/css/notifications.css public/dist/js/notifications.js \
   public/dist/css/admin-header.css public/dist/js/cookie-consent.js \
   public/dist/css/external-map.css public/dist/js/external-map.js \
+  public/dist/js/contact-security.js \
   public/dist/css/list-filters.css public/dist/js/list-filters.js \
   public/dist/css/course-builder.css public/dist/js/course-builder.js \
   public/dist/css/marketplace.css public/dist/js/marketplace-assign.js; do

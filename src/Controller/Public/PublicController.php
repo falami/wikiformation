@@ -267,6 +267,7 @@ final class PublicController extends AbstractController
         Request $request,
         MailerInterface $mailer,
         LoggerInterface $logger,
+        \App\Service\Security\ContactCaptcha $captcha,
         #[Autowire(service: 'limiter.public_contact')] RateLimiterFactory $contactLimiter,
         #[Autowire(param: 'kernel.secret')] string $contactSecret,
     ): Response {
@@ -275,14 +276,8 @@ final class PublicController extends AbstractController
         $contactReturn = $this->generateUrl($this->publicContext->isCalendarEnabled() ? 'app_public_formation' : 'app_public_catalogue') . '#footer-contact';
         if ($customHost && $request->isMethod('GET')) return $this->redirect($contactReturn);
 
-        $form = $this->createForm(ContactType::class);
-        $form->handleRequest($request);
-
-        // Never redirect to an untrusted Referer; it may disclose the contact outcome externally.
-        $fallbackRedirect = $customHost ? $contactReturn : $this->generateUrl('app_public_contact');
-
-        if ($form->isSubmitted()) {
-            // A first-party anti-abuse control; no third-party script or raw IP cache key.
+        if ($request->isMethod('POST')) {
+            // Limit before form handling or any call to the verification provider.
             $key = hash_hmac('sha256', 'public-contact:' . ($request->getClientIp() ?? 'unknown'), $contactSecret);
             $limit = $contactLimiter->create($key)->consume();
             if (!$limit->isAccepted()) {
@@ -291,6 +286,15 @@ final class PublicController extends AbstractController
                     'Cache-Control' => 'private, no-store',
                 ]);
             }
+        }
+
+        $form = $this->createForm(ContactType::class);
+        $form->handleRequest($request);
+
+        // Never redirect to an untrusted Referer; it may disclose the contact outcome externally.
+        $fallbackRedirect = $customHost ? $contactReturn : $this->generateUrl('app_public_contact');
+
+        if ($form->isSubmitted()) {
             if (!$form->isValid()) {
                 $messages = [];
                 foreach ($form->getErrors(true) as $error) {
@@ -322,6 +326,15 @@ final class PublicController extends AbstractController
 
                 $this->addFlash('danger', 'Veuillez réessayer.');
                 return $this->redirect($fallbackRedirect);
+            }
+
+            if (!$captcha->verify((string) $form->get('captchaToken')->getData())) {
+                $form->get('captchaToken')->addError(new \Symfony\Component\Form\FormError(
+                    'La vérification de sécurité a expiré ou a échoué. Veuillez réessayer.'
+                ));
+                // Keep the entered message; a new widget produces a fresh token.
+                return $this->render('public/contact.html.twig', ['form' => $form->createView()],
+                    new Response(status: 422, headers: ['Cache-Control' => 'private, no-store']));
             }
 
             $data = $form->getData();

@@ -30,6 +30,21 @@ final class PublicContactPrivacyTest extends KernelTestCase
         self::getContainer()->set('limiter.public_contact', new RateLimiterFactory([
             'id' => 'contact-privacy-test', 'policy' => 'sliding_window', 'limit' => 5, 'interval' => '15 minutes',
         ], new InMemoryStorage()));
+        $requests = self::getContainer()->get('request_stack');
+        $http = new \Symfony\Component\HttpClient\MockHttpClient(static function ($method, $url, $options) use ($requests) {
+            parse_str($options['body'], $body);
+            return new \Symfony\Component\HttpClient\Response\MockResponse(json_encode([
+                'success' => str_starts_with($body['response'] ?? '', 'valid-'),
+                'action' => 'public_contact',
+                'hostname' => $requests->getMainRequest()->getHost(),
+                'cdata' => $requests->getSession()->get('contact_turnstile_context'),
+            ]));
+        });
+        self::getContainer()->set(\App\Service\Security\ContactCaptcha::class, new \App\Service\Security\ContactCaptcha(
+            $requests, $http, new \Symfony\Component\Cache\Adapter\ArrayAdapter(),
+            new \Symfony\Component\Lock\LockFactory(new \Symfony\Component\Lock\Store\InMemoryStore()),
+            new \Psr\Log\NullLogger(), '0x-site', 'secret', 'test'
+        ));
         $this->client = new KernelBrowser(self::$kernel);
         $this->client->disableReboot();
         $this->client->catchExceptions(false);
@@ -58,21 +73,24 @@ final class PublicContactPrivacyTest extends KernelTestCase
 
     private function captchaData(\Symfony\Component\DomCrawler\Crawler $crawler): array
     {
-        preg_match('/(\d+) \+ (\d+)/', $crawler->filter('label[for$="captchaAnswer"]')->first()->text(), $parts);
-        return [
-            'captchaId' => $crawler->filter('input[name="contact[captchaId]"]')->first()->attr('value'),
-            'captchaAnswer' => (string) ((int) $parts[1] + (int) $parts[2]),
-        ];
+        self::assertGreaterThan(0, $crawler->filter('[data-contact-captcha]')->count());
+        self::assertSame(0, $crawler->filter('input[name="contact[captchaAnswer]"]')->count());
+        return ['captchaToken' => 'valid-'.bin2hex(random_bytes(16))];
     }
 
     public function testCaptchaRejectsMissingWrongAndReplayedAnswers(): void
     {
         foreach (['missing', 'wrong', 'valid', 'replay'] as $case) {
             if ($case !== 'replay') $data = $this->formData();
-            if ($case === 'missing') unset($data['captchaAnswer'], $data['captchaId']);
-            if ($case === 'wrong') $data['captchaAnswer'] = '999';
+            if ($case === 'missing') unset($data['captchaToken']);
+            if ($case === 'wrong') $data['captchaToken'] = 'invalid-token';
             $this->submit($data);
             self::assertCount(in_array($case, ['valid', 'replay'], true) ? 1 : 0, $this->messages);
+            if (in_array($case, ['wrong', 'replay'], true)) {
+                self::assertSame(422, $this->client->getResponse()->getStatusCode());
+                self::assertStringContainsString('La vérification de sécurité a expiré', $this->client->getResponse()->getContent());
+                self::assertStringContainsString($data['message'], $this->client->getResponse()->getContent());
+            }
         }
     }
 
