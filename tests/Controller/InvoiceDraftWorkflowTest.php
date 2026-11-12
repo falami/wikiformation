@@ -320,13 +320,21 @@ final class InvoiceDraftWorkflowTest extends KernelTestCase
 
     public static function conventionSources(): array { return [[false], [true]]; }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('conventionSources')]
-    public function testConventionCreatesOneDraftAndOnlyIssuesAfterExplicitReview(bool $linked): void
+    public static function conventionIssueSources(): iterable
+    {
+        yield 'sans devis' => [false, \App\Enum\DevisStatus::DRAFT];
+        foreach (\App\Enum\DevisStatus::cases() as $status) {
+            yield $status->value => [true, $status];
+        }
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('conventionIssueSources')]
+    public function testConventionCreatesOneDraftAndOnlyIssuesAfterExplicitReview(bool $linked, \App\Enum\DevisStatus $quoteStatus): void
     {
         $convention = $this->convention();
         if ($linked) {
             $quote = (new \App\Entity\Devis())->setEntite($this->entite)->setCreateur($this->admin)->setNumero('DEV-ISSUE-CONVENTION')
-                ->setStatus(\App\Enum\DevisStatus::ACCEPTED)->setEntrepriseDestinataire($this->customer)
+                ->setStatus($quoteStatus)->setEntrepriseDestinataire($this->customer)
                 ->setMontantHtCents(22400)->setMontantTvaCents(4480)->setMontantTtcCents(26880);
             $this->em->persist($quote);
             $convention->setDevis($quote);

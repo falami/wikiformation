@@ -92,7 +92,8 @@ final class InvoiceDraftManager
                     $this->em->flush();
                     return $devis->getFactureCreee();
                 }
-                if (!$devis->getStatus()->canBeInvoiced()) throw new \DomainException('Le devis ne peut plus être facturé.');
+                // A convention is the billing source; its quote status does not govern issuance.
+                if (!$convention && !$devis->getStatus()->canBeInvoiced()) throw new \DomainException('Le devis ne peut plus être facturé.');
             }
             $invoice = $factory($draft);
             if (!$invoice instanceof Facture || $invoice->getId() !== null) throw new \LogicException('La validation doit produire une nouvelle facture.');

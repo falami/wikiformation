@@ -113,7 +113,8 @@ final class InvoiceDraftController extends AbstractController
         $issues = [...$additionalIssues, ...$this->forms->issues($form)];
         try { $this->issuer->assertCanIssue($entite); }
         catch (\DomainException $error) { $issues[] = $error->getMessage(); }
-        if ($draft->getSourceDevis() && !$draft->getSourceDevis()->getStatus()->canBeInvoiced()) $issues[] = 'Le devis d’origine ne peut plus être facturé.';
+        if ($draft->getSourceDevis()?->getFactureCreee()) $issues[] = 'Le devis lié possède déjà une facture émise. Consultez cette facture avant de poursuivre.';
+        if (!$draft->getSourceConvention() && $draft->getSourceDevis() && !$draft->getSourceDevis()->getStatus()->canBeInvoiced()) $issues[] = 'Le devis d’origine ne peut plus être facturé.';
         if ($draft->getSourceConvention() && $draft->getSourceConvention()->getDevis() !== $draft->getSourceDevis()) $issues[] = 'Le devis lié à la convention a changé. Vérifiez le rattachement du brouillon avant émission.';
         $warnings = $this->duplicateWarnings($facture);
         if ($facture->getDateEmission()->format('Y-m-d') < (new \DateTimeImmutable('today'))->format('Y-m-d')) $warnings[] = 'La date d’émission est antérieure à aujourd’hui : vérifiez sa justification et les délais applicables avant de confirmer.';
