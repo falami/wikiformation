@@ -66,6 +66,26 @@ final class CacesPortalsTest extends KernelTestCase
         $this->client->disableReboot(); $this->client->catchExceptions(false);
     }
 
+    public function testClientHistoryShowsArchivedExchangesOnlyForCurrentTenant(): void
+    {
+        $quote = (new \App\Entity\Devis())->setEntite($this->tenant)->setCreateur($this->admin)->setDestinataire($this->learner)->setNumero('DEV-HISTORY');
+        $other = (new Entite())->setNom('Other')->setPublic(false)->setCreateur($this->admin);
+        $this->em->persist($quote); $this->em->persist($other);
+        foreach ([[$this->tenant, 'Visible message'], [$other, 'Private other tenant']] as [$tenant, $subject]) {
+            $mail = (new \App\Entity\EmailLog())->setEntite($tenant)->setCreateur($this->admin)->setToUser($this->learner)->setToEmail($this->learner->getEmail())->setSubject($subject)->setBodyHtmlSnapshot('<p>Archived content</p>');
+            $this->em->persist($mail);
+        }
+        $note = (new \App\Entity\ProspectInteraction())->setEntite($this->tenant)->setCreateur($this->admin)->setUtilisateur($this->learner)->setTitle('Telephone follow-up')->setContent('Client information');
+        $this->em->persist($note); $this->em->flush();
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/fr/administrateur/'.$this->tenant->getId().'/echanges/devis/'.$quote->getId());
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $html = $this->client->getResponse()->getContent();
+        self::assertStringContainsString('Visible message', $html);
+        self::assertStringContainsString('Telephone follow-up', $html);
+        self::assertStringNotContainsString('Private other tenant', $html);
+    }
+
     public function testPracticeScoresAutosaveWithoutSigningAndSurviveReload(): void
     {
         $this->client->loginUser($this->trainer);
