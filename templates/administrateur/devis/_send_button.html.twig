@@ -1,0 +1,9 @@
+<form method="post" action="{{ path('app_administrateur_devis_send', {entite: entite.id, id: d.id}) }}"
+      data-invoice-send data-number="{{ d.numero ?: ('#' ~ d.id) }}"
+      data-recipient="{{ d.prospect.email|default('') ?: (d.entrepriseDestinataire.email|default('') ?: d.destinataire.email|default('')) }}"
+      data-preview="{{ path('app_administrateur_devis_pdf', {entite: entite.id, id: d.id}) }}">
+  <input type="hidden" name="_token" value="{{ csrf_token('devis_send_' ~ d.id) }}">
+  <button type="submit" class="{{ buttonClass }}" {{ st == 'canceled' ? 'disabled' : '' }}>
+    <i class="bi bi-send me-1"></i> Envoyer le devis
+  </button>
+</form>

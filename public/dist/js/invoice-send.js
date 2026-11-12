@@ -25,7 +25,7 @@
     sending = true;
     confirm.disabled = true;
     confirm.textContent = 'Envoi en cours…';
-    element.querySelector('[data-send-status]').textContent = 'Envoi de la facture en cours.';
+    element.querySelector('[data-send-status]').textContent = 'Envoi du document en cours.';
     element.querySelectorAll('[data-bs-dismiss]').forEach(button => button.disabled = true);
     HTMLFormElement.prototype.submit.call(pending);
   });

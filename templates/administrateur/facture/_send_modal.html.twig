@@ -1,14 +1,15 @@
+{% set isQuote = documentType|default('facture') == 'devis' %}
 <div class="modal fade invoice-send-modal" id="invoiceSendModal" tabindex="-1" aria-labelledby="invoiceSendTitle" aria-describedby="invoiceSendDescription" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
     <div class="modal-header">
-      <div><span class="invoice-send-icon"><i class="bi bi-send" aria-hidden="true"></i></span><p class="invoice-send-eyebrow">FACTURATION · ENVOI PAR E-MAIL</p><h2 class="modal-title fs-4" id="invoiceSendTitle">Votre facture, prête à partir</h2></div>
+      <div><span class="invoice-send-icon"><i class="bi bi-send" aria-hidden="true"></i></span><p class="invoice-send-eyebrow">FACTURATION · ENVOI PAR E-MAIL</p><h2 class="modal-title fs-4" id="invoiceSendTitle">{{ isQuote ? 'Votre devis, prêt à partir' : 'Votre facture, prête à partir' }}</h2></div>
       <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
     </div>
     <div class="modal-body">
       <p id="invoiceSendDescription" class="text-muted">Vérifiez le destinataire avant de confirmer l’envoi.</p>
-      <div class="invoice-send-summary"><span class="text-muted small">Facture</span><strong data-send-number></strong><hr><span class="text-muted small">Adresse de destination</span><strong data-send-recipient></strong></div>
+      <div class="invoice-send-summary"><span class="text-muted small">{{ isQuote ? 'Devis' : 'Facture' }}</span><strong data-send-number></strong><hr><span class="text-muted small">Adresse de destination</span><strong data-send-recipient></strong></div>
       <a class="invoice-send-preview" data-send-preview target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Consulter le PDF avant l’envoi <i class="bi bi-box-arrow-up-right ms-auto" aria-hidden="true"></i></a>
-      <p class="small text-muted mb-0 mt-3"><i class="bi bi-paperclip" aria-hidden="true"></i> La facture PDF sera jointe au message.</p>
+      <p class="small text-muted mb-0 mt-3"><i class="bi bi-paperclip" aria-hidden="true"></i> {{ isQuote ? 'Le devis PDF sera joint au message.' : 'La facture PDF sera jointe au message.' }}</p>
       <div class="alert alert-warning mt-3 mb-0" data-send-error hidden role="alert">Aucune adresse e-mail n’est renseignée. Complétez la fiche du destinataire avant l’envoi.</div>
       <p class="visually-hidden" data-send-status role="status" aria-live="polite"></p>
     </div>

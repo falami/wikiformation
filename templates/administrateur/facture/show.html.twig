@@ -4,6 +4,7 @@
 
 {% block stylesheets %}
   {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/invoice-send.css') }}?v=1">
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
@@ -283,6 +284,7 @@
 {% endblock %}
 
 {% block body %}
+  {% include 'administrateur/facture/_send_modal.html.twig' with {documentType: 'facture'} %}
 <div class="invoice-detail">
 <nav class="invoice-detail-nav" aria-label="Navigation facture"><a href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Toutes les factures</a><div><a class="btn btn-outline-secondary" href="{{ path('app_invoice_follow_up', {entite: entite.id, id: f.id}) }}"><i class="bi bi-bell"></i> Renouvellement et relances</a></div></nav>
 {% set num = f.numero ?: ('#' ~ f.id) %}
@@ -348,6 +350,7 @@
         </div>
 
         <div class="invoice-detail-actions d-flex gap-2">
+          {% include 'administrateur/facture/_send_button.html.twig' with {buttonClass: 'btn btn-light btn-sm fw-semibold'} %}
 
           <a href="{{ path('app_administrateur_avoir_new', {entite: entite.id}) }}"
             class="btn btn-outline-light btn-sm fw-semibold">
@@ -669,6 +672,7 @@
           </div>
         </div>
         <div class="panel-bd d-grid gap-2">
+          {% include 'administrateur/facture/_send_button.html.twig' with {buttonClass: 'btn btn-warning btn-pill w-100'} %}
           <p class="small text-muted mb-2">Facture émise et conservée. Toute correction de montant passe par un avoir référencé à cette facture.</p>
           <a class="btn btn-outline-secondary btn-pill border border-secondary"
              href="{{ path('app_administrateur_avoir_new', {entite: entite.id}) }}">
@@ -754,4 +758,8 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+{% block javascripts_bottom %}
+  {{ parent() }}
+  <script defer src="{{ asset('dist/js/invoice-send.js') }}?v=2"></script>
 {% endblock %}
