@@ -99,6 +99,18 @@ final class FactureCheckoutManager
                     'metadata' => $metadata,
                     'payment_intent_data' => ['application_fee_amount' => $checkout->getServiceFeeCents(), 'metadata' => $metadata],
                 ]];
+                // Prefer the billed company over an associated trainee/contact.
+                $company = $facture->getEntrepriseDestinataire();
+                $emails = $company
+                    ? [$company->getEmailFacturation(), $company->getEmail()]
+                    : [$facture->getDestinataire()?->getEmail()];
+                foreach ($emails as $email) {
+                    $email = trim((string) $email);
+                    if (filter_var($email, FILTER_VALIDATE_EMAIL) !== false) {
+                        $operation['params']['customer_email'] = $email;
+                        break;
+                    }
+                }
                 $meta = $facture->getMeta();
                 $meta['stripe_checkout_requests'][(string) $checkout->getId()] = $operation;
                 $facture->setMeta($meta);

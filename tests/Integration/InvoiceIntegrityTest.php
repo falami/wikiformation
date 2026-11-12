@@ -527,6 +527,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
         catch (\RuntimeException $error) { self::assertSame('Response lost after Stripe created the checkout', $error->getMessage()); }
         $this->entite->getConnect()->setStripeAccountId('acct_changed')->setFeeFixedCents(999);
         $this->invoice->setDevise('USD');
+        $this->admin->setEmail('changed@example.test');
         $this->em->flush();
         $checkout = $manager->createCheckoutForFacture($this->invoice);
         self::assertSame($requests[0], $requests[1]);
@@ -645,6 +646,43 @@ final class InvoiceIntegrityTest extends KernelTestCase
         self::assertSame('connected_account', $operation['feePolicy']['standardProcessingFeesPaidBy']);
         self::assertSame(0, $operation['feePolicy']['clientSurchargeCents']);
         self::assertSame(12000, $checkout->getAmountTotalCents());
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('checkoutEmails')]
+    public function testCheckoutPrefillsInvoiceRecipientEmail(bool $company, ?string $billing, ?string $general, ?string $expected): void
+    {
+        $this->enableCheckout();
+        if ($company) {
+            $recipient = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)
+                ->setRaisonSociale('Client')->setEmailFacturation($billing)->setEmail($general);
+            $this->em->persist($recipient);
+            $this->invoice->setEntrepriseDestinataire($recipient);
+        } else {
+            $this->admin->setEmail($general ?? '');
+        }
+        $this->em->flush();
+        $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
+        $http->expects(self::exactly(2))->method('request')->willReturnCallback(function ($method, $url, $headers, $params) use ($expected) {
+            if (str_ends_with($url, '/accounts/acct_fixture')) return $this->connectedAccountResponse();
+            self::assertSame($expected, $params['customer_email'] ?? null);
+            if ($expected === null) self::assertArrayNotHasKey('customer_email', $params);
+            return ['{"id":"cs_email","object":"checkout.session","url":"https://checkout.example.test/cs_email"}', 200, []];
+        });
+        \Stripe\ApiRequestor::setHttpClient($http);
+        $checkout = self::getContainer()->get(\App\Service\Stripe\FactureCheckoutManager::class)->createCheckoutForFacture($this->invoice);
+        self::assertSame($expected, $this->invoice->getMeta()['stripe_checkout_requests'][(string) $checkout->getId()]['params']['customer_email'] ?? null);
+    }
+
+    public static function checkoutEmails(): array
+    {
+        return [
+            'person' => [false, null, 'person@example.org', 'person@example.org'],
+            'billing priority and trim' => [true, ' billing@example.org ', 'company@example.org', 'billing@example.org'],
+            'general fallback' => [true, null, 'company@example.org', 'company@example.org'],
+            'invalid billing fallback' => [true, 'invalid', 'company@example.org', 'company@example.org'],
+            'no company email must not use trainee' => [true, null, null, null],
+            'invalid person email omitted' => [false, null, 'invalid', null],
+        ];
     }
 
     private function connectedAccountResponse(string $payer = 'account'): array

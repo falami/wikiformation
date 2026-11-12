@@ -48,12 +48,32 @@ final class PublicContactPrivacyTest extends KernelTestCase
     {
         $crawler = $this->client->request('GET', '/fr/contact');
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
-        return [
+        return $this->captchaData($crawler) + [
             'nom' => 'Test Contact', 'email' => 'contact-test@example.test',
             'message' => 'Demande de renseignements sur le service.',
             'website' => '', 'startedAt' => (string) (time() - 3),
             '_token' => $crawler->filter('form[name="contact"] input[name="contact[_token]"]')->first()->attr('value'),
         ];
+    }
+
+    private function captchaData(\Symfony\Component\DomCrawler\Crawler $crawler): array
+    {
+        preg_match('/(\d+) \+ (\d+)/', $crawler->filter('label[for$="captchaAnswer"]')->first()->text(), $parts);
+        return [
+            'captchaId' => $crawler->filter('input[name="contact[captchaId]"]')->first()->attr('value'),
+            'captchaAnswer' => (string) ((int) $parts[1] + (int) $parts[2]),
+        ];
+    }
+
+    public function testCaptchaRejectsMissingWrongAndReplayedAnswers(): void
+    {
+        foreach (['missing', 'wrong', 'valid', 'replay'] as $case) {
+            if ($case !== 'replay') $data = $this->formData();
+            if ($case === 'missing') unset($data['captchaAnswer'], $data['captchaId']);
+            if ($case === 'wrong') $data['captchaAnswer'] = '999';
+            $this->submit($data);
+            self::assertCount(in_array($case, ['valid', 'replay'], true) ? 1 : 0, $this->messages);
+        }
     }
 
     private function submit(array $data, array $headers = []): void
@@ -83,7 +103,7 @@ final class PublicContactPrivacyTest extends KernelTestCase
     {
         $data = $this->formData();
         foreach ([['website' => 'spam'], ['startedAt' => '0'], ['startedAt' => (string) time()], ['startedAt' => (string) (time() - 90000)]] as $override) {
-            $this->submit($override + $data);
+            $this->submit($override + $this->formData());
             self::assertSame(302, $this->client->getResponse()->getStatusCode());
         }
         self::assertCount(0, $this->messages);
@@ -94,7 +114,7 @@ final class PublicContactPrivacyTest extends KernelTestCase
         $data = $this->formData();
         $this->submit(['_token' => 'invalid'] + $data, ['HTTP_ORIGIN' => 'https://external.example.test']);
         self::assertCount(0, $this->messages);
-        for ($index = 0; $index < 4; ++$index) $this->submit($data);
+        for ($index = 0; $index < 4; ++$index) $this->submit($this->formData());
         self::assertCount(4, $this->messages);
         $this->submit($data);
         self::assertSame(429, $this->client->getResponse()->getStatusCode());
@@ -127,7 +147,7 @@ final class PublicContactPrivacyTest extends KernelTestCase
         $crawler = $this->client->request('GET', 'http://training.example.test/fr/catalogue');
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         self::assertCount(1, $crawler->filter('form.footer-form'));
-        $data = [
+        $data = $this->captchaData($crawler) + [
             'nom' => 'Visiteur', 'email' => 'visitor@example.test',
             'message' => "Je souhaite des informations.\n<script>alert(1)</script>",
             'website' => '', 'startedAt' => (string) (time() - 3),
