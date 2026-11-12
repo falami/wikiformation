@@ -12,6 +12,7 @@
   const version = form.elements.namedItem('version');
   const status = form.querySelector('[data-save-status]');
   const backup = form.querySelector('[data-export-draft]');
+  const resume = form.querySelector('[data-resume-save]');
   const confirmed = form.elements.namedItem('validation_confirmed');
   let dirty = false, saving = null, timer, blocked = false, leaving = false, localOk = true;
   const values = () => Object.fromEntries(fields.map(f => [f.name, f.type === 'checkbox' ? f.checked : f.value]));
@@ -61,7 +62,8 @@
   } else if (recovered?.values) {
     blocked = true;
     backup.hidden = false;
-    say('Une saisie locale existe pour une ancienne version. Téléchargez-la avant de poursuivre ; le dossier serveur est affiché. La sauvegarde automatique est suspendue pour éviter tout écrasement.');
+    if (resume) resume.hidden = false;
+    say('Une saisie locale existe pour une ancienne version. Le dossier serveur est affiché. Vous pouvez télécharger l’ancienne saisie ou reprendre la sauvegarde avec les réponses affichées.');
   }
   backup.addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(recovered || {values: values()}, null, 2)], {type: 'application/json'});
@@ -92,7 +94,7 @@
         if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Votre session a peut-être expiré. Reconnectez-vous puis rechargez le dossier.');
         const result = await response.json();
         if (!response.ok) {
-          if (response.status === 409) { blocked = true; backup.hidden = false; }
+          if (response.status === 409) { blocked = true; recovered = {version: version.value, values: values(), at: Date.now()}; backup.hidden = false; if (resume) resume.hidden = true; }
           throw new Error(result.error || 'Enregistrement impossible (HTTP ' + response.status + ').');
         }
         if (!Number.isInteger(result.version)) throw new Error('Réponse du serveur inattendue.');
@@ -109,6 +111,21 @@
     saving = null;
     if (dirty && !blocked) timer = setTimeout(save, 10000);
   };
+  resume?.addEventListener('click', async () => {
+    if (!blocked || !recovered) return;
+    if (!window.confirm('Reprendre la sauvegarde avec les réponses actuellement affichées ? L’ancien brouillon sera conservé séparément sur cet appareil, sans être appliqué au formulaire.')) return;
+    try {
+      localStorage.setItem(key + ':backup:' + Date.now(), JSON.stringify(recovered));
+    } catch (_) {
+      say('Impossible de conserver l’ancien brouillon sur cet appareil. La sauvegarde reste suspendue ; téléchargez votre saisie de secours.');
+      return;
+    }
+    blocked = false;
+    resume.hidden = true;
+    dirty = true;
+    persist();
+    await save();
+  });
   const change = () => {
     dirty = true; update();
     if (blocked) return;

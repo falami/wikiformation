@@ -12,7 +12,7 @@ function setup(snapshot, options = {}) {
   const na = field('practice[p2][na]', '1', '', 'checkbox');
   const comment = field('practice[p1][comment]', '', '', 'textarea');
   const fields = [points, second, na, comment];
-  const nodes = Object.fromEntries(['[data-save-status]', '[data-export-draft]', '[data-score-progress]', '[data-live-score="theory"]', '[data-live-score="practice"]'].map(key => [key, {textContent: '', hidden: true, addEventListener() {}}]));
+  const nodes = Object.fromEntries(['[data-save-status]', '[data-export-draft]', '[data-resume-save]', '[data-score-progress]', '[data-live-score="theory"]', '[data-live-score="practice"]'].map(key => [key, {textContent: '', hidden: true, addEventListener(name, fn) { this[name] = fn; }}]));
   const events = {};
   const version = {value: '1'};
   const rows = [
@@ -29,20 +29,21 @@ function setup(snapshot, options = {}) {
     querySelectorAll: selector => selector === '[data-practice-item]' ? rows : selector === 'button[name="action"]' ? [] : fields,
     addEventListener: (name, fn) => { events[name] = fn; }
   };
+  const archives = [];
   let stored = snapshot ? JSON.stringify(snapshot) : null;
   vm.runInNewContext(source, {
     document: {getElementById: () => form},
-    window: {addEventListener() {}, location: {href: 'https://example.test/fr/formateur/1/evaluations/4'}},
+    window: {confirm: () => options.confirm !== false, addEventListener() {}, location: {href: 'https://example.test/fr/formateur/1/evaluations/4'}},
     FormData: class { set() {} delete() {} },
     AbortController,
     fetch: async (url, init) => {
       requests.push({url, init});
       return {ok: true, headers: {get: () => 'application/json'}, json: async () => ({version: 2})};
     },
-    localStorage: {getItem: () => stored, setItem: (_, value) => { stored = value; }},
+    localStorage: {getItem: () => stored, setItem: (key, value) => { if (options.storageFails) throw new Error('quota'); if (key === 'test') stored = value; else archives.push(JSON.parse(value)); }},
     setTimeout() {}, clearTimeout() {}
   });
-  return {points, second, na, comment, nodes, events, requests, version, stored: () => JSON.parse(stored)};
+  return {archives, points, second, na, comment, nodes, events, requests, version, stored: () => JSON.parse(stored)};
 }
 
 test('partial score uses only assessed criteria and zero is a grade', () => {
@@ -88,4 +89,27 @@ test('draft save respects an explicit form action', async () => {
   const s = setup(null, {action: '/evaluation/save'});
   await s.events.submit({preventDefault() {}, submitter: {value: 'save'}});
   assert.equal(s.requests[0].url, '/evaluation/save');
+});
+
+ test('resume archives old draft and saves displayed values with current version', async () => {
+  const old = {version: '0', values: {'practice[p1][points]': '4'}};
+  const s = setup(old);
+  await s.nodes['[data-resume-save]'].click();
+  assert.deepEqual(s.archives, [old]);
+  assert.equal(s.points.value, '2');
+  assert.equal(s.requests.length, 1);
+  assert.equal(s.version.value, '2');
+  assert.equal(s.nodes['[data-resume-save]'].hidden, true);
+  assert.equal(s.stored().values['practice[p1][points]'], '2');
+});
+
+ test('cancel or unavailable backup storage keeps autosave suspended', async () => {
+  for (const options of [{confirm: false}, {storageFails: true}]) {
+    const old = {version: '0', values: {'practice[p1][points]': '4'}};
+    const s = setup(old, options);
+    await s.nodes['[data-resume-save]'].click();
+    await s.events.submit({preventDefault() {}, submitter: {value: 'save'}});
+    assert.equal(s.requests.length, 0);
+    assert.deepEqual(s.stored(), old);
+  }
 });
