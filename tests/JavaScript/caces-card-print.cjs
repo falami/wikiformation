@@ -21,6 +21,21 @@ test('CACES exports two complete A5 faces for single, all-category and long-name
       execFileSync('php', [path.join(root, 'tests/Fixtures/render-caces-card.php'), file, scenario]);
       await page.goto(pathToFileURL(file).href);
       await page.evaluate(() => document.fonts.ready);
+      await page.emulateMedia({media: 'screen'});
+      for (const width of [320, 375, 427, 768, 1200]) {
+        await page.setViewportSize({width, height: 952});
+        const layout = await page.evaluate(() => ({
+          width: document.documentElement.clientWidth,
+          scrollWidth: document.documentElement.scrollWidth,
+          faces: [...document.querySelectorAll('.cc-page')].map(el => {
+            const r = el.getBoundingClientRect(); return {left: r.left, right: r.right};
+          })
+        }));
+        assert.ok(layout.scrollWidth <= layout.width, scenario + ': no horizontal page scroll at ' + width);
+        for (const face of layout.faces) {
+          assert.ok(face.left >= 0 && face.right <= width, 'entire face visible at ' + width);
+        }
+      }
       await page.emulateMedia({media: 'print'});
       assert.equal(await page.locator('.cc-page').count(), 2);
       const overflow = await page.locator('.cc-page').evaluateAll(pages => pages.flatMap(face =>
