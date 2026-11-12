@@ -24,6 +24,23 @@ final class ClientHistoryController extends AbstractController
         $quote = $type === 'devis' ? $document : ($type === 'convention' ? $document->getDevis() : null);
         $prospect = $quote?->getProspect();
         $emails = array_values(array_unique(array_filter([$company?->getEmail(), $company?->getEmailFacturation(), $user?->getEmail(), $prospect?->getEmail()])));
+        // Prefer the existing client workspace, using only contacts of this organisation.
+        $contact = $company ? $company->getRepresentant() : $user;
+        $memberships = $em->getRepository(\App\Entity\UtilisateurEntite::class);
+        if ($contact && !$memberships->findOneBy(['entite'=>$entite, 'utilisateur'=>$contact])) $contact = null;
+        if (!$contact && $emails) {
+            $matches = $em->getRepository(\App\Entity\Utilisateur::class)->createQueryBuilder('u')
+                ->join('u.utilisateurEntites', 'membership')
+                ->where('membership.entite = :tenant')->andWhere('u.email IN (:emails)')
+                ->setParameter('tenant', $entite)->setParameter('emails', $emails)
+                ->distinct()->setMaxResults(2)->getQuery()->getResult();
+            if (count($matches) === 1) $contact = $matches[0];
+        }
+        if ($contact && $this->isGranted(TenantPermission::UTILISATEUR_MANAGE, $entite)) {
+            $response = $this->redirectToRoute('app_administrateur_utilisateur_show', ['entite'=>$entite->getId(), 'id'=>$contact->getId(), '_fragment'=>'pane-histo']);
+            $response->headers->set('Cache-Control', 'private, no-store');
+            return $response;
+        }
         $events = [];
         foreach ([EmailLog::class, ProspectInteraction::class] as $entityClass) {
             $isMail = $entityClass === EmailLog::class;

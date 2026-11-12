@@ -1,27 +1,65 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Échanges client · {{ document.numero }}{% endblock %}
+{% block stylesheets %}
+{{ parent() }}
+<style>
+.ch-page{max-width:1220px;margin:0 auto;padding:24px 12px 48px;color:#233b4c;overflow-wrap:anywhere}
+.ch-back{display:inline-flex;align-items:center;gap:8px;color:#617487;text-decoration:none;font-size:13px;font-weight:600;margin-bottom:22px;padding:8px 0}
+.ch-hero{position:relative;background:linear-gradient(115deg,#172e40,#294b5d);color:white;border-radius:24px;padding:38px 40px;box-shadow:0 16px 40px #19364715;border:1px solid #304f61;overflow:hidden}
+.ch-hero:after{content:"";position:absolute;width:230px;height:230px;border:1px solid #ffffff10;border-radius:50%;right:-80px;top:-120px;pointer-events:none}
+.ch-kicker{font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700;color:#e8c87b;display:flex;align-items:center;gap:9px;margin-bottom:15px}
+.ch-hero h1{font-size:clamp(25px,3vw,36px);font-weight:700;letter-spacing:-1px;margin:0 0 12px;color:white}
+.ch-hero p{font-size:14px;color:#c3d2de;line-height:1.7;max-width:650px;margin:0}
+.ch-ref{display:inline-flex;gap:10px;align-items:center;margin-top:24px;padding:9px 14px;background:#ffffff0d;border:1px solid #ffffff25;border-radius:9px;font-size:12px;font-weight:600;color:#fff}
+.ch-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:28px;margin-top:30px;align-items:start}
+.ch-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px}.ch-heading h2{font-size:18px;font-weight:700;margin:0}.ch-heading span{font-size:11px;color:#758696}
+.ch-feed{border-left:1px solid #dce5ed;margin-left:19px;padding-left:29px}
+.ch-event{position:relative;border:1px solid #e0e7ee;border-radius:16px;background:white;margin-bottom:18px;box-shadow:0 5px 18px #233b4c05;padding:23px 25px;transition:border-color .2s}
+.ch-event:hover{border-color:#b5c7d4}.ch-dot{position:absolute;left:-46px;top:22px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:#edf3f7;color:#47677d;border:4px solid #fff;font-size:12px}
+.ch-meta{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px}.ch-kind{font-size:11px;letter-spacing:.7px;text-transform:uppercase;font-weight:700;color:#537185}.ch-meta time{font-size:11px;color:#80909e}
+.ch-event h2{font-size:16px;line-height:1.5;font-weight:700;letter-spacing:-.2px;margin:0 0 12px}.ch-recipient{font-size:12px;color:#6d8191;display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:16px}
+.ch-status{font-size:10px;border-radius:20px;padding:4px 9px;background:#edf7f2;color:#327354;font-weight:600}.ch-status.failed{background:#fff0ef;color:#a74740}.ch-status.pending{background:#fff7e5;color:#8c6a26}
+.ch-event summary{cursor:pointer;font-size:12px;font-weight:600;color:#345d79;padding:12px 0 0;border-top:1px solid #edf1f5}.ch-event summary:focus-visible,.ch-back:focus-visible{outline:2px solid #b69550;outline-offset:4px}
+.ch-message{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.85;background:#f7f9fb;border:1px solid #e6edf2;border-radius:10px;padding:20px;margin-top:14px;color:#41576a}
+.ch-missing{font-size:12px;color:#8593a0;margin:0;padding-top:12px;border-top:1px solid #edf1f5}
+.ch-context{border:1px solid #e1e8ee;border-radius:16px;padding:24px;background:#f8fafc}.ch-context h2{font-size:14px;font-weight:700;margin:0 0 15px}.ch-context p{font-size:12px;line-height:1.8;color:#738595;margin:0 0 16px}.ch-context .ch-note{border-top:1px solid #e2e9ef;padding-top:16px;margin-bottom:0}.ch-context strong{color:#3e586d}
+.ch-empty{text-align:center;padding:50px 24px;border:1px dashed #cbd8e2;border-radius:16px;color:#728595;font-size:14px}.ch-empty i{display:block;font-size:28px;margin-bottom:12px}
+.ch-pagination{display:flex;justify-content:flex-end;align-items:center;gap:14px;margin-top:24px;font-size:12px;color:#788b9b}.ch-pagination a{padding:9px 15px;border:1px solid #dbe4eb;border-radius:8px;color:#38566d;text-decoration:none;background:white}
+@media(max-width:850px){.ch-layout{grid-template-columns:1fr}.ch-context{order:-1}.ch-hero{padding:28px 24px}.ch-context p{margin-bottom:8px}}
+@media(max-width:480px){.ch-page{padding:16px 0 32px}.ch-hero{border-radius:16px;padding:25px 20px}.ch-feed{margin-left:12px;padding-left:20px}.ch-dot{left:-35px;width:28px;height:28px}.ch-event{padding:18px 16px}.ch-heading{align-items:flex-start;flex-direction:column}.ch-message{padding:12px}.ch-layout{gap:20px}}
+</style>
+{% endblock %}
 {% block body %}
-<div class="container py-4" style="max-width:1100px">
-  <a class="btn btn-outline-secondary mb-4" href="{{ path(type == 'convention' ? 'app_administrateur_convention_show' : 'app_administrateur_' ~ type ~ '_show', {entite:entite.id,id:document.id}) }}">← Retour au document</a>
-  <h1>Échanges avec le client</h1>
-  <p class="text-muted">{{ document.numero }} · Historique des e-mails et informations enregistrés dans votre organisme.</p>
-  <p class="small text-muted">Les réponses reçues dans votre messagerie externe ne sont pas synchronisées ici. Les échanges liés aux mêmes coordonnées peuvent concerner plusieurs dossiers.</p>
+<div class="ch-page">
+  <a class="ch-back" href="{{ path(type == 'convention' ? 'app_administrateur_convention_show' : 'app_administrateur_' ~ type ~ '_show', {entite:entite.id,id:document.id}) }}"><i class="bi bi-arrow-left"></i> Retour au document</a>
+  <header class="ch-hero">
+    <div class="ch-kicker"><i class="bi bi-chat-square-text"></i> Relation client</div>
+    <h1>Chaque échange, au même endroit.</h1>
+    <p>Retrouvez le fil de votre relation client : messages envoyés, notes et informations partagées avec votre organisme.</p>
+    <div class="ch-ref"><i class="bi bi-file-earmark-text"></i> {{ type|capitalize }} · {{ document.numero }}</div>
+  </header>
+  <div class="ch-layout"><section aria-label="Historique des échanges">
+  <div class="ch-heading"><h2>Historique des échanges</h2><span>Du plus récent au plus ancien</span></div>
+  <div class="ch-feed">
   {% for event in events %}
     {% set item = event.entry %}
-    <article class="card shadow-sm mb-3">
-      <div class="card-body">
-        <div class="d-flex flex-wrap justify-content-between gap-2 mb-2"><span class="badge bg-light text-dark">{{ event.mail ? 'E-mail' : item.channel.label }}</span><time class="text-muted small">{{ event.date|date('d/m/Y à H:i') }}</time></div>
-        <h2 class="h5">{{ event.mail ? item.subject : item.title }}</h2>
+    <article class="ch-event"><span class="ch-dot" aria-hidden="true"><i class="bi {{ event.mail ? 'bi-envelope' : 'bi-chat-left-text' }}"></i></span>
+      <div>
+        <div class="ch-meta"><span class="ch-kind">{{ event.mail ? 'E-mail' : item.channel.label }}</span><time >{{ event.date|date('d/m/Y à H:i') }}</time></div>
+        <h2 >{{ event.mail ? item.subject : item.title }}</h2>
         {% if event.mail %}
-          <p class="small text-muted">À : {{ item.toEmail }} · {{ item.status == 'SENT' ? 'Envoyé' : (item.status == 'FAILED' ? 'Échec de l’envoi' : 'En attente') }}</p>
-          {% if item.bodyHtmlSnapshot %}<details><summary class="text-primary">Lire le message</summary><div class="mt-3" style="white-space:pre-wrap;overflow-wrap:anywhere">{{ item.bodyHtmlSnapshot|striptags }}</div></details>{% else %}<p class="text-muted">Le contenu de cet ancien message n’a pas été archivé.</p>{% endif %}
-        {% else %}<div style="white-space:pre-wrap;overflow-wrap:anywhere">{{ item.content }}</div>{% endif %}
+          <p class="ch-recipient"><span>À : {{ item.toEmail }}</span><span class="ch-status {{ item.status == 'FAILED' ? 'failed' : (item.status == 'SENT' ? '' : 'pending') }}">{{ item.status == 'SENT' ? 'Envoyé' : (item.status == 'FAILED' ? 'Échec de l’envoi' : 'En attente') }}</span></p>
+          {% if item.bodyHtmlSnapshot %}<details><summary >Lire le message</summary><div class="ch-message">{{ item.bodyHtmlSnapshot|striptags }}</div></details>{% else %}<p class="ch-missing">Le contenu de cet ancien message n’a pas été archivé.</p>{% endif %}
+        {% else %}<div class="ch-message">{{ item.content }}</div>{% endif %}
       </div>
     </article>
-  {% else %}<div class="alert alert-light border">Aucun échange enregistré pour ce client.</div>{% endfor %}
-  <nav class="d-flex gap-3" aria-label="Pages de l’historique">
-    {% if page > 1 %}<a class="btn btn-outline-secondary" href="{{ path('app_administrateur_client_history',{entite:entite.id,type:type,id:document.id,page:page-1}) }}">Précédent</a>{% endif %}
-    {% if hasNext %}<a class="btn btn-outline-secondary" href="{{ path('app_administrateur_client_history',{entite:entite.id,type:type,id:document.id,page:page+1}) }}">Suivant</a>{% endif %}
-  </nav>
+  {% else %}<div class="ch-empty"><i class="bi bi-chat-square-text"></i>Aucun échange enregistré pour ce client.</div>{% endfor %}
+  </div><nav class="ch-pagination" aria-label="Pages de l’historique">
+    {% if page > 1 %}<a  href="{{ path('app_administrateur_client_history',{entite:entite.id,type:type,id:document.id,page:page-1}) }}">Précédent</a>{% endif %}
+    {% if hasNext %}<a  href="{{ path('app_administrateur_client_history',{entite:entite.id,type:type,id:document.id,page:page+1}) }}">Suivant</a>{% endif %}
+    <span>Page {{ page }}</span>
+  </nav></section>
+  <aside class="ch-context"><h2><i class="bi bi-journal-text me-2"></i> À propos de cet historique</h2><p>Les e-mails et notes enregistrés dans votre organisme sont réunis ici pour faciliter votre suivi.</p><p><strong>Un contact, plusieurs dossiers</strong><br>Les échanges associés aux mêmes coordonnées peuvent concerner d’autres devis, factures ou conventions.</p><p class="ch-note"><i class="bi bi-info-circle me-1"></i> Les réponses reçues dans votre messagerie externe ne sont pas synchronisées.</p></aside>
+  </div>
 </div>
 {% endblock %}

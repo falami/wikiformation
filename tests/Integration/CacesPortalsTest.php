@@ -79,6 +79,9 @@ final class CacesPortalsTest extends KernelTestCase
         $this->em->persist($note); $this->em->flush();
         $this->client->loginUser($this->admin);
         $this->client->request('GET', '/fr/administrateur/'.$this->tenant->getId().'/echanges/devis/'.$quote->getId());
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('/utilisateur/'.$this->learner->getId().'#pane-histo', $this->client->getResponse()->headers->get('Location'));
+        $this->client->followRedirect();
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         $html = $this->client->getResponse()->getContent();
         self::assertStringContainsString('Visible message', $html);
