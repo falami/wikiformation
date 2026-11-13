@@ -325,3 +325,117 @@
   .hero-orb-line, .hero-glow-a, .hero-glow-b, .hero-glow-c, .course-hero__bg) {
   display: none !important;
 }
+
+/* Phone headers: compact reading order, wrapping metadata and equal action cells. */
+@media (max-width: 767.98px) {
+  :root .entity-hero {
+    padding: 16px !important;
+    gap: 16px !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-width: 100%;
+  }
+  :root .entity-hero .entity-hero-emblem { display: none; }
+  :root .entity-hero-arranged > .entity-hero-side {
+    align-items: stretch;
+    margin: 0;
+    gap: 8px;
+  }
+  :root .entity-hero-side:not(:has(.entity-hero-controls > *)) { display: none; }
+  :root .entity-hero .entity-hero-controls,
+  :root .entity-hero .entity-hero-action-group:not(a):not(button):not(input) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+    width: 100%;
+    gap: 8px;
+    justify-content: stretch !important;
+    align-items: stretch !important;
+  }
+  :root .entity-hero-controls > .entity-hero-action-group:not(a):not(button):not(input) {
+    grid-column: 1 / -1;
+  }
+  :root .entity-hero .entity-hero-controls :is(a, button, input):not(.dropdown-item):not([type="hidden"]) {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px !important;
+    height: 100% !important;
+    align-self: stretch !important;
+    overflow-wrap: anywhere;
+  }
+  :root .entity-hero .entity-hero-side .se-hero-caption { text-align: left; }
+  :root .entity-hero :is(h1, h2, .hero-title) {
+    font-size: clamp(1.4rem, 5.5vw, 1.75rem) !important;
+    margin-bottom: 8px;
+  }
+  :root .entity-hero :is(p, .hero-sub, .hero-subtitle, .hero-lead) {
+    font-size: .875rem;
+    line-height: 1.5;
+  }
+  :root .entity-hero :is(.entity-hero-meta, .hero-pills, .of-hero__meta,
+    .pp-hero-footer, .sd-hero-footer, .se-hero-meta, .cv-hero-meta,
+    .rp-hero-meta, .attendance-meta, .dossier-meta, .ifu-meta, .cc-chips, .ar-meta) {
+    margin-top: 12px !important;
+    gap: 6px;
+    min-width: 0;
+  }
+  :root .entity-hero :is([class*="eyebrow"], [class*="kicker"], .entity-hero-label):not(:has(.label)) {
+    font-size: .65rem !important;
+    letter-spacing: .08em !important;
+  }
+  /* Profile headers have an avatar instead of an h1 and are not rearranged by JS. */
+  :root .entity-hero .stickyRow {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    padding: 0;
+    gap: 12px;
+    align-items: start;
+  }
+  :root .entity-hero .stickyRow > .flex-grow-1 { min-width: 0; }
+  :root .entity-hero .stickyRow > .d-flex:has(> .btn) {
+    grid-column: 1 / -1;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
+    width: 100%;
+    margin: 0;
+  }
+  :root .entity-hero .stickyRow > .d-flex > .btn {
+    width: 100%;
+    min-height: 44px !important;
+    align-self: stretch !important;
+  }
+  :root .entity-hero .chip { min-width: 0; }
+}
+@media (max-width: 767.98px) {
+  /* Nested grids must be allowed to shrink below their text's intrinsic width. */
+  :root .entity-hero :is(.hero-grid, .hero-inner) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  :root .entity-hero :is(.hero-grid, .hero-inner) > * { min-width: 0; }
+  :root .entity-hero :is(.hero-shell, .w-max) { padding-inline: 0; width: 100%; }
+  :root .entity-hero :is(.hero-card, .live-card) { max-width: 100%; overflow-wrap: anywhere; }
+  :root .entity-hero .kpi { flex-wrap: wrap; min-width: 0; }
+  :root .entity-hero .d-grid { min-width: 0; }
+  :root .entity-hero.qcm-hero .d-flex { flex-wrap: wrap; min-width: 0; }
+  :root .entity-hero.qcm-hero :is(.title, .subtitle, .status-pill) {
+    max-width: 100%; white-space: normal; overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 767.98px) {
+  html.workspace-shell .entity-hero { --workspace-button-height: 44px; }
+}
+@media (max-width: 767.98px) {
+  /* Keep profile contact details full-width below the avatar and name. */
+  :root .entity-hero .stickyRow > .flex-grow-1 { display: contents; }
+  :root .entity-hero .stickyRow > .avatar { grid-column: 1; grid-row: 1 / span 2; }
+  :root .entity-hero .stickyRow > .flex-grow-1 > :not(.d-flex) {
+    grid-column: 2;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  :root .entity-hero .stickyRow > .flex-grow-1 > .d-flex {
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin-top: 0 !important;
+  }
+}

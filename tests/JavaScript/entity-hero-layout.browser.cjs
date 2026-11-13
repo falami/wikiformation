@@ -10,8 +10,8 @@ test('hero layout preserves controls, forms, dropdowns and repeated initializati
   const browser = await chromium.launch({headless: true, ...(process.env.CHROME_PATH ? {executablePath: process.env.CHROME_PATH} : {})});
   try {
     const page = await browser.newPage();
-    await page.setContent(`<html class="workspace-shell"><style>*{box-sizing:border-box}.btn{border:1px solid}.d-none{display:none!important}</style><div class="content">
-      <form id="editor"><header class="entity-hero"><div><h1><i class="bi bi-pencil"></i>Modifier</h1><p>Description</p></div>
+    await page.setContent(`<html class="workspace-shell"><style>*{box-sizing:border-box}.btn{border:1px solid}.d-none{display:none!important}.dropdown-menu{display:none}</style><div class="content">
+      <form id="editor"><header class="entity-hero"><div><h1><i class="bi bi-pencil"></i>Modifier</h1><p>Description</p><span class="chip">contact.client.tres.long@entreprise-exemple.fr</span></div>
       <div id="actions"><button id="save" class="btn btn-sm" name="intent" value="save">Enregistrer</button>
       <div class="dropdown"><button id="menu" type="button" class="btn" data-bs-toggle="dropdown">Exporter</button><div class="dropdown-menu"><a class="dropdown-item" href="#pdf">PDF</a></div></div>
       <button type="button" class="btn d-none" id="hidden">Masqué</button></div></header><input name="title" value="Original"></form>
@@ -34,10 +34,16 @@ test('hero layout preserves controls, forms, dropdowns and repeated initializati
     assert.equal(await page.locator('#hidden').isVisible(), false);
     await page.locator('#save').click();
     assert.deepEqual(await page.evaluate(() => [window.clicks, window.submitted]), [1, 'save']);
-    for (const width of [1440, 390]) {
+    for (const width of [1440, 320, 375, 427, 767]) {
       await page.setViewportSize({width, height: 1000});
+      if (width < 768) {
+        assert.equal(await page.locator('.entity-hero-emblem').first().isVisible(), false);
+        assert.equal(await page.locator('.entity-hero').last().locator('.entity-hero-side').isVisible(), false);
+        const badge = await page.locator('.chip').boundingBox();
+        assert.ok(badge.x >= 0 && badge.x + badge.width <= width);
+      }
       const boxes = await page.locator('#save,#menu').evaluateAll(es => es.map(e => ({height:e.getBoundingClientRect().height,right:e.getBoundingClientRect().right})));
-      assert.ok(boxes.every(b => b.height === 36 && b.right <= width));
+      assert.ok(boxes.every(b => b.height === (width < 768 ? 44 : 36) && b.right <= width), JSON.stringify({width,boxes}));
     }
   } finally { await browser.close(); }
 });
