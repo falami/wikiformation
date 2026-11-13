@@ -1,0 +1,53 @@
+<section class="cx-card" id="questionnaires">
+  <span class="cx-eyebrow">Consultation du dossier · Lecture seule</span>
+  <h2>Tests et réponses du stagiaire</h2>
+  <div class="cx-actions"><a class="cx-btn" href="#questionnaire-theorique">Questionnaire théorique</a><a class="cx-btn" href="#grille-pratique">Grille pratique</a></div>
+</section>
+{% set theoryAttempt = dossier.theoryAttempt %}
+<section class="cx-card" id="questionnaire-theorique">
+  <h2>Questionnaire théorique</h2>
+  {% if dossier.theoryResult.externalEvidence|default(null) %}
+    <p>Dispense théorique : aucun questionnaire passé dans ce dossier.</p>
+    <p>Certificat {{ dossier.theoryResult.externalEvidence.reference }} · {{ dossier.theoryResult.externalEvidence.issuer }}</p>
+  {% elseif dossier.theoryResult.reusedFrom|default(null) %}
+    <p>Résultat théorique repris du dossier n°{{ dossier.theoryResult.reusedFrom }}. Les réponses et le questionnaire d’origine sont à consulter dans ce dossier.</p>
+    <a class="cx-btn" href="{{ path('app_caces_show', {entite: entite.id, id: dossier.theoryResult.reusedFrom}) }}">Ouvrir le dossier théorique d’origine</a>
+  {% else %}
+    <p class="cx-muted">{{ theoryAttempt.exam.theorySnapshot.title }} · {{ theoryAttempt.exam.theorySnapshot.versionLabel }} · A = Vrai · B = Faux</p>
+    {% if dossier.theorySource %}<p class="cx-muted">Théorie commune · dossier n°{{ theoryAttempt.id }}.</p>{% endif %}
+    {% if not dossier.submittedAt %}<p class="cx-muted">{{ dossier.startedAt ? 'Test en cours : réponses provisoires.' : 'Test non commencé : aucune réponse enregistrée.' }}</p>{% endif %}
+    {% for theme in theoryAttempt.exam.theorySnapshot.schema.themes %}
+      <details class="cx-editor-theme" {{ loop.first ? 'open' : '' }}>
+        <summary><strong>{{ theme.title }}</strong> · {{ theme.questions|length }} questions</summary>
+        {% for q in theme.questions %}
+          {% set answer = dossier.answers[q.id]|default(null) %}
+          <article class="cx-review-question" data-theory-question="{{ q.id }}">
+            <h3>{{ q.label }}</h3>
+            {% if q.image|default(null) %}<img class="cx-source" style="max-width:100%" src="{{ q.image }}" alt="Illustration de la question" loading="lazy">{% endif %}
+            {% if q.sourcePage|default(null) %}<details><summary>Voir l’énoncé et les illustrations · page {{ q.sourcePage }}</summary><img class="cx-source" loading="lazy" src="{{ path('app_caces_source', {entite: entite.id, id: theoryAttempt.id, page: q.sourcePage}) }}" alt="Page {{ q.sourcePage }} du questionnaire original"></details>{% endif %}
+            <p>Réponse du stagiaire : <strong>{{ answer == 'A' ? 'A · Vrai' : (answer == 'B' ? 'B · Faux' : 'Sans réponse') }}</strong></p>
+            {% if dossier.submittedAt %}<p>Réponse attendue : <strong>{{ q.correct == 'A' ? 'A · Vrai' : 'B · Faux' }}</strong> · <span class="cx-badge {{ answer == q.correct ? 'success' : 'danger' }}">{{ answer == q.correct ? '1 / 1 · Correct' : '0 / 1' }}</span></p>{% endif %}
+          </article>
+        {% endfor %}
+      </details>
+    {% endfor %}
+  {% endif %}
+</section>
+<section class="cx-card" id="grille-pratique">
+  <h2>Grille pratique · Catégorie {{ exam.category }}</h2>
+  <p class="cx-muted">{{ exam.practiceSnapshot.title }} · {{ dossier.practiceAt ? 'Notes définitives du testeur' : 'Évaluation non finalisée' }}</p>
+  {% for theme in exam.practiceSnapshot.schema.themes %}
+    <details class="cx-editor-theme" {{ loop.first ? 'open' : '' }}>
+      <summary><strong>{{ theme.assessmentLabel|default('') }} {{ theme.title }}</strong></summary>
+      {% for q in theme.questions %}
+        {% set score = dossier.practiceAt ? (dossier.practiceResult.scores[q.id] ?? null) : null %}
+        <article class="cx-review-question" data-practice-criterion="{{ q.id }}">
+          <h3>{{ q.label }}</h3>
+          {% if q.instructions|default(null) %}<p class="cx-muted">{{ q.instructions }}</p>{% endif %}
+          {% if q.image|default(null) %}<img class="cx-source" style="max-width:100%" src="{{ q.image }}" alt="Illustration du critère" loading="lazy">{% endif %}
+          <p>Note du testeur : <strong>{{ score is not null ? score ~ ' / ' ~ q.points : 'Non renseignée' }}</strong>{% if score is not null and score == 0 %} <span class="cx-badge danger">Critère à zéro</span>{% endif %}</p>
+        </article>
+      {% endfor %}
+    </details>
+  {% endfor %}
+</section>

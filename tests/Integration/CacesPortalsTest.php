@@ -272,6 +272,13 @@ final class CacesPortalsTest extends KernelTestCase
         self::assertSame(302,$this->client->getResponse()->getStatusCode());
         $this->client->loginUser($this->admin);$page=$this->client->request('GET',$show);$token=$page->filter('input[name="_token"]')->first()->attr('value');$this->client->request('POST',$show,['_token'=>$token,'action'=>'certify']);
         $a=$this->em->find(\App\Entity\CacesAttempt::class,$id);self::assertNotEmpty($a->getCertificate());self::assertCount(3,$a->getSignatures());self::assertSame(100,$a->getPracticeResult()['score']);
+        $review = $this->client->request('GET', $show);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertCount(count($answers), $review->filter('[data-theory-question]'));
+        self::assertCount(count($scores), $review->filter('[data-practice-criterion]'));
+        self::assertStringContainsString('Réponse attendue', $review->filter('#questionnaire-theorique')->text());
+        self::assertStringNotContainsString('Non renseignée', $review->filter('#grille-pratique')->text());
+        self::assertCount(0, $review->filter('#questionnaires input, #questionnaire-theorique input, #grille-pratique input'));
         foreach(['synthese','attestation','carte'] as $type){
             $page=$this->client->request('GET',$this->url('app_caces_document',['id'=>$id,'type'=>$type]));
             self::assertSame(200,$this->client->getResponse()->getStatusCode());
