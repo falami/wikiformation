@@ -1,45 +1,65 @@
 {% extends 'base_admin.html.twig' %}
-{% block title %}Super — Offrir essai — {{ targetEntite.nom }}{% endblock %}
-
+{% block title %}Offrir un essai — {{ targetEntite.nom }}{% endblock %}
 {% block stylesheets %}
-
   {{ parent() }}
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-  <style>
-    :root{
-      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
-      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
-      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
-    }
-  </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/grant-trial.css') }}">
 {% endblock %}
-
 {% block body %}
-<div class="container py-4" style="max-width:900px;">
-  <div class="mb-3">
-    <div class="text-muted small">SUPER / {{ targetEntite.nom }}</div>
-    <h1 class="h4 mb-0">Offrir une période d’essai</h1>
-  </div>
-
+{% set back = path('app_super_admin_console', {tab: 'entites', entite: entite.id}) %}
+{% set statuses = {trialing: 'Essai en cours', active: 'Abonnement actif', incomplete: 'À activer', canceled: 'Abonnement résilié', past_due: 'Paiement en attente', unpaid: 'Paiement impayé', incomplete_expired: 'Activation expirée', paused: 'En pause'} %}
+<div class="trial-workspace" data-trial-workspace data-today="{{ 'now'|date('Y-m-d', 'Europe/Paris') }}">
+  <a class="trial-back" href="{{ back }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Retour à la console</a>
+  <header class="trial-hero">
+    <div><div class="trial-eyebrow">ADMINISTRATION · ACCÈS DÉCOUVERTE</div><h1>Le temps de découvrir.<br><span>La liberté d’essayer.</span></h1><p>Offrez à votre organisme une période d’essai adaptée à ses besoins.</p><div class="trial-identity"><i class="bi bi-building" aria-hidden="true"></i> {{ targetEntite.nom }} <span>Organisme #{{ targetEntite.id }}</span></div></div>
+    <div class="trial-gift" aria-hidden="true"><i class="bi bi-gift"></i></div>
+  </header>
   {% include 'flagMessage.html.twig' %}
-
-  <div class="card shadow-sm border-0" style="border-radius:18px;">
-    <div class="card-body">
-      <div class="mb-3 text-muted">
-        Statut actuel : <strong>{{ sub.status }}</strong>
-        {% if sub.trialEndsAt %} — fin essai : <strong>{{ sub.trialEndsAt|date('d/m/Y') }}</strong>{% endif %}
+  <div class="trial-layout">
+    <section class="trial-panel" aria-labelledby="trial-title">
+      <div class="trial-panel-heading"><span class="trial-step">01</span><div><span class="trial-kicker">PERSONNALISER L’ACCÈS</span><h2 id="trial-title">Offrir une période d’essai</h2></div></div>
+      <div class="trial-panel-body">
+        <p class="trial-description">Choisissez une durée ou renseignez le nombre de jours de votre choix.</p>
+        {{ form_start(form, {attr: {'data-trial-form': ''}}) }}
+          {{ form_errors(form) }}
+          <div class="trial-presets" role="group" aria-label="Durées proposées">
+            {% for days, label in {7: 'Une semaine', 14: 'Deux semaines', 30: 'Un mois de découverte'} %}
+              <button type="button" class="trial-preset" data-days="{{ days }}" aria-pressed="false"><strong>{{ days }} <small>jours</small></strong><span>{{ label }}</span><i class="bi bi-check-circle-fill" aria-hidden="true"></i></button>
+            {% endfor %}
+          </div>
+          <div class="trial-custom">{{ form_label(form.days, 'Durée personnalisée') }}<div class="trial-input-wrap">{{ form_widget(form.days, {attr: {min: 1, max: 365, 'data-trial-days': '', 'aria-describedby': 'trial-days-help'}}) }}<span>jours</span></div>{{ form_errors(form.days) }}<p id="trial-days-help">De 1 à 365 jours, à compter d’aujourd’hui.</p></div>
+          <div class="trial-notice"><i class="bi bi-info-circle" aria-hidden="true"></i><p>La nouvelle échéance est calculée à partir d’aujourd’hui. Elle remplace la date de fin d’essai actuelle.</p></div>
+          <div class="trial-footer"><a href="{{ back }}">Annuler</a><button type="submit" class="trial-submit"><i class="bi bi-gift" aria-hidden="true"></i> Offrir cette période d’essai <i class="bi bi-arrow-right" aria-hidden="true"></i></button></div>
+        {{ form_end(form) }}
       </div>
-
-      <p>L’essai s’applique à <strong>{{ targetEntite.nom }}</strong> (entité #{{ targetEntite.id }}), à compter d’aujourd’hui.</p>
-      {{ form_start(form) }}
-        {{ form_row(form.days) }}
-        <div class="d-flex gap-2 mt-3">
-          <button class="btn btn-warning fw-semibold"><i class="bi bi-gift"></i> Offrir</button>
-          <a class="btn btn-outline-secondary" href="{{ path('app_super_admin_console', { tab:'entites', entite: entite.id }) }}">Retour</a>
-        </div>
-      {{ form_end(form) }}
-    </div>
+    </section>
+    <aside class="trial-summary" aria-labelledby="trial-summary-title">
+      <div class="trial-summary-top"><span class="trial-kicker">AVANT VALIDATION</span><h2 id="trial-summary-title">Votre invitation à découvrir</h2><p>{{ targetEntite.nom }}</p></div>
+      <div class="trial-duration" aria-live="polite"><strong data-trial-count>{{ form.days.vars.value }}</strong><span>jours d’essai offerts</span></div>
+      <dl class="trial-dates"><div><dt>Début de l’essai</dt><dd>Aujourd’hui</dd></div><div><dt>Nouvelle échéance</dt><dd data-trial-end>Calculée à la validation</dd></div></dl>
+      <div class="trial-current"><span class="trial-kicker">SITUATION ACTUELLE</span><span class="trial-status">{{ statuses[sub.status]|default(sub.status) }}</span><p>{% if sub.trialEndsAt %}Fin d’essai actuelle <strong>{{ sub.trialEndsAt|date('d/m/Y') }}</strong>{% else %}Aucune date de fin d’essai définie.{% endif %}</p></div>
+      <p class="trial-summary-note"><i class="bi bi-check2-circle" aria-hidden="true"></i> Les changements s’appliqueront après validation.</p>
+    </aside>
   </div>
 </div>
+<script>
+(() => {
+  const root = document.querySelector('[data-trial-workspace]');
+  if (!root) return;
+  const input = root.querySelector('[data-trial-days]');
+  const buttons = root.querySelectorAll('[data-days]');
+  function update() {
+    const days = Number(input.value);
+    const valid = input.value.trim() !== '' && Number.isInteger(days) && days >= 1 && days <= 365;
+    buttons.forEach(button => button.setAttribute('aria-pressed', String(valid && Number(button.dataset.days) === days)));
+    root.querySelector('[data-trial-count]').textContent = valid ? days : '—';
+    const date = new Date(root.dataset.today + 'T12:00:00');
+    date.setDate(date.getDate() + days);
+    root.querySelector('[data-trial-end]').textContent = valid ? new Intl.DateTimeFormat('fr-FR', {day: 'numeric', month: 'long', year: 'numeric'}).format(date) : 'Choisissez une durée valide';
+  }
+  buttons.forEach(button => button.addEventListener('click', () => { input.value = button.dataset.days; input.dispatchEvent(new Event('input', {bubbles: true})); }));
+  input.addEventListener('input', update);
+  update();
+})();
+</script>
 {% endblock %}
