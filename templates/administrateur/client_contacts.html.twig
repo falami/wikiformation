@@ -1,0 +1,16 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Contacts client · {{ (type == 'session' ? document.code : document.numero) }}{% endblock %}
+{% block body %}
+<header class="entity-hero mb-4">
+  <div><span class="entity-hero-label">Suivi client</span><h1>Échanges avec le client</h1><p>{{ type|capitalize }} {{ (type == 'session' ? document.code : document.numero) }} · Choisissez la fiche utilisateur à ouvrir.</p></div>
+  <a class="btn btn-outline-light" href="{{ path('app_administrateur_' ~ type ~ '_show', {entite: entite.id, id: document.id}) }}">Retour au document</a>
+</header>
+<div class="card"><div class="card-body">
+{% for contact in contacts %}
+  <a class="btn btn-outline-primary m-2" href="{{ path('app_administrateur_utilisateur_show', {entite: entite.id, id: contact.id, _fragment: 'pane-histo'}) }}"><i class="bi bi-chat-left-text" aria-hidden="true"></i> {{ contact.prenom }} {{ contact.nom }}</a>
+{% else %}
+  <p>Aucun contact utilisateur n’a pu être identifié pour ce document. Retrouvez le client dans le répertoire pour ouvrir sa fiche d’interactions.</p>
+  <a class="btn btn-primary" href="{{ path('app_administrateur_utilisateur_index', {entite: entite.id}) }}">Rechercher le client</a>
+{% endfor %}
+</div></div>
+{% endblock %}
