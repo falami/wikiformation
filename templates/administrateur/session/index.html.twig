@@ -1234,74 +1234,7 @@ $(function(){
   $('#session-page-reload').on('click', () => window.location.reload());
 
 
-  // ✅ Dropdown actions sessions : flotte le menu hors du scroll DataTables (anti-clipping)
-  (function enableSessionActionsFloatingDropdown(){
-    document.addEventListener('show.bs.dropdown', function(e){
-      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
-      const toggle = e.target;
-      if (!toggle.closest('.session-actions')) return;
-
-      const dd = toggle.closest('.dropdown, .btn-group');
-      if (!dd) return;
-
-      const menu = dd.querySelector('.dropdown-menu');
-      if (!menu) return;
-
-      if (!menu.__originalParent) menu.__originalParent = dd;
-
-      document.body.appendChild(menu);
-      menu.classList.add('session-floating-dropdown');
-
-      const rect = toggle.getBoundingClientRect();
-
-      menu.style.position = 'absolute';
-      menu.style.top = '0px';
-      menu.style.left = '0px';
-      menu.style.display = 'block';
-
-      const menuRect = menu.getBoundingClientRect();
-      const top = rect.bottom + window.scrollY + 6;
-
-      let left = (rect.right + window.scrollX - menuRect.width);
-      left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - menuRect.width - 8));
-
-      menu.style.top = `${top}px`;
-      menu.style.left = `${left}px`;
-    }, true);
-
-    document.addEventListener('hidden.bs.dropdown', function(e){
-      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
-      const toggle = e.target;
-      if (!toggle.closest('.session-actions')) return;
-
-      const dd = toggle.closest('.dropdown, .btn-group');
-      if (!dd) return;
-
-      document.querySelectorAll('body .session-floating-dropdown').forEach(menu => {
-        if (menu.__originalParent === dd) {
-          dd.appendChild(menu);
-          menu.classList.remove('session-floating-dropdown');
-          menu.style.position = '';
-          menu.style.top = '';
-          menu.style.left = '';
-          menu.style.display = '';
-        }
-      });
-    }, true);
-
-    // ✅ ferme les menus ouverts si scroll/resize (anti menus “perdus”)
-    window.addEventListener('scroll', () => {
-      document.querySelectorAll('.session-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
-        .forEach(btn => btn.click());
-    }, true);
-
-    window.addEventListener('resize', () => {
-      document.querySelectorAll('.session-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
-        .forEach(btn => btn.click());
-    }, true);
-  })();
-
-
+  // Row action positioning and scrolling are handled by datatables-actions.js.
 
   function refreshAll(resetPaging=false){
     table.ajax.reload(null, resetPaging);
