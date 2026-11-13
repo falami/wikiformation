@@ -1,0 +1,14 @@
+{% if d.prospect %}
+  {% set p = d.prospect %}
+  <a class="devis-record-link" href="{{ path('app_administrateur_prospect_show', {entite: entite.id, prospect: p.id}) }}">{{ (p.prenom ~ ' ' ~ p.nom)|trim ?: (p.email ?? 'Prospect') }}</a>
+{% else %}
+  {% if d.entrepriseDestinataire %}
+    <a class="devis-record-link" href="{{ (d.destinataire ? path('app_administrateur_utilisateur_show', {entite: entite.id, id: d.destinataire.id}) : path('app_administrateur_entreprise_modifier', {entite: entite.id, id: d.entrepriseDestinataire.id})) }}">{{ d.entrepriseDestinataire.raisonSociale }}</a>
+  {% endif %}
+  {% if d.entrepriseDestinataire and d.destinataire %} — {% endif %}
+  {% if d.destinataire %}
+    {% set u = d.destinataire %}
+    <a class="devis-record-link" href="{{ path('app_administrateur_utilisateur_show', {entite: entite.id, id: u.id}) }}">{{ (u.prenom ~ ' ' ~ u.nom)|trim ?: (u.email ?? 'Client') }}</a>
+  {% endif %}
+  {% if not d.entrepriseDestinataire and not d.destinataire %}—{% endif %}
+{% endif %}

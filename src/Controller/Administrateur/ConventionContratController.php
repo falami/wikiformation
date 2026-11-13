@@ -197,6 +197,19 @@ final class ConventionContratController extends AbstractController
                     'c' => $c, 'entite' => $entite, 'quote' => $quote, 'invoice' => $invoice,
                 ]),
                 'entreprise' => $c->getDestinataireLabel(),
+                'entrepriseUrl' => $c->getEntreprise()
+                    ? $this->generateUrl('app_administrateur_entreprise_modifier', [
+                        'entite' => $entite->getId(), 'id' => $c->getEntreprise()->getId(),
+                    ])
+                    : ($c->getStagiaire() ? $this->generateUrl('app_administrateur_utilisateur_show', [
+                        'entite' => $entite->getId(), 'id' => $c->getStagiaire()->getId(),
+                    ]) : null),
+                'formationUrl' => $sess?->getFormation() ? $this->generateUrl('app_administrateur_formation_modifier', [
+                    'entite' => $entite->getId(), 'id' => $sess->getFormation()->getId(),
+                ]) : null,
+                'sessionUrl' => $sess ? $this->generateUrl('app_administrateur_session_show', [
+                    'entite' => $entite->getId(), 'id' => $sess->getId(),
+                ]) : null,
                 'formation' => $c->getIntituleFormationEffectif() ?: '—',
                 'session'   => $sess?->getCode() ?? '—',
                 'suivi' => $this->renderView('administrateur/convention/_signature_status.html.twig', [

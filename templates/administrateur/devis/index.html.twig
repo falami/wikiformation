@@ -331,7 +331,9 @@ body .devis-floating-dropdown{
 
 
 
-  </style>
+    a.devis-record-link, a.devis-record-link:visited { color: inherit; text-decoration: none; }
+  a.devis-record-link:hover, a.devis-record-link:focus-visible { color: inherit; text-decoration: underline; }
+</style>
   <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=20261107-accent-2">
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
@@ -716,7 +718,7 @@ $(function () {
     columnDefs: [
       { targets:8, className:'ledger-total' },
       { targets:0, render: function(data,type){ return type === 'display' ? '<span class="ledger-ref">' + $('<div>').text(data || '—').html() + '</span>' : data; } },
-      { targets:[1,2], render: function(data,type){ return type === 'display' ? '<div class="ledger-primary">' + $('<div>').text(data || '—').html().replace(/\n/g,'<br>') + '</div>' : data; } },
+      { targets:[1,2], render: function(data,type,row,meta){ return type === 'display' ? '<div class="ledger-primary">' + (meta.col === 1 ? row.destHtml : row.formationHtml) + '</div>' : data; } },
       { targets:[3,4,5], render: function(data,type){ return type === 'display' ? '<span class="ledger-subtle">' + $('<div>').text(data || '—').html().replace(/\n/g,'<br>') + '</span>' : data; } },
       { targets:[6,7,8], render: function(data,type, row, meta){
           if (type !== 'display') return data;

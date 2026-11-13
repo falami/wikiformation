@@ -1,0 +1,12 @@
+{% if inscription %}
+  <a class="attestation-record-link" href="{{ path('app_administrateur_inscription_show', {entite: entite.id, id: inscription.id}) }}">#{{ inscription.id }}</a> -
+  {% if inscription.session %}
+    <a class="attestation-record-link" href="{{ path('app_administrateur_session_show', {entite: entite.id, id: inscription.session.id}) }}">{{ inscription.session.code }}</a>
+  {% else %}-{% endif %}
+  -
+  {% if inscription.stagiaire %}
+    <a class="attestation-record-link" href="{{ path('app_administrateur_utilisateur_show', {entite: entite.id, id: inscription.stagiaire.id}) }}">{{ (inscription.stagiaire.prenom ~ ' ' ~ inscription.stagiaire.nom)|trim }}</a>
+  {% else %}-{% endif %}
+{% else %}
+  -
+{% endif %}

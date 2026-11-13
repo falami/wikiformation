@@ -148,7 +148,13 @@ class InscriptionController extends AbstractController
             return [
                 'id'         => $i->getId(),
                 'session'    => $sessionStr,
+                'sessionUrl' => $session ? $this->generateUrl('app_administrateur_session_show', [
+                    'entite' => $entite->getId(), 'id' => $session->getId(),
+                ]) : null,
                 'stagiaire'  => $stagStr,
+                'stagiaireUrl' => $stag ? $this->generateUrl('app_administrateur_utilisateur_show', [
+                    'entite' => $entite->getId(), 'id' => $stag->getId(),
+                ]) : null,
                 'status'     => $this->renderView('administrateur/inscription/_status_badge.html.twig', [
                     'inscription' => $i,
                 ]),

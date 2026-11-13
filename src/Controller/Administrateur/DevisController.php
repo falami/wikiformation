@@ -431,7 +431,9 @@ class DevisController extends AbstractController
       return [
         'numero' => $d->getNumero() ?: '—',
         'dest' => $label,
+        'destHtml' => $this->renderView('administrateur/devis/_destinataire_links.html.twig', ['d' => $d, 'entite' => $entite]),
         'formation' => $trainingDetails[$d->getId()]['formation'],
+        'formationHtml' => $this->renderView('administrateur/devis/_formation_links.html.twig', ['formations' => $trainingDetails[$d->getId()]['formations'], 'entite' => $entite]),
         'dates' => $trainingDetails[$d->getId()]['dates'],
         'dateEmission' => $d->getDateEmission()->format('d/m/Y'),
         'dateValidite' => $d->getDateValidite()?->format('d/m/Y') ?? '—',
@@ -466,7 +468,7 @@ class DevisController extends AbstractController
    * paginated query would duplicate quotes or truncate their sessions.
    *
    * @param list<Devis> $devis
-   * @return array<int, array{formation: string, dates: string, hasConventions: bool}>
+   * @return array<int, array{formation: string, formations: array<string, int|null>, dates: string, hasConventions: bool}>
    */
   private function devisTrainingDetails(EM $em, Entite $entite, array $devis): array
   {
@@ -475,33 +477,33 @@ class DevisController extends AbstractController
     $details = [];
     foreach ($devis as $d) {
       $title = $d->getFormation()?->getEntite()?->getId() === $entite->getId() ? trim($d->getFormation()->getTitre()) : '';
-      $details[$d->getId()] = ['titles' => $title ? [$title => true] : [], 'sessions' => [], 'hasConventions' => false];
+      $details[$d->getId()] = ['titles' => $title ? [$title => $d->getFormation()->getId()] : [], 'sessions' => [], 'hasConventions' => false];
     }
 
     $conventions = $em->createQueryBuilder()
-      ->select('IDENTITY(c.devis) AS devisId, c.intituleFormation AS customTitle, s.id AS sessionId, s.code AS code, COALESCE(f.titre, s.formationIntituleLibre) AS title, MIN(j.dateDebut) AS dateDebut, MAX(j.dateFin) AS dateFin')
+      ->select('IDENTITY(c.devis) AS devisId, c.intituleFormation AS customTitle, s.id AS sessionId, s.code AS code, f.id AS formationId, COALESCE(f.titre, s.formationIntituleLibre) AS title, MIN(j.dateDebut) AS dateDebut, MAX(j.dateFin) AS dateFin')
       ->from(\App\Entity\ConventionContrat::class, 'c')
       ->leftJoin('c.session', 's', 'WITH', 's.entite = :entite AND c.entite = :entite')
       ->leftJoin('s.formation', 'f', 'WITH', 'f.entite = :entite')
       ->leftJoin('s.jours', 'j', 'WITH', 'j.entite = :entite')
       ->where('c.devis IN (:ids)')->setParameter('ids', $ids)->setParameter('entite', $entite)
-      ->groupBy('c.id, c.devis, c.intituleFormation, s.id, s.code, f.titre, s.formationIntituleLibre')
+      ->groupBy('c.id, c.devis, c.intituleFormation, s.id, s.code, f.id, f.titre, s.formationIntituleLibre')
       ->getQuery()->getArrayResult();
     $inscriptions = $em->createQueryBuilder()
-      ->select('d.id AS devisId, s.id AS sessionId, s.code AS code, COALESCE(f.titre, s.formationIntituleLibre) AS title, MIN(j.dateDebut) AS dateDebut, MAX(j.dateFin) AS dateFin')
+      ->select('d.id AS devisId, s.id AS sessionId, s.code AS code, f.id AS formationId, COALESCE(f.titre, s.formationIntituleLibre) AS title, MIN(j.dateDebut) AS dateDebut, MAX(j.dateFin) AS dateFin')
       ->from(Devis::class, 'd')->join('d.inscriptions', 'i', 'WITH', 'i.entite = :entite')
       ->join('i.session', 's', 'WITH', 's.entite = :entite')
       ->leftJoin('s.formation', 'f', 'WITH', 'f.entite = :entite')
       ->leftJoin('s.jours', 'j', 'WITH', 'j.entite = :entite')
       ->where('d.id IN (:ids)')->andWhere('d.entite = :entite')->setParameter('ids', $ids)->setParameter('entite', $entite)
-      ->groupBy('d.id, s.id, s.code, f.titre, s.formationIntituleLibre')
+      ->groupBy('d.id, s.id, s.code, f.id, f.titre, s.formationIntituleLibre')
       ->getQuery()->getArrayResult();
     foreach ($conventions as $row) $details[(int) $row['devisId']]['hasConventions'] = true;
     foreach (array_merge($conventions, $inscriptions) as $row) {
       if (!$row['sessionId']) continue;
       $detail = &$details[(int) $row['devisId']];
       $title = trim($row['customTitle'] ?? $row['title'] ?? '');
-      if ($title !== '') $detail['titles'][$title] = true;
+      if ($title !== '') $detail['titles'][$title] = $detail['titles'][$title] ?? ($row['formationId'] !== null ? (int) $row['formationId'] : null);
       $detail['sessions'][(int) $row['sessionId']] = $row;
       unset($detail);
     }
@@ -515,7 +517,7 @@ class DevisController extends AbstractController
         if ($end && (!$start || $end->format('Y-m-d') !== $start->format('Y-m-d'))) $period .= ' → ' . $end->format('d/m/Y');
         $dates[] = count($detail['sessions']) > 1 ? ($session['code'] ?: 'Session #' . $session['sessionId']) . ' · ' . $period : $period;
       }
-      $detail = ['formation' => implode("\n", array_keys($detail['titles'])) ?: '—', 'dates' => implode("\n", $dates) ?: 'Non planifiée', 'hasConventions' => $detail['hasConventions']];
+      $detail = ['formations' => $detail['titles'], 'formation' => implode("\n", array_keys($detail['titles'])) ?: '—', 'dates' => implode("\n", $dates) ?: 'Non planifiée', 'hasConventions' => $detail['hasConventions']];
     }
     unset($detail);
     return $details;

@@ -368,6 +368,17 @@
     body .inscription-floating-dropdown{ z-index: 20000 !important; }
 
 
+    a.inscription-record-link,
+    a.inscription-record-link:visited,
+    a.inscription-record-link:hover,
+    a.inscription-record-link:focus {
+      color: inherit;
+      text-decoration: none;
+    }
+    a.inscription-record-link:hover,
+    a.inscription-record-link:focus-visible {
+      text-decoration: underline;
+    }
   </style>
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
@@ -584,6 +595,17 @@
 </div>
 <script>
 $(function () {
+  function renderRecordLink(value, type, url) {
+    if (type !== 'display') return value;
+    const element = document.createElement(url ? 'a' : 'span');
+    element.textContent = value ?? '-';
+    if (url) {
+      element.href = url;
+      element.className = 'inscription-record-link';
+    }
+    return element.outerHTML;
+  }
+
   const $filter = $('#inscriptionStatusFilter');
 
   function nowLabel(){
@@ -664,8 +686,8 @@ $(function () {
     pageLength: 100,
     columns: [
       { data:'id', searchable:false, orderable:false, width:'40px', render: (id, type) => type === 'display' ? `<input type="checkbox" class="form-check-input me-2 js-inscription-select" value="${Number(id)}" aria-label="Sélectionner l'inscription ${Number(id)}">` : (type === 'sort' || type === 'type' ? id : '') },
-      { data:'session' },
-      { data:'stagiaire' },
+      { data:'session', render: (value, type, row) => renderRecordLink(value, type, row.sessionUrl) },
+      { data:'stagiaire', render: (value, type, row) => renderRecordLink(value, type, row.stagiaireUrl) },
       { data:'status' },
       { data:'assiduite' },
       { data:'actions' }

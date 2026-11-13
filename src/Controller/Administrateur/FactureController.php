@@ -327,6 +327,7 @@ class FactureController extends AbstractController
                 COALESCE(e.email_facturation, e.email, u.email, '—')
             ) AS dest_sort,
 
+            u.id AS u_id, e.id AS e_id,
             u.email AS u_email, u.prenom AS u_prenom, u.nom AS u_nom,
             e.raison_sociale AS e_rs, e.email AS e_email, e.email_facturation AS e_emailf
 
@@ -357,18 +358,23 @@ class FactureController extends AbstractController
     foreach ($rows as $r) {
       $id = (int)$r['id'];
 
-      $destLabel = '—';
-      if (!empty($r['e_rs'])) {
-        $emailE = trim((string)($r['e_emailf'] ?: $r['e_email']));
-        $nameE  = trim((string)$r['e_rs']);
-        $destLabel = $nameE ?: ($emailE ?: 'Entreprise');
-        if ($emailE && $nameE) $destLabel = $nameE . '<br><small class="text-muted">' . $emailE . '</small>';
-      } else {
-        $emailU = trim((string)($r['u_email'] ?? ''));
-        $nameU  = trim((string)(($r['u_prenom'] ?? '') . ' ' . ($r['u_nom'] ?? '')));
-        $destLabel = $nameU ?: ($emailU ?: '—');
-        if ($emailU && $nameU) $destLabel = $nameU . '<br><small class="text-muted">' . $emailU . '</small>';
-      }
+      $isEntreprise = !empty($r['e_id']);
+      $recipientId = $r['u_id'] ?? ($r['e_id'] ?? null);
+      $recipientName = $isEntreprise
+        ? trim((string)($r['e_rs'] ?? ''))
+        : trim((string)(($r['u_prenom'] ?? '') . ' ' . ($r['u_nom'] ?? '')));
+      $recipientEmail = $isEntreprise
+        ? trim((string)($r['e_emailf'] ?: $r['e_email']))
+        : trim((string)($r['u_email'] ?? ''));
+      $destLabel = $this->renderView('administrateur/facture/_destinataire_link.html.twig', [
+        'name' => $recipientName,
+        'email' => $recipientEmail,
+        'fallback' => $isEntreprise ? 'Entreprise' : '—',
+        'url' => $recipientId ? $this->generateUrl(
+          !empty($r['u_id']) ? 'app_administrateur_utilisateur_show' : 'app_administrateur_entreprise_modifier',
+          ['entite' => $entite->getId(), 'id' => $recipientId]
+        ) : null,
+      ]);
 
       $dateIso = $r['date_emission'] ? (new \DateTimeImmutable((string)$r['date_emission']))->format('Y-m-d') : '';
       $dateFr  = $r['date_emission'] ? (new \DateTimeImmutable((string)$r['date_emission']))->format('d/m/Y') : '—';

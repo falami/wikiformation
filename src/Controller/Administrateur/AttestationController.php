@@ -284,7 +284,15 @@ class AttestationController extends AbstractController
             return [
                 'numero'        => $a->getNumero() ?? '-',
                 'inscription'   => $inscriptionStr,
+                'inscriptionHtml' => $this->renderView('administrateur/attestation/_inscription_links.html.twig', [
+                    'inscription' => $ins,
+                    'entite' => $entite,
+                ]),
                 'formation'     => $ins?->getSession()?->getFormationLabel() ?? '—',
+                'formationHtml' => $this->renderView('administrateur/attestation/_formation_link.html.twig', [
+                    'session' => $ins?->getSession(),
+                    'entite' => $entite,
+                ]),
                 'dureeHeures'   => $a->getDureeHeures() ?? '-',
                 'reussi'        => $this->renderView('administrateur/attestation/_reussi_badge.html.twig', [
                     'a' => $a,

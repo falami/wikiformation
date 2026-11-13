@@ -379,6 +379,17 @@
     body .convention-floating-dropdown{
       z-index: 20000 !important;
     }
+  a.convention-record-link,
+  a.convention-record-link:visited,
+  a.convention-record-link:hover,
+  a.convention-record-link:focus {
+    color: inherit;
+    text-decoration: none;
+  }
+  a.convention-record-link:hover,
+  a.convention-record-link:focus-visible {
+    text-decoration: underline;
+  }
   </style>
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
@@ -522,6 +533,17 @@
 
 <script>
 $(function () {
+  function renderRecordLink(value, type, url) {
+    if (type !== 'display') return value;
+    const element = document.createElement(url ? 'a' : 'span');
+    element.textContent = value ?? '—';
+    if (url) {
+      element.href = url;
+      element.className = 'convention-record-link';
+    }
+    return element.outerHTML;
+  }
+
   function nowLabel(){
     const d = new Date();
     return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
@@ -561,9 +583,9 @@ $(function () {
     pageLength: 100,
     columns: [
       { data:'numero' },
-      { data:'entreprise' },
-      { data:'formation' },
-      { data:'session' },
+      { data:'entreprise', render: (value, type, row) => renderRecordLink(value, type, row.entrepriseUrl) },
+      { data:'formation', render: (value, type, row) => renderRecordLink(value, type, row.formationUrl) },
+      { data:'session', render: (value, type, row) => renderRecordLink(value, type, row.sessionUrl) },
       { data:'suivi', orderable:false, searchable:false },
       { data:'details', orderable:false, searchable:false },
       { data:'actions' }
