@@ -260,6 +260,8 @@ final class DevisType extends AbstractType
     {
         $r->setDefaults([
             'data_class' => Devis::class,
+            // Use a session token instead of the global stateless "submit" token.
+            'csrf_token_id' => 'devis_form',
             'entite' => null,
         ]);
 
