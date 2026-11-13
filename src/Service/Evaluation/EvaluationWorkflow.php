@@ -84,6 +84,7 @@ final class EvaluationWorkflow
             'learnerName' => $name($dossier->getStagiaire()), 'evaluatorName' => $name($dossier->getEvaluator()),
             'learnerId' => $dossier->getStagiaire()?->getId(), 'evaluatorId' => $dossier->getEvaluator()?->getId(),
             'entityName' => $dossier->getEntite()?->getNom() ?? '', 'sessionCode' => $dossier->getSession()?->getCode() ?? '',
+            'formationObjectives' => $dossier->getSession()?->getFormation()?->getObjectifs() ?? '',
             'formationTitle' => $dossier->getSession()?->getFormationLabel() ?? '',
             'sessionStart' => $dossier->getSession()?->getDateDebut()?->format(DATE_ATOM),
             'sessionEnd' => $dossier->getSession()?->getDateFin()?->format(DATE_ATOM),
