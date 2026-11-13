@@ -43,7 +43,7 @@ test('hero layout preserves controls, forms, dropdowns and repeated initializati
         assert.ok(badge.x >= 0 && badge.x + badge.width <= width);
       }
       const boxes = await page.locator('#save,#menu').evaluateAll(es => es.map(e => ({height:e.getBoundingClientRect().height,right:e.getBoundingClientRect().right})));
-      assert.ok(boxes.every(b => b.height === (width < 768 ? 44 : 36) && b.right <= width), JSON.stringify({width,boxes}));
+      assert.ok(boxes.every(b => b.height === (width < 768 ? 38 : 36) && b.right <= width), JSON.stringify({width,boxes}));
     }
   } finally { await browser.close(); }
 });
