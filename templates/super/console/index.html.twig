@@ -1615,9 +1615,26 @@
         }
 
 
+        // Explicit orthogonal data avoids DataTables inferring object paths
+        // from data-order attributes on DOM-sourced cells.
+        const tableRows = Array.from($table[0].tBodies[0].rows, row =>
+          Array.from(row.cells, cell => ({
+            display: cell.innerHTML,
+            sort: cell.getAttribute('data-order') ?? cell.textContent.trim(),
+            filter: cell.textContent.trim()
+          }))
+        );
+        const tableColumns = Array.from($table[0].tHead.rows[0].cells, (_, index) => ({
+          data: index,
+          render: { _: 'display', sort: 'sort', type: 'sort', filter: 'filter' }
+        }));
+        $table.find('tbody').empty();
+
         const table =
           $table.DataTable({
 
+            data: tableRows,
+            columns: tableColumns,
             processing:true,
 
             autoWidth:false,
