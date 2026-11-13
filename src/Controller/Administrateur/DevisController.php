@@ -341,6 +341,7 @@ class DevisController extends AbstractController
     $qb = $em->getRepository(Devis::class)->createQueryBuilder('d')
       ->leftJoin('d.destinataire', 'u')->addSelect('u')
       ->leftJoin('d.entrepriseDestinataire', 'e')->addSelect('e')
+      ->leftJoin('e.representant', 'representant')->addSelect('representant')
       ->leftJoin('d.prospect', 'p')->addSelect('p')
       ->leftJoin('d.factureCreee', 'f')->addSelect('f')
       ->leftJoin('d.formation', 'formation', 'WITH', 'formation.entite = :entite')->addSelect('formation')

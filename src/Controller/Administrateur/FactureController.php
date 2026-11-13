@@ -327,7 +327,7 @@ class FactureController extends AbstractController
                 COALESCE(e.email_facturation, e.email, u.email, '—')
             ) AS dest_sort,
 
-            u.id AS u_id, e.id AS e_id,
+            u.id AS u_id, e.id AS e_id, e.representant_id AS representant_id,
             u.email AS u_email, u.prenom AS u_prenom, u.nom AS u_nom,
             e.raison_sociale AS e_rs, e.email AS e_email, e.email_facturation AS e_emailf
 
@@ -359,7 +359,8 @@ class FactureController extends AbstractController
       $id = (int)$r['id'];
 
       $isEntreprise = !empty($r['e_id']);
-      $recipientId = $r['u_id'] ?? ($r['e_id'] ?? null);
+      $recipientUserId = $isEntreprise ? ($r['representant_id'] ?? null) : ($r['u_id'] ?? null);
+      $recipientId = $recipientUserId ?? ($r['e_id'] ?? null);
       $recipientName = $isEntreprise
         ? trim((string)($r['e_rs'] ?? ''))
         : trim((string)(($r['u_prenom'] ?? '') . ' ' . ($r['u_nom'] ?? '')));
@@ -371,7 +372,7 @@ class FactureController extends AbstractController
         'email' => $recipientEmail,
         'fallback' => $isEntreprise ? 'Entreprise' : '—',
         'url' => $recipientId ? $this->generateUrl(
-          !empty($r['u_id']) ? 'app_administrateur_utilisateur_show' : 'app_administrateur_entreprise_modifier',
+          $recipientUserId ? 'app_administrateur_utilisateur_show' : 'app_administrateur_entreprise_modifier',
           ['entite' => $entite->getId(), 'id' => $recipientId]
         ) : null,
       ]);
