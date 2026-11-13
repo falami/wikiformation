@@ -3,7 +3,7 @@
 declare(strict_types=1);
 namespace App\Controller\Administrateur;
 
-use App\Entity\{Entite, Devis, Facture, ConventionContrat, EmailLog, ProspectInteraction};
+use App\Entity\{Entite, Devis, Facture, Session, ConventionContrat, EmailLog, ProspectInteraction};
 use App\Security\Permission\TenantPermission;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -12,23 +12,40 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class ClientHistoryController extends AbstractController
 {
-    #[Route('/administrateur/{entite}/echanges/{type}/{id}', name: 'app_administrateur_client_history', requirements: ['type'=>'facture|devis|convention', 'id'=>'\\d+'], methods: ['GET'])]
+    #[Route('/administrateur/{entite}/echanges/{type}/{id}', name: 'app_administrateur_client_history', requirements: ['type'=>'facture|devis|convention|session', 'id'=>'\\d+'], methods: ['GET'])]
     public function history(Entite $entite, string $type, int $id, Request $request, EntityManagerInterface $em): Response
     {
         $this->denyAccessUnlessGranted(TenantPermission::ADMIN, $entite);
-        $class = match ($type) { 'facture'=>Facture::class, 'devis'=>Devis::class, default=>ConventionContrat::class };
+        $class = match ($type) { 'facture'=>Facture::class, 'devis'=>Devis::class, 'session'=>Session::class, default=>ConventionContrat::class };
         $document = $em->getRepository($class)->find($id);
         if (!$document || $document->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
-        $company = $type === 'convention' ? $document->getEntreprise() : $document->getEntrepriseDestinataire();
-        $user = $type === 'convention' ? $document->getStagiaire() : $document->getDestinataire();
+        $company = match ($type) { 'session' => $document->getEntrepriseCliente() ?? $document->getOrganismeFormation(), 'convention' => $document->getEntreprise(), default => $document->getEntrepriseDestinataire() };
+        $user = match ($type) { 'session' => null, 'convention' => $document->getStagiaire(), default => $document->getDestinataire() };
+        $sessionUsers = [];
+        $sessionClients = [];
+        $sessionEmails = [];
+        if ($type === 'session' && !$company) {
+            foreach ($document->getInscriptions() as $inscription) {
+                if ($inscription->getEntite()?->getId() !== $entite->getId()) continue;
+                $clientCompany = $inscription->getEntreprise();
+                $clientKey = $clientCompany ? 'company-'.$clientCompany->getId() : 'user-'.$inscription->getStagiaire()?->getId();
+                $sessionClients[$clientKey] = true;
+                $client = $clientCompany ? $clientCompany->getRepresentant() : $inscription->getStagiaire();
+                if ($client) $sessionUsers[$client->getId()] = $client;
+                foreach ([$clientCompany?->getEmail(), $clientCompany?->getEmailFacturation(), $client?->getEmail()] as $email) {
+                    if ($email) $sessionEmails[] = $email;
+                }
+            }
+            if (count($sessionClients) === 1 && count($sessionUsers) === 1) $user = reset($sessionUsers);
+        }
         $quote = $type === 'devis' ? $document : ($type === 'convention' ? $document->getDevis() : null);
         $prospect = $quote?->getProspect();
-        $emails = array_values(array_unique(array_filter([$company?->getEmail(), $company?->getEmailFacturation(), $user?->getEmail(), $prospect?->getEmail()])));
+        $emails = array_values(array_unique(array_filter([$company?->getEmail(), $company?->getEmailFacturation(), $user?->getEmail(), $prospect?->getEmail(), ...$sessionEmails])));
         // Prefer the existing client workspace, using only contacts of this organisation.
         $contact = $company ? $company->getRepresentant() : $user;
         $memberships = $em->getRepository(\App\Entity\UtilisateurEntite::class);
         if ($contact && !$memberships->findOneBy(['entite'=>$entite, 'utilisateur'=>$contact])) $contact = null;
-        if (!$contact && $emails) {
+        if (!$contact && $emails && count($sessionClients) <= 1) {
             $matches = $em->getRepository(\App\Entity\Utilisateur::class)->createQueryBuilder('u')
                 ->join('u.utilisateurEntites', 'membership')
                 ->where('membership.entite = :tenant')->andWhere('u.email IN (:emails)')
@@ -49,6 +66,10 @@ final class ClientHistoryController extends AbstractController
             if ($type === 'facture') { $conditions[] = 'h.facture = :doc'; $qb->setParameter('doc', $document); }
             if ($quote) { $conditions[] = 'h.devis = :quote'; $qb->setParameter('quote', $quote); }
             if ($prospect) { $conditions[] = 'h.prospect = :prospect'; $qb->setParameter('prospect', $prospect); }
+            if ($sessionUsers) {
+                $conditions[] = $isMail ? 'h.toUser IN (:sessionUsers)' : 'h.utilisateur IN (:sessionUsers)';
+                $qb->setParameter('sessionUsers', array_values($sessionUsers));
+            }
             if ($user) { $conditions[] = $isMail ? 'h.toUser = :client' : 'h.utilisateur = :client'; $qb->setParameter('client', $user); }
             if ($emails) {
                 if ($isMail) $conditions[] = 'h.toEmail IN (:emails)';

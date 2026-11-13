@@ -74,8 +74,80 @@
       heading.append(label, title);
     });
   }
+  // Move existing nodes (never clone controls): listeners, values, dropdowns and
+  // form ownership must survive the shared layout, including Turbo revisits.
+  function arrangeActions() {
+    const actionSelector = 'a.btn, button.btn, input.btn, .rp-button, .hab-btn, .pp-btn, .pp-btn-hero, .crm-primary, .crm-button, .mk-button, .wf-button, .ev-btn, .ev-btn-primary, .btn-hero, .wf-accent-button, .iw-btn, .studio-btn, .cv-button, .of-hero__refresh, .curriculum-add, .cx-btn, .btn-prime, .btn-outline, .rec-button, .sub-btn, .pf-button';
+    document.querySelectorAll('.entity-hero:not(.entity-hero-arranged)').forEach(hero => {
+      const title = hero.querySelector('h1, h2, .hero-title');
+      if (!title) return;
+      const actions = [...hero.querySelectorAll(actionSelector)].filter(action =>
+        !action.closest('.dropdown-menu, .modal, .offcanvas') &&
+        !action.matches('.btn-close, .rounded-circle') && action.closest('.entity-hero') === hero);
+      const side = document.createElement('div');
+      side.className = 'entity-hero-side';
+      const emblem = document.createElement('div');
+      emblem.className = 'entity-hero-emblem';
+      emblem.setAttribute('aria-hidden', 'true');
+      const existingIcon = hero.querySelector('.se-hero-icon');
+      const sourceIcon = existingIcon?.querySelector('i, svg') || title.querySelector('i, svg');
+      if (sourceIcon) {
+        const icon = sourceIcon.cloneNode(true);
+        icon.removeAttribute('id');
+        icon.removeAttribute('style');
+        icon.classList.remove('entity-hero-title-icon');
+        icon.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+        emblem.append(icon);
+      }
+      if (existingIcon) existingIcon.remove();
+      side.append(emblem);
+      const controls = document.createElement('div');
+      controls.className = 'entity-hero-controls';
+      const roots = new Set();
+      actions.forEach(action => {
+        let root = action;
+        // Keep each complete action group, form and dropdown together. Stop
+        // before wrappers containing headings, metadata or unrelated content.
+        while (root.parentElement && root.parentElement !== hero) {
+          const parent = root.parentElement;
+          if (parent.contains(title) || parent.matches('.entity-hero')) break;
+          const copy = parent.cloneNode(true);
+          copy.querySelectorAll(actionSelector + ', .dropdown-menu, input[type="hidden"], .se-hero-caption').forEach(node => node.remove());
+          if (copy.textContent.trim() || copy.querySelector('input, select, textarea, img, svg')) break;
+          root = parent;
+        }
+        roots.add(root);
+      });
+      [...roots].filter(root => ![...roots].some(other => other !== root && other.contains(root))).forEach(root => {
+        root.querySelectorAll('button, input, select, textarea').forEach(control => {
+          if (control.form && !root.contains(control.form) && !control.hasAttribute('form')) {
+            if (!control.form.id) control.form.id = 'entity-hero-form-' + (++arrangeActions.formId);
+            control.setAttribute('form', control.form.id);
+          }
+        });
+        // A standalone submit button can also belong to an enclosing form.
+        if (root.form && !root.hasAttribute('form')) {
+          if (!root.form.id) root.form.id = 'entity-hero-form-' + (++arrangeActions.formId);
+          root.setAttribute('form', root.form.id);
+        }
+        root.classList.add('entity-hero-action-group');
+        controls.append(root);
+      });
+      side.append(controls);
+      const caption = hero.querySelector('.se-hero-caption') || controls.querySelector('.se-hero-caption');
+      if (caption) side.append(caption);
+      const main = document.createElement('div');
+      main.className = 'entity-hero-content';
+      while (hero.firstChild) main.append(hero.firstChild);
+      hero.append(main, side);
+      hero.classList.add('entity-hero-arranged');
+    });
+  }
+  arrangeActions.formId = 0;
+
   function update() {
     completeBadges();
+    arrangeActions();
     const probe = document.createElement('span');
     probe.style.cssText = 'position:absolute;visibility:hidden';
     document.body.append(probe);

@@ -9,6 +9,7 @@ test('les bandeaux adaptent leur contraste et suivent un changement de thème', 
   const values = {}, events = {};
   const document = {
     readyState: 'complete',
+    querySelectorAll: () => [],
     body: { append() {} },
     createElement: () => ({ style: {}, remove() {} }),
     documentElement: { style: { setProperty: (key, value) => { values[key] = value; } } },
@@ -16,6 +17,7 @@ test('les bandeaux adaptent leur contraste et suivent un changement de thème', 
   };
   vm.runInNewContext(source, {
     document,
+    location: { pathname: '/fr/administrateur/1/dashboard' },
     getComputedStyle: element => ({
       color: element.style.color.includes('principal') ? primary : secondary
     })

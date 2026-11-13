@@ -1,5 +1,5 @@
 {% extends 'base_admin.html.twig' %}
-{% block title %}Échanges client · {{ document.numero }}{% endblock %}
+{% block title %}Échanges client · {{ type == 'session' ? document.code : document.numero }}{% endblock %}
 {% block stylesheets %}
 {{ parent() }}
 <style>
@@ -31,12 +31,12 @@
 {% endblock %}
 {% block body %}
 <div class="ch-page">
-  <a class="ch-back" href="{{ path(type == 'convention' ? 'app_administrateur_convention_show' : 'app_administrateur_' ~ type ~ '_show', {entite:entite.id,id:document.id}) }}"><i class="bi bi-arrow-left"></i> Retour au document</a>
+  <a class="ch-back" href="{{ path(type == 'convention' ? 'app_administrateur_convention_show' : 'app_administrateur_' ~ type ~ '_show', {entite:entite.id,id:document.id}) }}"><i class="bi bi-arrow-left"></i> {{ type == 'session' ? 'Retour à la session' : 'Retour au document' }}</a>
   <header class="ch-hero">
     <div class="ch-kicker"><i class="bi bi-chat-square-text"></i> Relation client</div>
     <h1>Chaque échange, au même endroit.</h1>
     <p>Retrouvez le fil de votre relation client : messages envoyés, notes et informations partagées avec votre organisme.</p>
-    <div class="ch-ref"><i class="bi bi-file-earmark-text"></i> {{ type|capitalize }} · {{ document.numero }}</div>
+    <div class="ch-ref"><i class="bi bi-file-earmark-text"></i> {{ type|capitalize }} · {{ type == 'session' ? document.code : document.numero }}</div>
   </header>
   <div class="ch-layout"><section aria-label="Historique des échanges">
   <div class="ch-heading"><h2>Historique des échanges</h2><span>Du plus récent au plus ancien</span></div>
