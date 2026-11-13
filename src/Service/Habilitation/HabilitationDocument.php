@@ -33,7 +33,7 @@ final class HabilitationDocument
         $companyBrand = is_array($companyBrand) ? $companyBrand : [];
         $companyBrand['name'] = $companyBrand['name'] ?? $snapshot['identity']['company'] ?? '';
         $companyBrand['logoDataUri'] = CompanyBranding::snapshotLogo($companyBrand['logoDataUri'] ?? null);
-        $template = $isTitle ? 'habilitation/titre.html.twig' : ($attestation ? 'habilitation/attestation.html.twig' : 'habilitation/pdf.html.twig');
+        $template = $isTitle ? 'pdf/habilitation/titre.html.twig' : ($attestation ? 'pdf/habilitation/attestation.html.twig' : 'pdf/habilitation/pdf.html.twig');
         $footerHtml = $this->twig->render($template, ['entite' => $entite, 'brand' => $isTitle ? [] : $this->branding->forEntity($entite), 'companyBrand' => $companyBrand, 'revision' => $r, 'snapshot' => $snapshot, 'archived' => !in_array($r->getToken(), [$dossier->getAvisToken(), $dossier->getTitreToken()], true), 'inactive' => !$dossier->getActive() || $dossier->getDeleted()]);
         $pdf->loadHtml(\App\Service\Pdf\DocumentFooter::prepare($footerHtml));
         $pdf->render();

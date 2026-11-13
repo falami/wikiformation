@@ -251,6 +251,32 @@ final class HabilitationTest extends KernelTestCase
     private function input(): array {return ['function'=>'Technicien','assignment'=>'Atelier','issuedAt'=>'2026-10-06','validUntil'=>'2027-10-06','signerFunction'=>'Responsable','place'=>'Alès','additionalDocument'=>'Aucun','rows'=>['row_0'=>['verdict'=>'favorable','symbols'=>['B0'],'voltage'=>['BT'],'works'=>'Atelier principal','details'=>'Sans travaux sous tension']]];}
     private function signature(): string { $im=imagecreatetruecolor(100,40);imagesetthickness($im,2);imageline($im,5,5,95,35,imagecolorallocate($im,240,240,240));ob_start();imagepng($im);$s=ob_get_clean();imagedestroy($im);return 'data:image/png;base64,'.base64_encode($s); }
     private function sign(string $stage): HabilitationRevision { if ($stage==='titre' && $this->dossier->getState()==='pending_admin') { $this->em->persist(self::getContainer()->get(HabilitationWorkflow::class)->transmit($this->dossier,$this->admin));$this->em->flush(); } $r=self::getContainer()->get(HabilitationWorkflow::class)->save($this->dossier,$stage,$this->input(),true,$stage==='avis'?$this->trainer:$this->employer,$this->signature());$this->em->persist($r);$this->em->flush();return $r; }
+    public function testDedicatedSpacesKeepTheirNavigationAndPermissions(): void
+    {
+        $this->sign('avis');
+        $this->em->persist(self::getContainer()->get(HabilitationWorkflow::class)->transmit($this->dossier, $this->admin));
+        $this->em->flush();
+        foreach ([['formateur', $this->trainer, 'Espace formateur'], ['stagiaire', $this->trainee, 'Mes habilitations']] as [$space, $actor, $label]) {
+            $this->client->loginUser($actor);
+            $page = $this->client->request('GET', $this->url('/'.$space));
+            self::assertSame(200, $this->client->getResponse()->getStatusCode());
+            self::assertStringContainsString($label, $page->filter('.hab-nav')->text());
+            self::assertStringNotContainsString('Bibliothèque de modèles', $page->filter('.hab-nav')->text());
+            self::assertCount(1, $page->filter('script[src$="habilitation-bulk.js"]'));
+            $page = $this->client->request('GET', $this->url('/'.$space.'/'.$this->dossier->getId()));
+            self::assertSame(200, $this->client->getResponse()->getStatusCode());
+            self::assertStringContainsString($label, $page->filter('.hab-nav')->text());
+            self::assertCount(1, $page->filter('#hab-evaluation'));
+            if ($space === 'stagiaire') self::assertCount(1, $page->filter('#hab-evaluation > fieldset[disabled]'));
+        }
+        $this->client->catchExceptions(true);
+        $this->client->loginUser($this->other);
+        $this->client->request('GET', $this->url('/stagiaire/'.$this->dossier->getId()));
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->client->request('GET', $this->url('/formateur'));
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+    }
+
     public function testAdminPagesAndTemplateSave(): void {
         $this->client->loginUser($this->admin);
         foreach(['','/modeles','/modeles/nouveau','/affecter','/'.$this->dossier->getId(),'/'.$this->dossier->getId().'/reaffecter'] as $path){$this->client->request('GET',$this->url($path));self::assertSame(200,$this->client->getResponse()->getStatusCode());}
