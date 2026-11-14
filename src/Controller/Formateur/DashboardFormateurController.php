@@ -30,6 +30,7 @@ class DashboardFormateurController extends AbstractController
         private PdfManager $pdfManager,
         private HttpClientInterface $httpClient,
         private \App\Service\Habilitation\HabilitationAssignments $habilitationAssignments,
+        private \App\Service\Module\ModuleEntitlement $moduleEntitlement,
     ) {}
 
     /* =========================================================
@@ -112,7 +113,7 @@ class DashboardFormateurController extends AbstractController
         if ($calculateTravel && !$this->isCsrfTokenValid('trainer_travel_'.$entite->getId(), $request->request->getString('_token'))) {
             throw $this->createAccessDeniedException('Formulaire expiré. Rechargez la page.');
         }
-        $this->habilitationAssignments->synchronize($entite);
+        if ($this->moduleEntitlement->allowed($entite, 'habilitation_electrique')) $this->habilitationAssignments->synchronize($entite);
     $lifecycle->synchronize($entite);
         /** @var Utilisateur $user */
         $user = $this->getUser();

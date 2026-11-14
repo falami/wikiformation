@@ -27,6 +27,7 @@
   </div>
   <div id="workspaceNavScroll" class="wn-scroll">
     <nav aria-label="Rubriques de votre espace">
+	{% set electricalEnabled = module_allowed(entite, 'habilitation_electrique') %}
 	{% set canAdmin      = is_granted('ENTITE_ADMIN', entite) %}
 	{% set canSuperAdmin = is_granted('ROLE_SUPER_ADMIN', entite) %}
 	{% set canFormateur  = is_granted('ENTITE_FORMATEUR', entite) %}
@@ -955,19 +956,19 @@
 			</li>
 
 
-			<li class="wn-section-label" role="presentation"><span>Habilitations électriques</span></li>
-			<li class="nav-item">
+			{% if electricalEnabled %}<li class="wn-section-label" role="presentation"><span>Habilitations électriques</span></li>{% endif %}
+			{% if electricalEnabled %}<li class="nav-item">
 				<a href="{{ path('app_habilitation_index', {entite: entite.id}) }}">
 					<span class="{{ app.request.attributes.get('_route') starts with 'app_habilitation_index' ? 'text-theme-secondaire' : 'text-white' }}">
 						<i class="bi bi-lightning-charge"></i> Habilitations
 					</span>
 				</a>
-			</li>
-			<li class="nav-item">
+			</li>{% endif %}
+			{% if electricalEnabled %}<li class="nav-item">
 				<a href="{{ path('app_habilitation_attestations', {entite: entite.id}) }}">
 					<span class="{{ app.request.attributes.get('_route') == 'app_habilitation_attestations' ? 'text-theme-secondaire' : 'text-white' }}"><i class="bi bi-file-earmark-pdf"></i> Avis post-formation</span>
 				</a>
-			</li>
+			</li>{% endif %}
 
 			<li class="wn-section-label" role="presentation"><span>E-learning</span></li>
 
@@ -1137,13 +1138,13 @@
 					</span>
 				</a>
 			</li>
-			<li>
+			{% if electricalEnabled %}<li>
 				<a href="{{ path('app_habilitation_trainer_index', {entite: entite.id}) }}">
 					<span class="{{ app.request.attributes.get('_route') starts with 'app_habilitation_trainer_' ? 'text-theme-secondaire' : 'text-white' }}">
 						<i class="bi bi-lightning-charge"></i> Habilitations
 					</span>
 				</a>
-			</li>
+			</li>{% endif %}
 			<li class="nav-item"><a href="{{ path('app_caces_index', {entite: entite.id}) }}"><span class="{{ app.request.attributes.get('_route') starts with 'app_caces_' ? 'text-theme-secondaire' : 'text-white' }}"><i class="bi bi-shield-check"></i> Certification CACES®</span></a></li>
             <li class="nav-item">
 				<a href="{{ path('app_formateur_evaluation_index', {entite: entite.id}) }}">
@@ -1255,13 +1256,13 @@
 				</a>
 			</li>
 
-			<li>
+			{% if electricalEnabled %}<li>
 				<a href="{{ path('app_habilitation_student_index', {entite:entite.id}) }}">
 					<span class="{{ app.request.attributes.get('_route') starts with 'app_habilitation_student_' ? 'text-theme-secondaire' : 'text-white' }}">
 						<i class="bi bi-lightning-charge"></i> Mes habilitations
 					</span>
 				</a>
-			</li>
+			</li>{% endif %}
 
 		{% endif %}
 
@@ -1292,7 +1293,7 @@
 					</span>
 				</a>
 			</li>
-			<li class="nav-item">
+			{% if electricalEnabled %}<li class="nav-item">
                 <button type="button" class="nav-link dropdown-toggle {{ isCompanyHabilitation ? 'text-theme-secondaire' : 'text-white' }}" data-bs-toggle="collapse" data-bs-target="#entrepriseHabilitations" aria-expanded="{{ isCompanyHabilitation ? 'true' : 'false' }}" aria-controls="entrepriseHabilitations">
                     <i class="bi bi-lightning-charge"></i> Habilitations
                 </button>
@@ -1302,7 +1303,7 @@
                         <li><a href="{{ path('app_entreprise_documents_index', {entite:entite.id}) }}#pane-habilitations"><span>Documents des salariés</span></a></li>
                     </ul>
                 </div>
-            </li>
+            </li>{% endif %}
 
 
 

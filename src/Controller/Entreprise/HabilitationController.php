@@ -12,6 +12,7 @@ use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 
 use App\Controller\Shared\Habilitation\AbstractHabilitationController;
 
+#[\App\Security\Attribute\RequiresModule('habilitation_electrique')]
 #[Route('/habilitation/{entite}', name: 'app_habilitation_', requirements: ['entite' => '\d+'])]
 final class HabilitationController extends AbstractHabilitationController
 {

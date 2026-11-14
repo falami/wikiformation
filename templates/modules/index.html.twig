@@ -14,7 +14,7 @@
   <div class="module-grid">
   {% for card in cards %}{% set m = card.module %}{% set a = card.access %}
     <article class="module-card">
-      <div class="module-card-top"><span class="module-icon"><i class="bi {{ m.code == 'caces' ? 'bi-shield-check' : 'bi-grid' }}" aria-hidden="true"></i></span><span class="module-badge {{ card.allowed ? 'is-active' : '' }}">{{ card.allowed ? 'Accès actif' : 'À découvrir' }}</span></div>
+      <div class="module-card-top"><span class="module-icon"><i class="bi {{ m.code == 'caces' ? 'bi-shield-check' : (m.code == 'habilitation_electrique' ? 'bi-lightning-charge' : 'bi-grid') }}" aria-hidden="true"></i></span><span class="module-badge {{ card.allowed ? 'is-active' : '' }}">{{ card.allowed ? 'Accès actif' : 'À découvrir' }}</span></div>
       <h3>{{ m.name }}</h3><p class="module-description">{{ m.description }}</p>
       {% if internal or m.included %}<div class="module-price">Inclus<span>{{ internal ? 'pour I.T. For You' : 'dans votre abonnement' }}</span></div>
       {% else %}<div class="module-price">{{ ((a and a.subscriptionId and a.status not in ['canceled', 'incomplete_expired'] ? a.price : m.monthlyPrice) / 100)|number_format(2, ',', ' ') }} €<span>/ mois · par organisme</span></div>{% endif %}
@@ -29,7 +29,9 @@
         {% else %}<strong>Abonnement terminé</strong><span>Vos dossiers vous attendent : retrouvez-les dès la réactivation.</span>{% endif %}
       {% elseif not card.allowed and m.trialDays and (not a or not a.trialUsed) %}<strong>{{ m.trialDays }} jours d’essai offerts</strong><span>Puis {{ (m.monthlyPrice / 100)|number_format(2, ',', ' ') }} €/mois. Annulable avant la fin de l’essai.</span>{% endif %}
       </div>
+      {% if m.code == 'habilitation_electrique' %}<ul class="module-features"><li><i class="bi bi-clipboard-check" aria-hidden="true"></i> Évaluations et avis du formateur</li><li><i class="bi bi-file-earmark-check" aria-hidden="true"></i> Documents signés et historique</li><li><i class="bi bi-people" aria-hidden="true"></i> Espaces formateurs, stagiaires et entreprises</li></ul>{% endif %}
       <div class="module-actions">
+      {% if card.allowed and m.code == 'habilitation_electrique' %}<a class="btn module-primary" href="{{ path('app_habilitation_index', {entite: entite.id}) }}">Ouvrir Habilitations électriques <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>{% endif %}
       {% if card.allowed and m.code == 'caces' %}<a class="btn module-primary" href="{{ path('app_caces_index', {entite: entite.id}) }}">Ouvrir Certification CACES® <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>{% endif %}
       {% if not card.allowed and m.active and not m.included and not internal and (not a or not a.subscriptionId or a.status in ['canceled','incomplete_expired']) %}
       <form method="post" action="{{ path('app_modules_action', {entite: entite.id, code: m.code, action: 'subscribe'}) }}"><input type="hidden" name="_token" value="{{ csrf_token('module_' ~ entite.id ~ '_' ~ m.code ~ '_subscribe') }}"><button class="btn module-primary w-100">{{ a and a.checkoutId ? 'Finaliser mon activation' : (m.trialDays and (not a or not a.trialUsed) ? 'Commencer mon essai' : 'Activer cette option') }} <i class="bi bi-arrow-right" aria-hidden="true"></i></button></form>

@@ -35,6 +35,51 @@ final class ModuleBillingTest extends KernelTestCase
         ApiRequestor::setHttpClient(new CurlClient()); parent::tearDown();
         foreach (['ENV', 'SERVER'] as $i => $key) { if ($this->env[$i] === null) unset($GLOBALS['_'.$key]['DATABASE_URL']); else $GLOBALS['_'.$key]['DATABASE_URL'] = $this->env[$i]; }
     }
+    public function testElectricalOptionIsIndependentAndExpires(): void
+    {
+        $module = new Module(); $module->code = 'habilitation_electrique';
+        $module->name = 'Habilitations électriques'; $module->monthlyPrice = 2000; $module->trialDays = 30;
+        $this->em->persist($module); $this->em->flush();
+        $access = new ModuleEntitlement($this->em);
+        $tenant = $this->row->entite;
+        $this->row->status = 'active'; $this->row->periodEnd = new \DateTimeImmutable('+1 month');
+        self::assertFalse($access->allowed($tenant, $module->code), 'CACES does not unlock electrical habilitation');
+        $row = new ModuleAccess(); $row->entite = $tenant; $row->module = $module;
+        $row->status = 'trialing'; $row->periodEnd = new \DateTimeImmutable('+30 days');
+        $this->em->persist($row); $this->em->flush();
+        self::assertTrue($access->allowed($tenant, $module->code));
+        $row->periodEnd = new \DateTimeImmutable('-1 second');
+        self::assertFalse($access->allowed($tenant, $module->code));
+        $row->status = 'active'; $row->periodEnd = new \DateTimeImmutable('+1 month');
+        self::assertTrue($access->allowed($tenant, $module->code));
+        $row->status = 'canceled';
+        self::assertFalse($access->allowed($tenant, $module->code));
+        $row->gift = true; $row->giftEnd = null;
+        self::assertTrue($access->allowed($tenant, $module->code), 'Permanent gift unlocks the option');
+        $row->giftEnd = new \DateTimeImmutable('+7 days');
+        self::assertTrue($access->allowed($tenant, $module->code));
+        $row->giftEnd = new \DateTimeImmutable('-1 second');
+        self::assertFalse($access->allowed($tenant, $module->code));
+        $row->gift = false; $row->giftEnd = null;
+        self::assertFalse($access->allowed($tenant, $module->code), 'Revocation removes gifted access');
+    }
+
+    public function testElectricalControllersRequireTheOption(): void
+    {
+        foreach ([
+            \App\Controller\Administrateur\HabilitationController::class,
+            \App\Controller\Formateur\HabilitationController::class,
+            \App\Controller\Stagiaire\HabilitationController::class,
+            \App\Controller\Entreprise\HabilitationController::class,
+            \App\Controller\Entreprise\EntrepriseHabilitationController::class,
+            \App\Controller\Shared\Habilitation\HabilitationDocumentController::class,
+        ] as $class) {
+            $attributes = (new \ReflectionClass($class))->getAttributes(\App\Security\Attribute\RequiresModule::class);
+            self::assertCount(1, $attributes, $class);
+            self::assertSame('habilitation_electrique', $attributes[0]->newInstance()->code);
+        }
+    }
+
     private function subscription(string $status = 'active'): array
     {
         return ['id' => 'sub_test', 'object' => 'subscription', 'status' => $status, 'customer' => 'cus_test', 'metadata' => ['module_access' => (string)$this->row->id, 'entite_id' => (string)$this->row->entite->getId(), 'module_code' => 'caces'], 'items' => ['data' => [['quantity' => 1, 'price' => ['id' => 'price_test'], 'current_period_end' => time()+86400]]]];
