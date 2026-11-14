@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\{Request,Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
+#[\App\Security\Attribute\RequiresModule('caces')]
 #[Route('/caces/{entite}',name:'app_caces_',requirements:['entite'=>'\d+'])]
 #[IsGranted(TenantPermission::ACCESS,subject:'entite')]
 final class CacesController extends AbstractController

@@ -1,0 +1,48 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Options & modules — WikiFormation{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/modules.css') }}">{% endblock %}
+{% block body %}
+<div class="module-store">
+  <header class="module-hero">
+    <div><span class="module-eyebrow">WIKIFORMATION · À LA CARTE</span><h1>Votre organisme.<br>De nouvelles possibilités.</h1><p>Enrichissez votre espace avec les outils dont votre équipe a besoin. Un abonnement par organisme, pour tous ses utilisateurs.</p></div>
+    <div class="module-hero-note"><i class="bi bi-grid-1x2" aria-hidden="true"></i><strong>Votre espace évolue avec vous</strong><span>Sans engagement de durée.<br>Vos données restent conservées.</span></div>
+  </header>
+  {% for type, messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
+  {% if checkoutReturned %}<div class="alert alert-info" role="status">Votre demande a été reçue. L’activation est confirmée après synchronisation avec Stripe. Si elle n’apparaît pas encore, actualisez cette page dans quelques instants.</div>{% endif %}
+  {% if internal %}<div class="module-notice"><i class="bi bi-stars" aria-hidden="true"></i><div><strong>Accès plateforme I.T. For You</strong><p>Tous les modules sont accessibles à votre organisme sans souscription supplémentaire.</p></div></div>{% endif %}
+  <div class="module-heading"><div><span class="module-eyebrow">CONSTRUISEZ VOTRE ESPACE</span><h2>Options & modules</h2></div>{% if is_granted('ROLE_SUPER_ADMIN') %}<a class="btn btn-outline-dark" href="{{ path('app_super_modules_index') }}">Administrer les options</a>{% endif %}</div>
+  <div class="module-grid">
+  {% for card in cards %}{% set m = card.module %}{% set a = card.access %}
+    <article class="module-card">
+      <div class="module-card-top"><span class="module-icon"><i class="bi {{ m.code == 'caces' ? 'bi-shield-check' : 'bi-grid' }}" aria-hidden="true"></i></span><span class="module-badge {{ card.allowed ? 'is-active' : '' }}">{{ card.allowed ? 'Accès actif' : 'À découvrir' }}</span></div>
+      <h3>{{ m.name }}</h3><p class="module-description">{{ m.description }}</p>
+      {% if internal or m.included %}<div class="module-price">Inclus<span>{{ internal ? 'pour I.T. For You' : 'dans votre abonnement' }}</span></div>
+      {% else %}<div class="module-price">{{ ((a and a.subscriptionId and a.status not in ['canceled', 'incomplete_expired'] ? a.price : m.monthlyPrice) / 100)|number_format(2, ',', ' ') }} €<span>/ mois · par organisme</span></div>{% endif %}
+      <p class="module-tax">Le montant total et les éventuelles taxes sont détaillés avant confirmation sur Stripe.</p>
+      <div class="module-state">
+      {% if a and a.gift and (not a.giftEnd or a.giftEnd > date()) %}<strong>Accès offert</strong><span>{{ a.giftEnd ? 'Jusqu’au ' ~ a.giftEnd|date('d/m/Y') : 'Sans date de fin' }}</span>{% endif %}
+      {% if a and a.subscriptionId %}
+        {% if a.cancelAtPeriodEnd and a.status in ['active','trialing','past_due','unpaid'] %}<strong>Résiliation programmée</strong><span>Fin d’accès le {{ a.periodEnd ? a.periodEnd|date('d/m/Y') : '—' }}. Aucun renouvellement ensuite.</span>
+        {% elseif a.status == 'trialing' %}<strong>Essai en cours</strong><span>Jusqu’au {{ a.periodEnd|date('d/m/Y') }}, puis {{ (a.price / 100)|number_format(2, ',', ' ') }} €/mois.</span>
+        {% elseif a.status == 'active' %}<strong>Abonnement mensuel</strong><span>Échéance le {{ a.periodEnd ? a.periodEnd|date('d/m/Y') : '—' }}.</span>
+        {% elseif a.status in ['past_due','unpaid','incomplete','paused'] %}<strong>Paiement à régulariser</strong><span>Ouvrez la facturation pour mettre à jour votre moyen de paiement.</span>
+        {% else %}<strong>Abonnement terminé</strong><span>Vos dossiers vous attendent : retrouvez-les dès la réactivation.</span>{% endif %}
+      {% elseif not card.allowed and m.trialDays and (not a or not a.trialUsed) %}<strong>{{ m.trialDays }} jours d’essai offerts</strong><span>Puis {{ (m.monthlyPrice / 100)|number_format(2, ',', ' ') }} €/mois. Annulable avant la fin de l’essai.</span>{% endif %}
+      </div>
+      <div class="module-actions">
+      {% if card.allowed and m.code == 'caces' %}<a class="btn module-primary" href="{{ path('app_caces_index', {entite: entite.id}) }}">Ouvrir Certification CACES® <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>{% endif %}
+      {% if not card.allowed and m.active and not m.included and not internal and (not a or not a.subscriptionId or a.status in ['canceled','incomplete_expired']) %}
+      <form method="post" action="{{ path('app_modules_action', {entite: entite.id, code: m.code, action: 'subscribe'}) }}"><input type="hidden" name="_token" value="{{ csrf_token('module_' ~ entite.id ~ '_' ~ m.code ~ '_subscribe') }}"><button class="btn module-primary w-100">{{ m.trialDays and (not a or not a.trialUsed) ? 'Commencer mon essai' : 'Activer cette option' }} <i class="bi bi-arrow-right" aria-hidden="true"></i></button></form>
+      {% endif %}
+      {% if a and a.subscriptionId and a.status in ['active','trialing','past_due','unpaid'] %}
+        {% if a.cancelAtPeriodEnd %}<form method="post" action="{{ path('app_modules_action', {entite: entite.id, code: m.code, action: 'resume'}) }}"><input type="hidden" name="_token" value="{{ csrf_token('module_' ~ entite.id ~ '_' ~ m.code ~ '_resume') }}"><button class="btn btn-outline-dark w-100">Conserver mon abonnement</button></form>
+        {% else %}<details class="module-cancel"><summary>Résilier cette option</summary><p>Votre accès reste disponible jusqu’au {{ a.periodEnd ? a.periodEnd|date('d/m/Y') : 'terme de la période' }}. Les formateurs et stagiaires perdront ensuite l’accès. Aucun dossier ne sera supprimé.</p><form method="post" action="{{ path('app_modules_action', {entite: entite.id, code: m.code, action: 'cancel'}) }}"><input type="hidden" name="_token" value="{{ csrf_token('module_' ~ entite.id ~ '_' ~ m.code ~ '_cancel') }}"><button class="btn btn-outline-danger w-100">Confirmer la résiliation</button></form></details>{% endif %}
+      {% endif %}
+      {% if a and a.customerId %}<form method="post" action="{{ path('app_modules_action', {entite: entite.id, code: m.code, action: 'portal'}) }}"><input type="hidden" name="_token" value="{{ csrf_token('module_' ~ entite.id ~ '_' ~ m.code ~ '_portal') }}"><button class="btn btn-link w-100">Factures & moyen de paiement</button></form>{% endif %}
+      </div>
+    </article>
+  {% else %}<div class="module-card"><h3>De nouvelles options arrivent bientôt</h3><p>Les modules seront affichés ici dès leur ouverture à la souscription.</p></div>{% endfor %}
+  </div>
+  <section class="module-assurances"><div><i class="bi bi-people" aria-hidden="true"></i><h3>Toute votre équipe</h3><p>Une seule souscription couvre les utilisateurs autorisés de l’organisme.</p></div><div><i class="bi bi-arrow-repeat" aria-hidden="true"></i><h3>Libre d’arrêter et de revenir</h3><p>Résiliez en quelques clics. À votre retour, retrouvez vos dossiers et votre historique.</p></div><div><i class="bi bi-credit-card" aria-hidden="true"></i><h3>Paiement sécurisé</h3><p>Vos abonnements et moyens de paiement sont gérés par Stripe.</p></div></section>
+</div>
+{% endblock %}

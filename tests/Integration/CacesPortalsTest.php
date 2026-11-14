@@ -58,12 +58,86 @@ final class CacesPortalsTest extends KernelTestCase
         $this->dossier = (new EvaluationDossier())->setEntite($this->tenant)->setCreateur($this->admin)->setTemplate($this->template)->setInscription($inscription)->setEvaluator($this->trainer)->setSnapshot($this->workflow()->snapshotTemplate($this->template));
         foreach ([$formateur, $site, $formation, $session, $inscription, $this->template, $this->dossier] as $entity) $this->em->persist($entity);
         $this->em->flush();
+        $module = new \App\Entity\Billing\Module(); $module->code = 'caces'; $module->name = 'CACES';
+        $access = new \App\Entity\Billing\ModuleAccess(); $access->entite = $this->tenant; $access->module = $module; $access->gift = true;
+        $this->em->persist($module); $this->em->persist($access); $this->em->flush();
         $library=self::getContainer()->get(\App\Service\Caces\CacesLibrary::class);
         $exam=(new \App\Entity\CacesExam())->setEntite($this->tenant)->setSession($session)->setCreateur($this->admin)->setTheoryTester($this->trainer)->setPracticeTester($this->trainer)->setRecommendation('489')->setCategory('3')->setLocation('Centre test')->setTheorySnapshot($library->find($this->tenant,'r489-v1-202412-g1'))->setPracticeSnapshot($library->find($this->tenant,'r489-cat3-pratique-202607'));
         $this->caces=(new \App\Entity\CacesAttempt())->setEntite($this->tenant)->setExam($exam)->setInscription($inscription)->setLearner($this->learner);
         $this->em->persist($exam);$this->em->persist($this->caces);$this->em->flush();
         $this->client = self::getContainer()->get('test.client');
         $this->client->disableReboot(); $this->client->catchExceptions(false);
+    }
+
+    public function testModuleRevocationBlocksTrainerLearnerDocumentsAndWritesWithoutDeletingRecords(): void
+    {
+        $access = $this->em->getRepository(\App\Entity\Billing\ModuleAccess::class)->findOneBy(['entite' => $this->tenant]);
+        $access->gift = false; $this->em->flush();
+        $this->client->catchExceptions(true);
+        foreach ([$this->trainer, $this->learner] as $user) {
+            $this->client->loginUser($user);
+            foreach (['/mes-tests', '/dossiers/'.$this->caces->getId(), '/dossiers/'.$this->caces->getId().'/documents/synthese'] as $path) {
+                $this->client->request('GET', '/fr/caces/'.$this->tenant->getId().$path);
+                self::assertSame(403, $this->client->getResponse()->getStatusCode());
+            }
+            $this->client->request('POST', '/fr/caces/'.$this->tenant->getId().'/dossiers/'.$this->caces->getId().'/pratique/brouillon');
+            self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        }
+        self::assertSame(1, $this->em->getRepository(\App\Entity\CacesAttempt::class)->count([]));
+        $access = $this->em->find(\App\Entity\Billing\ModuleAccess::class, $access->id);
+        $access->gift = true; $this->em->flush();
+        $this->client->loginUser($this->learner);
+        $this->client->request('GET', '/fr/caces/'.$this->tenant->getId().'/mes-tests');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+    }
+
+    public function testModuleStoreAndAdministrationRenderAndRequireBillingRights(): void
+    {
+        $access = $this->em->getRepository(\App\Entity\Billing\ModuleAccess::class)->findOneBy(['entite' => $this->tenant]);
+        $access->gift = false; $access->module->active = true; $this->em->flush();
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/fr/caces/'.$this->tenant->getId());
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('/options', $this->client->getResponse()->headers->get('Location'));
+        $this->client->request('GET', '/fr/organisme/'.$this->tenant->getId().'/options');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Commencer mon essai', $this->client->getResponse()->getContent());
+        self::assertStringContainsString('200,00', $this->client->getResponse()->getContent());
+        $this->client->catchExceptions(true);
+        $this->client->request('POST', '/fr/organisme/'.$this->tenant->getId().'/options/caces/subscribe');
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->client->loginUser($this->learner);
+        $this->client->request('GET', '/fr/organisme/'.$this->tenant->getId().'/options');
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/fr/super/options');
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->admin = $this->em->find(Utilisateur::class, $this->admin->getId());
+        $this->admin->setRoles(['ROLE_SUPER_ADMIN']); $this->em->flush();
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/fr/super/options');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Offrir un accès', $this->client->getResponse()->getContent());
+    }
+
+    public function testModuleGiftsAreAuditedAndInvalidCatalogueDoesNotMutateStoredPrice(): void
+    {
+        $this->admin->setRoles(['ROLE_SUPER_ADMIN']); $this->em->flush();
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/fr/super/options');
+        $token = $crawler->filter('input[name="_token"]')->first()->attr('value');
+        $this->client->request('POST', '/fr/super/options/acces', ['_token' => $token, 'entite' => $this->tenant->getId(), 'code' => 'caces', 'action' => 'trial', 'end' => (new \DateTimeImmutable('+10 days'))->format('Y-m-d'), 'reason' => 'Découverte accompagnée']);
+        self::assertSame(303, $this->client->getResponse()->getStatusCode());
+        $access = $this->em->getRepository(\App\Entity\Billing\ModuleAccess::class)->findOneBy(['entite' => $this->tenant]);
+        self::assertTrue($access->hasAccess()); self::assertTrue($access->trialUsed);
+        self::assertSame($this->admin->getId(), $access->history[0]['actor']);
+        $this->client->request('POST', '/fr/super/options/catalogue', ['_token' => $token, 'code' => 'caces', 'name' => 'Wrong price', 'price' => '1.00', 'trialDays' => '30', 'active' => '1', 'stripePriceId' => '']);
+        self::assertSame(303, $this->client->getResponse()->getStatusCode());
+        $this->em->flush(); $this->em->clear();
+        self::assertSame(20000, $this->em->find(\App\Entity\Billing\Module::class, 'caces')->monthlyPrice);
+        $this->client->catchExceptions(true);
+        $this->client->request('POST', '/fr/super/options/acces', ['_token' => $token, 'entite' => $this->tenant->getId(), 'code' => 'caces', 'action' => 'trial', 'end' => '2026-02-31', 'reason' => 'Invalid date']);
+        self::assertSame(400, $this->client->getResponse()->getStatusCode());
     }
 
     public function testCacesProfilePrefillKeepsExplicitValidationAndTenantIsolation(): void

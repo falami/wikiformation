@@ -1,0 +1,39 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Administration des options — WikiFormation{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/modules.css') }}">{% endblock %}
+{% block body %}<div class="module-store">
+<header class="module-hero"><div><span class="module-eyebrow">CONSOLE PLATEFORME</span><h1>Les bons outils.<br>Les bonnes conditions.</h1><p>Pilotez vos modules, leurs tarifs et les accès offerts à chaque organisme.</p></div></header>
+{% for type, messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
+<div class="module-heading"><h2>Catalogue & tarifs</h2></div>
+<p>Un nouveau tarif s’applique aux prochaines souscriptions. Les abonnements existants conservent leur prix. Dépublier une option arrête sa commercialisation, sans retirer les accès déjà accordés.</p>
+<div class="module-grid">
+{% for m in modules|merge([null]) %}<section class="module-card"><h3>{{ m ? m.name : 'Ajouter un module' }}</h3>
+<form class="module-admin-form" method="post" action="{{ path('app_super_modules_save') }}">
+<input type="hidden" name="_token" value="{{ csrf_token('module_admin') }}">
+<label>Code technique<input name="code" required pattern="[a-z][a-z0-9_]{1,59}" maxlength="60" value="{{ m ? m.code : '' }}" {{ m ? 'readonly' : '' }}></label>
+<label>Nom<input name="name" required maxlength="120" value="{{ m ? m.name : '' }}"></label>
+<label>Description<textarea name="description">{{ m ? m.description : '' }}</textarea></label>
+<label>Prix mensuel (€)<input name="price" type="number" min="0.50" max="999999.99" step="0.01" required value="{{ m ? (m.monthlyPrice / 100)|number_format(2, '.', '') : '200.00' }}"></label>
+<label>Essai initial (jours)<input name="trialDays" type="number" min="0" max="730" value="{{ m ? m.trialDays : 30 }}" required></label>
+<label>Identifiant du tarif Stripe mensuel<input name="stripePriceId" placeholder="price_…" value="{{ m ? m.stripePriceId : '' }}"></label>
+<label class="check"><input type="checkbox" name="createPrice" value="1"> Créer un nouveau tarif Stripe pour ce montant</label>
+<small>Utilise le compte Stripe de la plateforme. Aucun abonnement existant n’est modifié.</small>
+<label class="check"><input type="checkbox" name="active" value="1" {{ m and m.active ? 'checked' : '' }}> Publier dans la boutique</label>
+<label class="check"><input type="checkbox" name="included" value="1" {{ m and m.included ? 'checked' : '' }}> Inclus pour tous les organismes</label>
+{% if not m %}<small>Un nouveau code doit être relié aux contrôles serveur de sa fonctionnalité avant sa commercialisation. CACES est déjà intégré.</small>{% endif %}
+<button class="btn module-primary">Enregistrer le module</button></form></section>{% endfor %}
+</div>
+<div class="module-heading"><h2>Offrir un accès</h2></div>
+<section class="module-card"><form class="module-admin-form" method="post" action="{{ path('app_super_modules_grant') }}">
+<input type="hidden" name="_token" value="{{ csrf_token('module_admin') }}">
+<label>Organisme<select name="entite" required>{% for e in organisms %}<option value="{{ e.id }}">{{ e.nom }} · #{{ e.id }}</option>{% endfor %}</select></label>
+<label>Module<select name="code" required>{% for m in modules %}<option value="{{ m.code }}">{{ m.name }}</option>{% endfor %}</select></label>
+<label>Attribution<select name="action"><option value="gift">Accès gratuit</option><option value="trial">Essai offert</option><option value="revoke">Retirer l’accès offert</option></select></label>
+<label>Fin d’accès (début de journée, heure de Paris)<input type="date" name="end"></label><small>Laissez vide pour une gratuité sans date de fin. Obligatoire pour un essai. Aucun prélèvement automatique à la fin d’un essai offert ici.</small>
+<label>Motif / référence commerciale<textarea name="reason" required maxlength="500"></textarea></label>
+<div class="alert alert-info">Cette attribution ne résilie pas un abonnement payant existant. Si l’organisme est déjà abonné, sa facturation continue tant qu’il ne le résilie pas.</div>
+<button class="btn module-primary">Appliquer à cet organisme</button></form></section>
+<div class="module-heading"><h2>Abonnements & historique</h2></div>
+<div class="module-scroll"><table class="module-admin-table"><thead><tr><th>Organisme / module</th><th>Abonnement</th><th>Accès offert</th><th>Journal</th></tr></thead><tbody>
+{% for a in accesses %}<tr><td><strong>{{ a.entite.nom }}</strong><br>{{ a.module.name }}</td><td>{{ a.status }}{% if a.price is not null %}<br>{{ (a.price / 100)|number_format(2, ',', ' ') }} €/mois{% endif %}{% if a.periodEnd %}<br>Échéance : {{ a.periodEnd|date('d/m/Y') }}{% endif %}{% if a.cancelAtPeriodEnd %}<br>Résiliation programmée{% endif %}</td><td>{{ a.gift ? (a.giftEnd ? 'Jusqu’au ' ~ a.giftEnd|date('d/m/Y') : 'Sans date de fin') : '—' }}</td><td><details><summary>{{ a.history|length }} événements</summary>{% for h in a.history|reverse %}<p>{{ h.at|date('d/m/Y H:i') }} · {{ h.action }}{% if h.actor %} · utilisateur #{{ h.actor }}{% endif %}</p>{% endfor %}</details></td></tr>{% else %}<tr><td colspan="4">Aucune souscription ou attribution pour le moment.</td></tr>{% endfor %}
+</tbody></table></div></div>{% endblock %}

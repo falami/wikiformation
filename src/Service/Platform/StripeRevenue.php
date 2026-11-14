@@ -21,6 +21,13 @@ final class StripeRevenue
         if (!is_string($subscription)) return null;
         $sub = $this->em->getRepository(EntiteSubscription::class)->findOneBy(['stripeSubscriptionId'=>$subscription]);
         if (!$sub) {
+            $module = $this->em->getRepository(\App\Entity\Billing\ModuleAccess::class)->findOneBy(['subscriptionId' => $subscription])
+                ?? $this->em->getRepository(\App\Entity\Billing\ModuleAccess::class)->findOneBy(['customerId' => $invoice['customer'] ?? '']);
+            if ($module && $module->customerId === ($invoice['customer'] ?? null)) {
+                $sub = (new EntiteSubscription())->setEntite($module->entite)->setStripeCustomerId($module->customerId);
+            }
+        }
+        if (!$sub) {
             $matches = $this->em->getRepository(EntiteSubscription::class)->findBy(['stripeCustomerId'=>$invoice['customer'] ?? '']);
             $tenants = [];
             foreach ($matches as $match) $tenants[$match->getEntite()->getId()] = $match;
@@ -63,7 +70,11 @@ final class StripeRevenue
         if (!$lock->acquire()) throw new \RuntimeException('Un rapprochement est déjà en cours.');
         try {
             $client = $this->factory->client(); $count = 0; $customers = [];
-            foreach ($this->em->getRepository(EntiteSubscription::class)->findAll() as $sub) {
+            $subscriptions = $this->em->getRepository(EntiteSubscription::class)->findAll();
+            foreach ($this->em->getRepository(\App\Entity\Billing\ModuleAccess::class)->findAll() as $module) {
+                if ($module->customerId) $subscriptions[] = (new EntiteSubscription())->setEntite($module->entite)->setStripeCustomerId($module->customerId);
+            }
+            foreach ($subscriptions as $sub) {
                 $customer = $sub->getStripeCustomerId();
                 if (!$customer || isset($customers[$customer])) continue;
                 $customers[$customer] = true;

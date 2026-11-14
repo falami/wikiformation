@@ -10,6 +10,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\HttpFoundation\{Response,StreamedResponse};
 
+#[\App\Security\Attribute\RequiresModule('caces')]
 #[Route('/caces/{entite}',name:'app_caces_',requirements:['entite'=>'\d+'])]
 #[IsGranted(TenantPermission::ACCESS,subject:'entite')]
 final class CacesDocumentController extends AbstractController

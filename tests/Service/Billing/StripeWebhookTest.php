@@ -21,6 +21,7 @@ final class StripeWebhookTest extends KernelTestCase
         $this->env = [$_ENV['DATABASE_URL'] ?? null, $_SERVER['DATABASE_URL'] ?? null];
         $_ENV['DATABASE_URL'] = $_SERVER['DATABASE_URL'] = 'sqlite:///:memory:';
         self::bootKernel();
+        self::getContainer()->set(\Symfony\Component\Mailer\MailerInterface::class, $this->createMock(\Symfony\Component\Mailer\MailerInterface::class));
         $this->em = self::getContainer()->get('doctrine')->getManager();
         (new \Doctrine\ORM\Tools\SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         $user = (new \App\Entity\Utilisateur())->setEmail('webhook@example.test')->setPassword('unused')->setPrenom('Test')->setNom('Test');
@@ -53,9 +54,11 @@ final class StripeWebhookTest extends KernelTestCase
         return (new StripeWebhookController())->webhook(
             $request,
             new StripeBillingService('sk_test_fixture', 'https://example.test/fr'),
+            self::getContainer()->get(\App\Service\Module\ModuleBilling::class),
             self::getContainer()->get(\App\Service\Platform\StripeRevenue::class),
             new \App\Service\Marketplace\Payments($em,$this->createMock(\App\Service\Marketplace\StripeGateway::class),new \App\Service\Marketplace\Policy($em),$this->createMock(\Symfony\Component\Routing\Generator\UrlGeneratorInterface::class),self::getContainer()->get(\App\Service\Marketplace\Invoicing::class),self::getContainer()->get(\App\Service\Marketplace\MarketplaceInvoiceReadiness::class)),
             new \App\Service\Marketplace\Confirmations($em,new \App\Service\Email\MailerManager($this->createMock(\Symfony\Component\Mailer\MailerInterface::class),new \Twig\Environment(new \Twig\Loader\ArrayLoader()),$this->createMock(\Symfony\Component\Routing\Generator\UrlGeneratorInterface::class)),$this->createMock(\Symfony\Component\Routing\Generator\UrlGeneratorInterface::class)),
+            self::getContainer()->get(\App\Service\Billing\SubscriptionNotification::class),
             new EntiteSubscriptionRepository($registry),
             new PlanRepository($registry),
             $em,

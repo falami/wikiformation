@@ -18,6 +18,7 @@ final class StripeWebhookController extends AbstractController
   public function webhook(
     Request $request,
     StripeBillingService $stripeBilling,
+    \App\Service\Module\ModuleBilling $moduleBilling,
     \App\Service\Platform\StripeRevenue $platformRevenue,
     \App\Service\Marketplace\Payments $marketplace,
     \App\Service\Marketplace\Confirmations $marketConfirmations,
@@ -41,6 +42,7 @@ final class StripeWebhookController extends AbstractController
     }
 
     try {
+      if ((str_starts_with($event->type, 'checkout.session.') || str_starts_with($event->type, 'customer.subscription.')) && $moduleBilling->webhook($event->type, $event->data->object->toArray())) return new Response('ok');
       if (in_array($event->type, ['checkout.session.completed','checkout.session.async_payment_succeeded','checkout.session.expired'], true)) {
         $marketId = $event->data->object->metadata->marketplace_purchase ?? null;
         if ($marketId) {

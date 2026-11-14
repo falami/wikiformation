@@ -147,8 +147,13 @@
       groups.forEach(function (group) { group.item.classList.remove('wn-current-group'); });
       var currentGroup = null;
       if (best) {
-        best.classList.add('wn-current');
-        best.setAttribute('aria-current', 'page');
+        // A shared destination can appear in several role sections (for example CACES).
+        // Highlight every occurrence of that destination, not only the first one.
+        links.forEach(function (link) {
+          if (link.href !== best.href) return;
+          link.classList.add('wn-current');
+          link.setAttribute('aria-current', 'page');
+        });
         currentGroup = groups.find(function (group) { return group.panel.contains(best); }) || null;
       } else {
         currentGroup = groups.find(function (group) { return group.button.classList.contains('text-theme-secondaire'); }) || null;
