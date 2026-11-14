@@ -39,6 +39,49 @@ final class ModuleBillingTest extends KernelTestCase
     {
         return ['id' => 'sub_test', 'object' => 'subscription', 'status' => $status, 'customer' => 'cus_test', 'metadata' => ['module_access' => (string)$this->row->id, 'entite_id' => (string)$this->row->entite->getId(), 'module_code' => 'caces'], 'items' => ['data' => [['quantity' => 1, 'price' => ['id' => 'price_test'], 'current_period_end' => time()+86400]]]];
     }
+    public function testPortalCancellationAndReversalAreRecoveredWithoutWebhook(): void
+    {
+        $this->row->subscriptionId = 'sub_test'; $this->em->flush();
+        $sub = $this->subscription('trialing');
+        $sub['trial_end'] = time() + 3600;
+        $sub['cancel_at_period_end'] = true;
+        $resumed = $sub; $resumed['cancel_at_period_end'] = false;
+        $http = $this->createMock(ClientInterface::class);
+        $http->expects(self::exactly(3))->method('request')->willReturnOnConsecutiveCalls(
+            [json_encode($sub), 200, []], [json_encode($resumed), 200, []],
+            [json_encode($this->subscription('canceled')), 200, []]
+        );
+        ApiRequestor::setHttpClient($http);
+        self::assertTrue($this->billing->refreshSubscription($this->row));
+        $this->em->refresh($this->row);
+        self::assertTrue($this->row->cancelAtPeriodEnd);
+        self::assertTrue($this->row->hasAccess());
+        self::assertSame($sub['trial_end'], $this->row->periodEnd->getTimestamp());
+        self::assertTrue($this->billing->refreshSubscription($this->row));
+        self::assertFalse($this->row->cancelAtPeriodEnd);
+        self::assertTrue($this->billing->refreshSubscription($this->row));
+        self::assertFalse($this->row->hasAccess());
+    }
+
+    public function testRefreshFailurePreservesStateAndManager(): void
+    {
+        $this->billing->sync($this->row, $this->subscription()); $this->em->flush();
+        $foreign = $this->subscription('canceled'); $foreign['customer'] = 'cus_foreign';
+        $http = $this->createMock(ClientInterface::class);
+        $http->expects(self::exactly(2))->method('request')->willReturnOnConsecutiveCalls(
+            [json_encode($foreign), 200, []],
+            [json_encode(['error' => ['message' => 'Unavailable', 'type' => 'invalid_request_error']]), 400, []]
+        );
+        ApiRequestor::setHttpClient($http);
+        foreach ([1, 2] as $_) {
+            self::assertFalse($this->billing->refreshSubscription($this->row));
+            self::assertTrue($this->em->isOpen());
+            $this->em->refresh($this->row);
+            self::assertSame('active', $this->row->status);
+            self::assertTrue($this->row->hasAccess());
+        }
+    }
+
     public function testAccessExpiresWithoutWebhookAndNeverDeletesData(): void
     {
         $this->billing->sync($this->row, $this->subscription());

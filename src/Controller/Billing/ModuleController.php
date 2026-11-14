@@ -19,14 +19,20 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class ModuleController extends AbstractController
 {
     #[Route('', name: 'index', methods: ['GET'])]
-    public function index(Entite $entite, Request $request, EntityManagerInterface $em, ModuleEntitlement $access, UtilisateurEntiteManager $members): Response
+    public function index(Entite $entite, Request $request, EntityManagerInterface $em, ModuleEntitlement $access, UtilisateurEntiteManager $members, ModuleBilling $billing, LoggerInterface $logger): Response
     {
         $cards = [];
+        $syncFailed = false;
         foreach ($em->getRepository(Module::class)->findBy([], ['name' => 'ASC']) as $module) {
             $row = $access->access($entite, $module);
+            if ($row?->subscriptionId && !$billing->refreshSubscription($row)) {
+                $syncFailed = true;
+                $logger->warning('Module subscription refresh failed', ['entite' => $entite->getId(), 'module' => $module->code]);
+            }
             if (!$module->active && !$row && !$module->included && !$access->internal($entite)) continue;
             $cards[] = ['module' => $module, 'access' => $row, 'allowed' => $access->allowed($entite, $module->code)];
         }
+        if ($syncFailed) $this->addFlash('warning', 'Impossible de vérifier les dernières modifications auprès de Stripe. Les informations affichées correspondent à la dernière synchronisation. Actualisez dans quelques instants.');
         return $this->render('modules/index.html.twig', ['entite' => $entite, 'cards' => $cards, 'internal' => $access->internal($entite), 'utilisateurEntite' => $members->getUserEntiteLink($entite), 'checkoutReturned' => $request->query->get('checkout') === 'success']);
     }
 

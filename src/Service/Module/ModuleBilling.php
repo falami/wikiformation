@@ -110,6 +110,24 @@ final class ModuleBilling
         }
     }
 
+    /** Refresh portal changes even when the webhook has not arrived yet. */
+    public function refreshSubscription(ModuleAccess $row): bool
+    {
+        return $this->locked($row->entite, function () use ($row): bool {
+            $this->em->refresh($row);
+            if (!$row->subscriptionId) return true;
+            try {
+                $sub = $this->stripe->client()->subscriptions->retrieve($row->subscriptionId)->toArray();
+                if (($sub['id'] ?? null) !== $row->subscriptionId) return false;
+                // Validation precedes every mutation; failed reads preserve the verified state.
+                $this->sync($row, $sub);
+            } catch (\Stripe\Exception\ApiErrorException|\DomainException $e) {
+                return false;
+            }
+            return true;
+        });
+    }
+
     public function cancellation(Entite $entite, Module $module, bool $cancel, ?int $actor): void
     {
         $this->locked($entite, function () use ($entite, $module, $cancel, $actor) {
