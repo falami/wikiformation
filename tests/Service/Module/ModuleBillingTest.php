@@ -164,6 +164,53 @@ final class ModuleBillingTest extends KernelTestCase
         self::assertSame('https://billing.stripe.com/fixture', $this->billing->portal($this->row->entite, $this->row->module, 'https://example.test/options'));
     }
 
+    private function completedCheckout(): array
+    {
+        return ['id' => 'cs_completed', 'object' => 'checkout.session', 'status' => 'complete', 'mode' => 'subscription', 'customer' => 'cus_test', 'subscription' => 'sub_test', 'metadata' => ['module_access' => (string) $this->row->id]];
+    }
+
+    public function testCompletedCheckoutRecoversTrialWhenWebhookWasMissed(): void
+    {
+        $this->row->checkoutId = 'cs_completed'; $this->em->flush();
+        $id = $this->row->id;
+        $sub = $this->subscription('trialing'); $sub['trial_start'] = time(); $sub['trial_end'] = time() + 86400;
+        $http = $this->createMock(ClientInterface::class);
+        $http->expects(self::exactly(2))->method('request')->willReturnCallback(function ($method, $url) use ($sub) {
+            self::assertSame('get', strtolower($method));
+            return [json_encode(str_contains($url, '/checkout/sessions/') ? $this->completedCheckout() : $sub), 200, []];
+        });
+        ApiRequestor::setHttpClient($http);
+        self::assertSame('https://example.test/options', $this->billing->checkout($this->row->entite, $this->row->module, 'https://example.test/options'));
+        $this->em->clear();
+        $saved = $this->em->find(ModuleAccess::class, $id);
+        self::assertTrue($saved->hasAccess()); self::assertTrue($saved->trialUsed);
+        self::assertSame('sub_test', $saved->subscriptionId); self::assertNull($saved->checkoutId);
+        self::assertSame('trialing', $saved->status);
+    }
+
+    public function testCompletedCheckoutCannotActivateForeignCustomer(): void
+    {
+        $this->row->checkoutId = 'cs_completed'; $this->em->flush();
+        $session = $this->completedCheckout(); $session['customer'] = 'cus_foreign';
+        $http = $this->createMock(ClientInterface::class);
+        $http->expects(self::once())->method('request')->willReturn([json_encode($session), 200, []]);
+        ApiRequestor::setHttpClient($http);
+        $this->expectException(\DomainException::class);
+        $this->billing->checkout($this->row->entite, $this->row->module, 'https://example.test/options');
+    }
+
+    public function testCompletedCheckoutWithUnpaidSubscriptionDoesNotGrantAccess(): void
+    {
+        $this->row->checkoutId = 'cs_completed'; $this->em->flush();
+        $http = $this->createMock(ClientInterface::class);
+        $http->expects(self::exactly(2))->method('request')->willReturnCallback(function ($method, $url) {
+            return [json_encode(str_contains($url, '/checkout/sessions/') ? $this->completedCheckout() : $this->subscription('unpaid')), 200, []];
+        });
+        ApiRequestor::setHttpClient($http);
+        $this->billing->checkout($this->row->entite, $this->row->module, 'https://example.test/options');
+        self::assertFalse($this->row->hasAccess()); self::assertSame('unpaid', $this->row->status);
+    }
+
     public function testPriceMismatchFailsClosed(): void
     {
         $this->expectException(\DomainException::class);

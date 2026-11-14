@@ -43,7 +43,11 @@ final class ModuleBilling
                     if ($row->gift && ($row->giftEnd === null || $row->giftEnd > new \DateTimeImmutable())) throw new \DomainException('Cet organisme bénéficie déjà d’un accès offert.');
                     return $session->url;
                 }
-                if ($session->status === 'complete') throw new \DomainException('Votre paiement est en cours de synchronisation. Actualisez dans quelques instants.');
+                if ($session->status === 'complete') {
+                    $this->completeCheckout($row, $session->toArray());
+                    // Return normally: throwing here would roll back the recovered access.
+                    return $returnUrl;
+                }
                 $row->checkoutId = null;
             }
             if ($row->subscriptionId) $this->sync($row, $client->subscriptions->retrieve($row->subscriptionId)->toArray());
@@ -72,6 +76,28 @@ final class ModuleBilling
             $row->checkoutId = $session->id; $row->audit('checkout_created');
             return $session->url;
         });
+    }
+
+    private function completeCheckout(ModuleAccess $row, array $session): void
+    {
+        if (($session['id'] ?? null) !== $row->checkoutId
+            || ($session['customer'] ?? null) !== $row->customerId
+            || ($session['mode'] ?? null) !== 'subscription'
+            || ($session['metadata']['module_access'] ?? '') !== (string) $row->id
+            || !is_string($session['subscription'] ?? null) || $session['subscription'] === '') {
+            throw new \DomainException('Session Stripe incompatible avec cette option.');
+        }
+        $client = $this->stripe->client();
+        if ($row->subscriptionId && $row->subscriptionId !== $session['subscription']) {
+            $previous = $client->subscriptions->retrieve($row->subscriptionId);
+            if (!in_array($previous->status, ['canceled', 'incomplete_expired'], true)) {
+                throw new \DomainException('Un autre abonnement module est encore en cours.');
+            }
+        }
+        // Remote subscription status, identity, price and period decide access, never the return URL.
+        $this->sync($row, $client->subscriptions->retrieve($session['subscription'])->toArray());
+        $row->checkoutId = null;
+        $row->audit('checkout_reconciled');
     }
 
     public static function validatePrice(Module $module, array $price): void
