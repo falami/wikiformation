@@ -15,10 +15,12 @@ final class LigneDevisType extends AbstractType
     {
         $b
             ->add('label', TextareaType::class, [
-                'label' => '*Libellé / Détails',
+                'label' => '*Désignation et détails',
+                'help' => 'Première ligne : titre de la prestation. Chaque ligne suivante devient un point dans le PDF. Inutile d’ajouter des tirets ; ceux déjà saisis sont pris en charge.',
                 'attr' => [
                     'class' => 'form-control',
-                    'placeholder' => "Ex: Formation Excel Initial\n- Prendre en main l’interface de travail\n- Créer et présenter un tableau\n- …",
+                    'placeholder' => "Formation Excel Initial\nPrendre en main l’interface\nCréer et présenter un tableau",
+                    'data-document-description' => '',
                     'rows' => 4,
                 ],
                 'constraints' => [new Length(max: 2000)], // tu peux garder 255 si tu préfères

@@ -263,7 +263,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
         self::assertSame(2142, $invoice->getMontantTtcCents());
         self::assertSame(2142, $invoice->getTtcTotalCents());
         $html = self::getContainer()->get('twig')->render('pdf/facture.html.twig', ['entite' => $this->entite, 'facture' => $invoice]);
-        self::assertMatchesRegularExpression('~Total TTC</td>\s*<td[^>]*>21,42 €</td>~', $html);
+        self::assertMatchesRegularExpression('~Total à payer</td>\s*<td[^>]*>21,42 €</td>~', $html);
         // Register MySQL scalar equivalents only on this disposable SQLite database.
         $pdo = $this->em->getConnection()->getNativeConnection();
         $pdo->sqliteCreateFunction('GREATEST', static fn(...$values) => max($values));

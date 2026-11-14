@@ -18,6 +18,7 @@ final class InvoiceTotalsTest extends TestCase
         $projectDir = dirname(__DIR__, 3);
         $twig = new Environment(new FilesystemLoader($projectDir . '/templates'));
         $twig->addExtension(new InvoiceTotalsExtension());
+        $twig->addExtension(new \App\Twig\DocumentDescriptionExtension());
         $images = new \App\Twig\PrivateDocumentImageExtension($projectDir);
         $twig->addExtension($images);
         $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
@@ -109,7 +110,7 @@ final class InvoiceTotalsTest extends TestCase
         self::assertSame(0, WorkflowBilling::outstanding($invoice));
         $twig = $this->invoiceTwig();
         $html = $twig->render('pdf/facture.html.twig', ['facture' => $invoice, 'entite' => (new Entite())->setNom('Organisme test')]);
-        foreach (['Total HT (net)' => '29,00', 'TVA 20,00%' => '1,93', 'TVA 5,50%' => '0,53', 'Total TTC' => '31,46'] as $label => $amount) {
+        foreach (['Total HT' => '29,00', 'TVA 20,00%' => '1,93', 'TVA 5,50%' => '0,53', 'Total à payer' => '31,46'] as $label => $amount) {
             self::assertMatchesRegularExpression('~' . preg_quote($label, '~') . '</td>\s*<td[^>]*>' . preg_quote($amount, '~') . ' €</td>~', $html);
         }
         // A persisted document must never be retroactively recalculated.
@@ -143,7 +144,7 @@ final class InvoiceTotalsTest extends TestCase
         $preview = $twig->render('pdf/facture.html.twig', $context);
         $delivery = $twig->render('pdf/facture.html.twig', $context + ['invoiceTotals' => $totals]);
         self::assertSame(trim($preview), trim($delivery));
-        self::assertMatchesRegularExpression('~Total TTC</td>\s*<td[^>]*>0,04 €</td>~', $preview);
+        self::assertMatchesRegularExpression('~Total à payer</td>\s*<td[^>]*>0,04 €</td>~', $preview);
         self::assertMatchesRegularExpression('~Montant TVA</td>\s*<td[^>]*>0,01 €</td>~', $preview);
         self::assertStringNotContainsString('9,99 €', $preview);
     }
