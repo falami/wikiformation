@@ -1,6 +1,6 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Administration des options — WikiFormation{% endblock %}
-{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/modules.css') }}">{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/recruitment/tom-select.css') }}"><link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/module-controls.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/modules.css') }}">{% endblock %}
 {% block body %}<div class="module-store">
 <header class="module-hero"><div><span class="module-eyebrow">CONSOLE PLATEFORME</span><h1>Les bons outils.<br>Les bonnes conditions.</h1><p>Pilotez vos modules, leurs tarifs et les accès offerts à chaque organisme.</p></div></header>
 {% for type, messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
@@ -37,3 +37,10 @@
 <div class="module-scroll"><table class="module-admin-table"><thead><tr><th>Organisme / module</th><th>Abonnement</th><th>Accès offert</th><th>Journal</th></tr></thead><tbody>
 {% for a in accesses %}<tr><td><strong>{{ a.entite.nom }}</strong><br>{{ a.module.name }}</td><td>{{ a.status }}{% if a.price is not null %}<br>{{ (a.price / 100)|number_format(2, ',', ' ') }} €/mois{% endif %}{% if a.periodEnd %}<br>Échéance : {{ a.periodEnd|date('d/m/Y') }}{% endif %}{% if a.cancelAtPeriodEnd %}<br>Résiliation programmée{% endif %}</td><td>{{ a.gift ? (a.giftEnd ? 'Jusqu’au ' ~ a.giftEnd|date('d/m/Y') : 'Sans date de fin') : '—' }}</td><td><details><summary>{{ a.history|length }} événements</summary>{% for h in a.history|reverse %}<p>{{ h.at|date('d/m/Y H:i') }} · {{ h.action }}{% if h.actor %} · utilisateur #{{ h.actor }}{% endif %}</p>{% endfor %}</details></td></tr>{% else %}<tr><td colspan="4">Aucune souscription ou attribution pour le moment.</td></tr>{% endfor %}
 </tbody></table></div></div>{% endblock %}
+
+{% block javascripts_bottom %}
+{{ parent() }}
+<script src="{{ asset('dist/recruitment/tom-select.min.js') }}"></script>
+<script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}"></script>
+<script src="{{ asset('dist/js/module-controls.js') }}"></script>
+{% endblock %}
