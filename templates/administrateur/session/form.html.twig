@@ -1226,6 +1226,8 @@
               <div class="col-12"><label class="form-label" for="participant-company-name">Raison sociale *</label><input id="participant-company-name" name="raisonSociale" class="form-control" required maxlength="255" placeholder="Ex. Renault Nîmes"></div>
               <div class="col-md-6"><label class="form-label" for="participant-company-siret">SIRET</label><input id="participant-company-siret" name="siret" class="form-control" inputmode="numeric" maxlength="17" placeholder="14 chiffres"></div>
               <div class="col-md-6"><label class="form-label" for="participant-company-email">E-mail de contact</label><input id="participant-company-email" name="email" type="email" class="form-control" maxlength="180" placeholder="contact@entreprise.fr"></div>
+              <div class="col-12"><label class="form-label" for="participant-company-vat">Numéro de TVA intracommunautaire</label><input id="participant-company-vat" name="numeroTVA" class="form-control" maxlength="32" placeholder="FR…" autocapitalize="characters"><div class="form-text">Facultatif si non applicable.</div></div>
+              <div class="col-12"><div class="form-label" id="participant-company-search-label">Rechercher une adresse</div><p class="form-text mb-2">L’aide Google est facultative et s’active depuis le formulaire principal. Sélectionnez une proposition pour remplir l’adresse, le code postal et la ville.</p><gmp-place-autocomplete id="participant-company-autocomplete" aria-labelledby="participant-company-search-label"></gmp-place-autocomplete><p id="participant-company-search-status" class="form-text" role="status"></p></div>
               <div class="col-12"><label class="form-label" for="participant-company-address">Adresse</label><input id="participant-company-address" name="adresse" class="form-control" maxlength="255" autocomplete="street-address"></div>
               <div class="col-md-4"><label class="form-label" for="participant-company-postcode">Code postal</label><input id="participant-company-postcode" name="codePostal" class="form-control" maxlength="20" autocomplete="postal-code"></div>
               <div class="col-md-8"><label class="form-label" for="participant-company-city">Ville</label><input id="participant-company-city" name="ville" class="form-control" maxlength="100" autocomplete="address-level2"></div>
@@ -1266,10 +1268,10 @@
             </div>
 
             <div class="col-md-12">
+              <div id="new-site-address-help" class="form-text mb-3">Saisie manuelle disponible. L’aide Google est facultative et s’active depuis le formulaire principal.</div>
               <label class="form-label" for="new-site-adresse">Adresse</label>
-              <input type="text" name="adresse" id="new-site-adresse" class="form-control" autocomplete="street-address">
-              <div class="form-text">Saisie manuelle disponible. L’aide Google est facultative et s’active depuis le formulaire principal.</div>
-              <gmp-place-autocomplete id="new-site-autocomplete" aria-label="Suggestion Google facultative"></gmp-place-autocomplete>
+              <input type="text" name="adresse" id="new-site-adresse" class="form-control" autocomplete="street-address" aria-describedby="new-site-address-help">
+              <gmp-place-autocomplete id="new-site-autocomplete" class="mt-3" aria-label="Suggestion Google facultative"></gmp-place-autocomplete>
               
 
 
@@ -2477,6 +2479,30 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function initPlaces(){
+    const companySearch = document.getElementById('participant-company-autocomplete');
+    if (companySearch && !companySearch.dataset.ready && window.google?.maps?.places?.PlaceAutocompleteElement) {
+      companySearch.dataset.ready = 'true';
+      let companyRevision = 0;
+      const fields = ['address', 'postcode', 'city'].map(key => document.getElementById('participant-company-' + key));
+      fields.forEach(field => field.addEventListener('input', () => companyRevision++));
+      document.getElementById('form-participant-entreprise').addEventListener('reset', () => companyRevision++);
+      companySearch.addEventListener('gmp-select', async ({placePrediction}) => {
+        const revision = ++companyRevision;
+        const status = document.getElementById('participant-company-search-status');
+        status.textContent = 'Recherche de l’adresse…';
+        try {
+          const place = placePrediction.toPlace();
+          await place.fetchFields({fields: ['addressComponents']});
+          if (revision !== companyRevision) return;
+          const parts = place.addressComponents || [];
+          const values = [[comp(parts, 'street_number'), comp(parts, 'route')].filter(Boolean).join(' '), comp(parts, 'postal_code'), comp(parts, 'locality') || comp(parts, 'postal_town')];
+          fields.forEach((field, index) => { field.value = values[index]; field.dispatchEvent(new Event('change', {bubbles:true})); });
+          status.textContent = 'Adresse renseignée. Vous pouvez la compléter ou la corriger ci-dessous.';
+        } catch (_) {
+          if (revision === companyRevision) status.textContent = 'Recherche indisponible. Vous pouvez saisir l’adresse manuellement.';
+        }
+      });
+    }
     if (!acEl || !window.google?.maps?.places?.PlaceAutocompleteElement) return;
 
     acEl.addEventListener('gmp-select', async ({ placePrediction }) => {

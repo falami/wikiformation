@@ -24,8 +24,9 @@ final class SessionEntrepriseController extends AbstractController
             return $this->json(['success'=>false, 'message'=>'Le formulaire a expiré. Rechargez la page.'], 403);
         }
         $values = [];
-        foreach (['raisonSociale'=>255, 'siret'=>14, 'email'=>180, 'adresse'=>255, 'codePostal'=>20, 'ville'=>100] as $key=>$max) {
+        foreach (['raisonSociale'=>255, 'siret'=>14, 'numeroTVA'=>14, 'email'=>180, 'adresse'=>255, 'codePostal'=>20, 'ville'=>100] as $key=>$max) {
             $values[$key] = trim((string) $request->request->get($key, ''));
+            if ($key === 'numeroTVA') $values[$key] = \App\Service\Company\CompanyIdentifiers::normalize($values[$key]);
             if ($key === 'siret') $values[$key] = preg_replace('/\s+/', '', $values[$key]);
             if (mb_strlen($values[$key]) > $max) {
                 return $this->json(['success'=>false, 'message'=>'Un champ dépasse la longueur autorisée.'], 422);
@@ -35,6 +36,9 @@ final class SessionEntrepriseController extends AbstractController
             || ($values['email'] !== '' && !filter_var($values['email'], FILTER_VALIDATE_EMAIL))) {
             return $this->json(['success'=>false, 'message'=>'Renseignez la raison sociale, un e-mail valide et un SIRET de 14 chiffres si vous les indiquez.'], 422);
         }
+
+        $identifierErrors = \App\Service\Company\CompanyIdentifiers::errors($values['siret'], $values['numeroTVA']);
+        if ($identifierErrors) return $this->json(['success'=>false, 'message'=>implode(' ', $identifierErrors)], 422);
 
         $query = $em->getRepository(Entreprise::class)->createQueryBuilder('e')->andWhere('e.entite = :entite')->setParameter('entite', $entite);
         $match = 'LOWER(TRIM(e.raisonSociale)) = :name';
@@ -54,7 +58,7 @@ final class SessionEntrepriseController extends AbstractController
                 /** @var Utilisateur $creator */
                 $creator = $this->getUser();
                 $entreprise = (new Entreprise())->setEntite($entite)->setCreateur($creator)->setRaisonSociale($values['raisonSociale'])
-                    ->setSiret($values['siret'] ?: null)->setEmail($values['email'] ?: null)
+                    ->setNumeroTVA($values['numeroTVA'] ?: null)->setSiret($values['siret'] ?: null)->setEmail($values['email'] ?: null)
                     ->setAdresse($values['adresse'] ?: null)->setCodePostal($values['codePostal'] ?: null)->setVille($values['ville'] ?: null);
                 $em->persist($entreprise);
                 $em->flush();

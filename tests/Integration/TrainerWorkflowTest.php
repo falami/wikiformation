@@ -355,13 +355,13 @@ final class TrainerWorkflowTest extends KernelTestCase
         self::assertSame(3.25, $copy->getNombreHeuresPourFormateur($this->afternoon));
     }
 
-    public function testSessionPlanningRejectsOverlapsAndAcceptsAdjacentSlots(): void
+    public function testSessionPlanningAllowsSharedTrainerButRejectsInternalOverlaps(): void
     {
         $validator = self::getContainer()->get(SessionPlanningValidator::class);
         self::assertSame([], $validator->errors($this->session));
         $other = (new Session())->setEntite($this->entite)->setCreateur($this->admin)->setFormation($this->session->getFormation())->setSite($this->session->getSite())->setFormateur($this->afternoon)->setCode('SES-OTHER');
         $slot = $this->slot('2026-10-05 16:00', '2026-10-05 18:00'); $other->addJour($slot);
-        self::assertStringContainsString('déjà affecté', implode(' ', $validator->errors($other)));
+        self::assertSame([], $validator->errors($other), 'A trainer can be assigned to overlapping sessions.');
         $slot->setDateDebut(new \DateTimeImmutable('2026-10-05 17:00'));
         self::assertSame([], $validator->errors($other));
         $other->addJour($this->slot('2026-10-05 17:30', '2026-10-05 19:00', $this->morning));
